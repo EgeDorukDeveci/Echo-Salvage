@@ -68,6 +68,14 @@ const AUTH_USERS_KEY = "echo-salvage-users";
 const AUTH_SESSION_KEY = "echo-salvage-session";
 const COMMUNITY_LEVELS_KEY = "echo-salvage-community-levels";
 const LEVEL_API_URL = import.meta.env.VITE_LEVEL_API_URL || "http://localhost:8787";
+const AVATARS = [
+  { id: "yellow", label: "Signal Drone", colors: ["#ffd52d", "#061012"] },
+  { id: "cyan", label: "Echo Wing", colors: ["#00f0d2", "#062125"] },
+  { id: "red", label: "Hazard Skiff", colors: ["#ff4e41", "#2b0b0a"] },
+  { id: "green", label: "Repair Unit", colors: ["#58e07a", "#071b10"] },
+  { id: "white", label: "Archive Glider", colors: ["#e7f0ef", "#19272d"] },
+  { id: "gold", label: "Salvage Ace", colors: ["#ffb000", "#221706"] }
+];
 
 function getStoredUsers() {
   try {
@@ -87,6 +95,14 @@ function getStoredSession() {
   } catch {
     return null;
   }
+}
+
+function updateStoredUserProfile(updated) {
+  const users = getStoredUsers().map((u) => (u.id === updated.id ? { ...u, ...updated } : u));
+  saveStoredUsers(users);
+  const session = { id: updated.id, nickname: updated.nickname, email: updated.email, avatar: updated.avatar };
+  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+  return session;
 }
 
 function getLocalCommunityLevels() {
@@ -410,6 +426,15 @@ function Button({ children, primary, danger, className = "", ...props }) {
   );
 }
 
+function AvatarBadge({ avatar = "yellow", size = "md" }) {
+  const selected = AVATARS.find((item) => item.id === avatar) || AVATARS[0];
+  return (
+    <span className={`avatar-badge avatar-${size}`} style={{ "--avatar-main": selected.colors[0], "--avatar-bg": selected.colors[1] }}>
+      <span />
+    </span>
+  );
+}
+
 function AuthScreen({ onAuth }) {
   const [mode, setMode] = useState("signup");
   const [nickname, setNickname] = useState("");
@@ -442,10 +467,11 @@ function AuthScreen({ onAuth }) {
         nickname: cleanNick,
         email: cleanEmail,
         password: cleanPassword,
+        avatar: "yellow",
         createdAt: new Date().toISOString()
       };
       saveStoredUsers([...users, user]);
-      const session = { id: user.id, nickname: user.nickname, email: user.email };
+      const session = { id: user.id, nickname: user.nickname, email: user.email, avatar: user.avatar };
       localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
       onAuth(session);
       return;
@@ -454,7 +480,7 @@ function AuthScreen({ onAuth }) {
       setMessage("Nickname or password is incorrect.");
       return;
     }
-    const session = { id: found.id, nickname: found.nickname, email: found.email };
+    const session = { id: found.id, nickname: found.nickname, email: found.email, avatar: found.avatar || "yellow" };
     localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
     onAuth(session);
   };
@@ -1131,7 +1157,10 @@ function MainMenu({ setScreen, setLevelIndex, user, onLogout }) {
         <section className="panel">
           <div className="panel-header">
             <span className="badge">Orbital Salvage Run</span>
-            <span className="status-pill">Pilot {user?.nickname}</span>
+            <button className="profile-pill" onClick={() => setScreen("profile")}>
+              <AvatarBadge avatar={user?.avatar} />
+              <span>Pilot {user?.nickname}</span>
+            </button>
           </div>
           <h1 className="title">Echo Salvage</h1>
           <p className="lead">Pilot a drone through locked station rooms. Move, shoot, dash, and interact, then deploy an Echo that repeats your last eight seconds.</p>
@@ -1139,6 +1168,7 @@ function MainMenu({ setScreen, setLevelIndex, user, onLogout }) {
             <Button primary onClick={() => setScreen("briefing")}><Play size={22} /> Begin Training</Button>
             <Button onClick={() => setScreen("editor")}><Wand2 size={20} /> Level Creator</Button>
             <Button onClick={() => setScreen("community")}><Globe2 size={20} /> Community Levels</Button>
+            <Button onClick={() => setScreen("profile")}><UserRound size={20} /> Profile</Button>
             <Button onClick={() => setScreen("settings")}><Settings size={20} /> Settings</Button>
             <Button onClick={() => setScreen("controls")}><Gamepad2 size={20} /> Controls</Button>
             <Button danger onClick={onLogout}><LogOut size={20} /> Logout</Button>
@@ -1187,6 +1217,50 @@ function Briefing({ setScreen }) {
 
 function Brief({ icon, title, text }) {
   return <div className="brief-card"><div className="brief-icon">{icon}</div><div><h3>{title}</h3><p>{text}</p></div></div>;
+}
+
+function ProfileScreen({ user, setUser, setScreen }) {
+  const [avatar, setAvatar] = useState(user?.avatar || "yellow");
+  const [message, setMessage] = useState("");
+
+  const save = () => {
+    const current = getStoredUsers().find((u) => u.id === user?.id);
+    if (!current) {
+      setMessage("Profile not found. Log in again.");
+      return;
+    }
+    const session = updateStoredUserProfile({ ...current, avatar });
+    setUser(session);
+    setMessage("Profile picture updated.");
+  };
+
+  return (
+    <div className="overlay">
+      <section className="panel profile-panel">
+        <div className="drawer-head">
+          <div>
+            <span className="badge">Pilot Profile</span>
+            <h2>{user?.nickname}</h2>
+            <p className="small-copy">{user?.email || "No email attached"}</p>
+          </div>
+          <AvatarBadge avatar={avatar} size="lg" />
+        </div>
+        <div className="avatar-grid">
+          {AVATARS.map((item) => (
+            <button className="avatar-choice" data-active={avatar === item.id} key={item.id} onClick={() => setAvatar(item.id)}>
+              <AvatarBadge avatar={item.id} />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+        {message && <p className="auth-message">{message}</p>}
+        <div className="button-grid">
+          <Button primary onClick={save}><UserRound /> Save Profile Pic</Button>
+          <Button onClick={() => setScreen("menu")}>Back To Menu</Button>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function SettingsDrawer({ settings, setSettings, setScreen }) {
@@ -1418,6 +1492,7 @@ function App() {
       {(screen === "playing" || screen === "paused" || screen === "summary") && <GameView key={`${levelIndex}-${runSeed}-${customLevel ? "custom" : "stock"}`} levelIndex={levelIndex} customLevel={customLevel} screen={screen === "playing" ? "playing" : "idle"} setScreen={setScreen} settings={settings} setSummary={setSummary} />}
       {screen === "auth" && <AuthScreen onAuth={(session) => { setUser(session); setScreen("menu"); }} />}
       {screen === "menu" && <MainMenu user={user} onLogout={logout} setScreen={setScreen} setLevelIndex={(i) => { setCustomLevel(null); setLevelIndex(i); }} />}
+      {screen === "profile" && <ProfileScreen user={user} setUser={setUser} setScreen={setScreen} />}
       {screen === "briefing" && <Briefing setScreen={setScreen} />}
       {screen === "settings" && <SettingsDrawer settings={settings} setSettings={setSettings} setScreen={setScreen} />}
       {screen === "controls" && <Controls setScreen={setScreen} />}
