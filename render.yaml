@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: echo-salvage-community
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm run community
+    envVars:
+      - key: LEVEL_DATA_DIR
+        value: /var/data
+    disk:
+      name: level-data
+      mountPath: /var/data
+      sizeGB: 1
