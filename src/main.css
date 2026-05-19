@@ -875,7 +875,7 @@ textarea {
   position: absolute;
   inset: 0;
   display: grid;
-  grid-template-columns: minmax(260px, 320px) 1fr;
+  grid-template-columns: minmax(300px, 360px) 1fr;
   background: rgba(5, 12, 15, 0.96);
 }
 
@@ -885,14 +885,37 @@ textarea {
   overflow: auto;
 }
 
+.editor-tool-status {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  background: rgba(8, 17, 20, 0.86);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.editor-tool-status span,
+.editor-tool-status p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.editor-tool-status strong {
+  color: var(--yellow);
+  font-size: 18px;
+  text-transform: uppercase;
+}
+
 .tools {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
 .tool-btn {
-  min-height: 42px;
+  display: grid;
+  min-height: 52px;
   color: var(--text);
   padding: 8px 10px;
   text-align: left;
@@ -900,9 +923,27 @@ textarea {
   font-weight: 800;
 }
 
+.tool-btn small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: none;
+}
+
 .tool-btn[data-active="true"] {
   border-color: var(--yellow);
   color: var(--yellow);
+}
+
+.editor-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.editor-actions .btn {
+  min-height: 42px;
 }
 
 .editor-canvas-wrap {
@@ -923,6 +964,7 @@ textarea {
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid rgba(75, 116, 128, 0.35);
+  background: rgba(8, 17, 20, 0.34);
 }
 
 .publish-box label {

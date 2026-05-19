@@ -1768,7 +1768,18 @@ function Editor({ setScreen, setCustomLevel, user }) {
   const [publishName, setPublishName] = useState("Untitled Echo Map");
   const [publishNote, setPublishNote] = useState("");
   const [publishStatus, setPublishStatus] = useState("");
-  const tools = ["wall", "crate", "plate", "switch", "turret", "scrap", "exit", "erase"];
+  const tools = [
+    { id: "wall", label: "Wall", hint: "Solid station structure" },
+    { id: "cargo", label: "Cargo", hint: "Push/block puzzle crate" },
+    { id: "coinCache", label: "Coin Cache", hint: "Collectable currency cache" },
+    { id: "plate", label: "Pressure Plate", hint: "Needs a body or Echo" },
+    { id: "switch", label: "Terminal", hint: "Interact with E" },
+    { id: "turret", label: "Turret", hint: "Shoots when it sees you" },
+    { id: "scrap", label: "Scrap", hint: "Restores energy" },
+    { id: "exit", label: "Exit Gate", hint: "Extraction target" },
+    { id: "erase", label: "Erase", hint: "Remove editor pieces" }
+  ];
+  const activeTool = tools.find((item) => item.id === tool) || tools[0];
 
   useEffect(() => {
     const ctx = canvas.current?.getContext("2d");
@@ -1781,14 +1792,19 @@ function Editor({ setScreen, setCustomLevel, user }) {
     const y = Math.floor(((e.clientY - r.top) / r.height) * H / CELL) * CELL;
     const next = structuredClone(level);
     if (tool === "wall") next.walls.push({ x, y, w: CELL, h: CELL });
-    if (tool === "crate") next.crates.push({ x: x + 1, y: y + 1, w: CELL - 2, h: CELL - 2 });
+    if (tool === "cargo") next.crates.push({ x: x + 1, y: y + 1, w: CELL - 2, h: CELL - 2 });
+    if (tool === "coinCache") {
+      next.coinCrates = next.coinCrates || [];
+      next.coinCrates.push({ x: x + 3, y: y + 3, w: CELL - 6, h: CELL - 6, value: 12, taken: false });
+    }
     if (tool === "plate") next.plates.push({ x: x + 20, y: y + 20, r: 26, id: `P${next.plates.length + 1}` });
     if (tool === "switch") next.switches.push({ x: x + 20, y: y + 20, r: 22, id: `S${next.switches.length + 1}`, on: false });
     if (tool === "turret") next.turrets.push({ x: x + 20, y: y + 20, hp: 2, cooldown: 0 });
     if (tool === "scrap") next.scrap.push({ x: x + 20, y: y + 20, taken: false });
     if (tool === "exit") next.exit = { x, y, w: 58, h: 114 };
     if (tool === "erase") {
-      ["walls", "crates", "plates", "switches", "turrets", "scrap"].forEach((k) => {
+      ["walls", "crates", "coinCrates", "plates", "switches", "turrets", "scrap"].forEach((k) => {
+        next[k] = next[k] || [];
         next[k] = next[k].filter((o) => !rectsTouch({ x, y, w: CELL, h: CELL }, { x: (o.x ?? 0) - (o.r ?? 0), y: (o.y ?? 0) - (o.r ?? 0), w: o.w ?? (o.r ?? 22) * 2, h: o.h ?? (o.r ?? 22) * 2 }));
       });
     }
@@ -1840,8 +1856,13 @@ function Editor({ setScreen, setCustomLevel, user }) {
     <div className="editor">
       <aside className="editor-side">
         <div className="drawer-head"><div><h2>Level Creator</h2><p className="small-copy">Paint station pieces, export a room, or test it instantly.</p></div></div>
-        <div className="tools">{tools.map((t) => <button className="tool-btn" data-active={tool === t} key={t} onClick={() => setTool(t)}>{t}</button>)}</div>
-        <div className="button-grid">
+        <div className="editor-tool-status">
+          <span>Active Tool</span>
+          <strong>{activeTool.label}</strong>
+          <p>{activeTool.hint}</p>
+        </div>
+        <div className="tools">{tools.map((t) => <button className="tool-btn" data-active={tool === t.id} key={t.id} onClick={() => setTool(t.id)}><span>{t.label}</span><small>{t.hint}</small></button>)}</div>
+        <div className="editor-actions">
           <Button primary onClick={() => { setCustomLevel(level); setScreen("playing"); }}><Play /> Test</Button>
           <Button onClick={exportCode}>Make Code</Button>
           <Button onClick={importCode}>Import Code</Button>
