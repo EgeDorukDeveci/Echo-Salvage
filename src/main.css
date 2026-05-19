@@ -357,6 +357,16 @@ textarea {
 
 .profile-panel {
   width: min(720px, 96vw);
+  max-height: min(92vh, 820px);
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.profile-scroll {
+  min-height: 0;
+  overflow: auto;
+  padding-right: 6px;
 }
 
 .avatar-grid {
@@ -387,13 +397,27 @@ textarea {
 .profile-preview {
   display: grid;
   place-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
   border: 1px solid var(--line);
   background:
     linear-gradient(rgba(0, 240, 210, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 240, 210, 0.05) 1px, transparent 1px),
     rgba(5, 13, 16, 0.88);
   background-size: 20px 20px;
+}
+
+.profile-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(75, 116, 128, 0.45);
+  background: linear-gradient(180deg, rgba(13, 24, 28, 0.7), rgba(6, 15, 18, 0.98));
+}
+
+.profile-actions .auth-message {
+  grid-column: 1 / -1;
 }
 
 .profile-preview canvas {

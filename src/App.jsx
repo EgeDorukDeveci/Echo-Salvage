@@ -1479,48 +1479,50 @@ function ProfileScreen({ user, setUser, setScreen }) {
             }}
           />
         </div>
-        <div className="avatar-grid">
-          {AVATARS.map((item) => (
-            <button className="avatar-choice" data-active={avatar === item.id} key={item.id} onClick={() => setAvatar(item.id)}>
-              <AvatarBadge avatar={item.id} />
-              <span>{item.label}</span>
-            </button>
-          ))}
+        <div className="profile-scroll">
+          <div className="avatar-grid">
+            {AVATARS.map((item) => (
+              <button className="avatar-choice" data-active={avatar === item.id} key={item.id} onClick={() => setAvatar(item.id)}>
+                <AvatarBadge avatar={item.id} />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="customizer-grid">
+            <div>
+              <label>Body Color</label>
+              <div className="swatch-row">
+                {BODY_COLORS.map((color) => <button key={color} className="swatch" data-active={cosmetic.body === color} data-locked={!owned.bodies.includes(color)} style={{ background: color }} onClick={() => owned.bodies.includes(color) ? setCosmetic({ ...cosmetic, body: color }) : setMessage("Unlock this body color in the shop first.")} />)}
+              </div>
+            </div>
+            <div>
+              <label>Trail Color</label>
+              <div className="swatch-row">
+                {TRAIL_COLORS.map((color) => <button key={color} className="swatch" data-active={cosmetic.trail === color} data-locked={!owned.trails.includes(color)} style={{ background: color }} onClick={() => owned.trails.includes(color) ? setCosmetic({ ...cosmetic, trail: color, accent: color }) : setMessage("Unlock this trail color in the shop first.")} />)}
+              </div>
+            </div>
+            <div>
+              <label>Drone Frame</label>
+              <div className="frame-row">
+                {DRONE_FRAMES.map((frame) => <button key={frame.id} data-active={cosmetic.frame === frame.id} data-locked={!owned.frames.includes(frame.id)} onClick={() => owned.frames.includes(frame.id) ? setCosmetic({ ...cosmetic, frame: frame.id }) : setMessage("Unlock this frame in the shop first.")}>{frame.label}</button>)}
+              </div>
+            </div>
+            <div>
+              <label>Dash Animation</label>
+              <div className="frame-row">
+                {DASH_STYLES.map((dash) => <button key={dash.id} data-active={cosmetic.dashStyle === dash.id} data-locked={!owned.dashes.includes(dash.id)} onClick={() => owned.dashes.includes(dash.id) ? setCosmetic({ ...cosmetic, dashStyle: dash.id }) : setMessage("Unlock this dash animation in the shop first.")}>{dash.label}</button>)}
+              </div>
+            </div>
+            <div>
+              <label>Pet</label>
+              <div className="frame-row">
+                {PETS.map((pet) => <button key={pet.id} data-active={cosmetic.pet === pet.id} data-locked={!owned.pets.includes(pet.id)} onClick={() => owned.pets.includes(pet.id) ? setCosmetic({ ...cosmetic, pet: pet.id }) : setMessage("Unlock this pet in the shop first.")}>{pet.label}</button>)}
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="customizer-grid">
-          <div>
-            <label>Body Color</label>
-            <div className="swatch-row">
-              {BODY_COLORS.map((color) => <button key={color} className="swatch" data-active={cosmetic.body === color} data-locked={!owned.bodies.includes(color)} style={{ background: color }} onClick={() => owned.bodies.includes(color) ? setCosmetic({ ...cosmetic, body: color }) : setMessage("Unlock this body color in the shop first.")} />)}
-            </div>
-          </div>
-          <div>
-            <label>Trail Color</label>
-            <div className="swatch-row">
-              {TRAIL_COLORS.map((color) => <button key={color} className="swatch" data-active={cosmetic.trail === color} data-locked={!owned.trails.includes(color)} style={{ background: color }} onClick={() => owned.trails.includes(color) ? setCosmetic({ ...cosmetic, trail: color, accent: color }) : setMessage("Unlock this trail color in the shop first.")} />)}
-            </div>
-          </div>
-          <div>
-            <label>Drone Frame</label>
-            <div className="frame-row">
-              {DRONE_FRAMES.map((frame) => <button key={frame.id} data-active={cosmetic.frame === frame.id} data-locked={!owned.frames.includes(frame.id)} onClick={() => owned.frames.includes(frame.id) ? setCosmetic({ ...cosmetic, frame: frame.id }) : setMessage("Unlock this frame in the shop first.")}>{frame.label}</button>)}
-            </div>
-          </div>
-          <div>
-            <label>Dash Animation</label>
-            <div className="frame-row">
-              {DASH_STYLES.map((dash) => <button key={dash.id} data-active={cosmetic.dashStyle === dash.id} data-locked={!owned.dashes.includes(dash.id)} onClick={() => owned.dashes.includes(dash.id) ? setCosmetic({ ...cosmetic, dashStyle: dash.id }) : setMessage("Unlock this dash animation in the shop first.")}>{dash.label}</button>)}
-            </div>
-          </div>
-          <div>
-            <label>Pet</label>
-            <div className="frame-row">
-              {PETS.map((pet) => <button key={pet.id} data-active={cosmetic.pet === pet.id} data-locked={!owned.pets.includes(pet.id)} onClick={() => owned.pets.includes(pet.id) ? setCosmetic({ ...cosmetic, pet: pet.id }) : setMessage("Unlock this pet in the shop first.")}>{pet.label}</button>)}
-            </div>
-          </div>
-        </div>
-        {message && <p className="auth-message">{message}</p>}
-        <div className="button-grid">
+        <div className="profile-actions">
+          {message && <p className="auth-message">{message}</p>}
           <Button primary onClick={save}><UserRound /> Save Character</Button>
           <Button onClick={() => setScreen("shop")}><Sparkles /> Open Shop</Button>
           <Button onClick={() => setScreen("menu")}>Back To Menu</Button>
