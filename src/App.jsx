@@ -128,7 +128,8 @@ const AVATARS = [
   { id: "white", label: "Archive Glider", colors: ["#e7f0ef", "#19272d"] },
   { id: "gold", label: "Salvage Ace", colors: ["#ffb000", "#221706"] }
 ];
-const COSMETIC_DEFAULTS = { body: "#dfe9e8", accent: "#ffd52d", trail: "#00f0d2", frame: "arrow", pet: "none", dashStyle: "streak" };
+const WEAPON_DEFAULT = "pulse";
+const COSMETIC_DEFAULTS = { body: "#dfe9e8", accent: "#ffd52d", trail: "#00f0d2", frame: "arrow", pet: "none", dashStyle: "streak", weapon: WEAPON_DEFAULT };
 const BODY_COLORS = ["#dfe9e8", "#ffd52d", "#00f0d2", "#58e07a", "#ff4e41", "#ffb000"];
 const TRAIL_COLORS = ["#00f0d2", "#ffd52d", "#58e07a", "#ff4e41", "#e7f0ef", "#ff8a00"];
 const DRONE_FRAMES = [
@@ -155,12 +156,20 @@ const DASH_STYLES = [
   { id: "spark", label: "Spark Spray", price: 90 },
   { id: "comet", label: "Comet Tail", price: 130 }
 ];
+const WEAPONS = [
+  { id: "pulse", label: "Pulse Carbine", price: 0, ammoMax: 18, reloadMs: 1050, fireDelay: 210, bulletSpeed: 620, damage: 1, spread: 0, shotsPerTrigger: 1, burstGap: 0, perk: "Balanced starter: stable aim and decent ammo." },
+  { id: "pump", label: "Pump Scatter", price: 95, ammoMax: 8, reloadMs: 1450, fireDelay: 520, bulletSpeed: 560, damage: 1, spread: 0.24, shotsPerTrigger: 6, burstGap: 0, perk: "Huge close-range burst, but slow fire and small magazine." },
+  { id: "burst", label: "Tri-Burst", price: 135, ammoMax: 24, reloadMs: 1300, fireDelay: 460, bulletSpeed: 650, damage: 1, spread: 0.04, shotsPerTrigger: 3, burstGap: 85, perk: "Great mid-range pressure with disciplined 3-round bursts." },
+  { id: "needle", label: "Needle Rail", price: 175, ammoMax: 10, reloadMs: 1350, fireDelay: 340, bulletSpeed: 860, damage: 2, spread: 0.01, shotsPerTrigger: 1, burstGap: 0, perk: "High precision and damage, but low magazine size." },
+  { id: "storm", label: "Storm Vector", price: 230, ammoMax: 34, reloadMs: 1600, fireDelay: 105, bulletSpeed: 600, damage: 1, spread: 0.11, shotsPerTrigger: 1, burstGap: 0, perk: "Very high DPS, but burns ammo fast and kicks wide." }
+];
 const DEFAULT_OWNED = {
   bodies: ["#dfe9e8"],
   trails: ["#00f0d2"],
   frames: ["arrow"],
   pets: ["none"],
-  dashes: ["streak"]
+  dashes: ["streak"],
+  weapons: [WEAPON_DEFAULT]
 };
 const BODY_PRICES = { "#ffd52d": 35, "#00f0d2": 45, "#58e07a": 55, "#ff4e41": 70, "#ffb000": 100 };
 const TRAIL_PRICES = { "#ffd52d": 35, "#58e07a": 50, "#ff4e41": 65, "#e7f0ef": 80, "#ff8a00": 95 };
@@ -180,9 +189,10 @@ function normalizeEconomy(data = {}) {
       trails: [...new Set([...(data.owned?.trails || []), ...DEFAULT_OWNED.trails])],
       frames: [...new Set([...(data.owned?.frames || []), ...DEFAULT_OWNED.frames])],
       pets: [...new Set([...(data.owned?.pets || []), ...DEFAULT_OWNED.pets])],
-      dashes: [...new Set([...(data.owned?.dashes || []), ...DEFAULT_OWNED.dashes])]
+      dashes: [...new Set([...(data.owned?.dashes || []), ...DEFAULT_OWNED.dashes])],
+      weapons: [...new Set([...(data.owned?.weapons || []), ...DEFAULT_OWNED.weapons])]
     },
-    cosmetic: { ...COSMETIC_DEFAULTS, ...(data.cosmetic || {}) }
+    cosmetic: { ...COSMETIC_DEFAULTS, weapon: WEAPON_DEFAULT, ...(data.cosmetic || {}) }
   };
 }
 
@@ -639,7 +649,8 @@ function AuthScreen({ onAuth }) {
           trails: TRAIL_COLORS,
           frames: DRONE_FRAMES.map((frame) => frame.id),
           pets: PETS.map((pet) => pet.id),
-          dashes: DASH_STYLES.map((dash) => dash.id)
+          dashes: DASH_STYLES.map((dash) => dash.id),
+          weapons: WEAPONS.map((weapon) => weapon.id)
         },
         devMode: true,
         createdAt: existing?.createdAt || new Date().toISOString()
@@ -1163,17 +1174,21 @@ function getPetPerks(cosmetic = COSMETIC_DEFAULTS) {
   }
 }
 
+function getWeaponById(id) {
+  return WEAPONS.find((w) => w.id === id) || WEAPONS[0];
+}
+
 function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, cosmetic, awardCoins }) {
   const canvas = useRef(null);
   const game = useRef(null);
   const keys = useRef(new Set());
   const mouse = useRef({ x: 0, y: 0, down: false });
-  const fireLatch = useRef(0);
   const dashQueued = useRef(false);
 
   const reset = () => {
     const level = customLevel ? structuredClone(customLevel) : makeLevel(levelIndex);
     const perks = getPetPerks(cosmetic);
+    const weapon = getWeaponById(cosmetic.weapon);
     const maxShield = perks.maxShield || 0;
     level.coinCrates = level.coinCrates || [];
     level.turrets.forEach((t) => {
@@ -1185,7 +1200,25 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     game.current = {
       level,
       activeIds: new Set(),
-      player: { x: level.player.x, y: level.player.y, angle: 0, hp: 100, energy: MAX_ENERGY, shield: maxShield, maxShield, dash: 100, scrap: 0, coinsEarned: 0 },
+      player: {
+        x: level.player.x,
+        y: level.player.y,
+        angle: 0,
+        hp: 100,
+        energy: MAX_ENERGY,
+        shield: maxShield,
+        maxShield,
+        dash: 100,
+        scrap: 0,
+        coinsEarned: 0,
+        weaponId: weapon.id,
+        ammo: weapon.ammoMax,
+        ammoMax: weapon.ammoMax,
+        isReloading: false,
+        reloadUntil: 0,
+        nextShotAt: 0,
+        triggerHeld: false
+      },
       echoes: [],
       bullets: [],
       dashBursts: [],
@@ -1201,7 +1234,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
 
   useEffect(() => {
     const down = (e) => {
-      if (["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowLeft", "ArrowRight", "ArrowDown", "ShiftLeft", "ShiftRight", "Space", "KeyE", "KeyQ"].includes(e.code)) e.preventDefault();
+      if (["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowLeft", "ArrowRight", "ArrowDown", "ShiftLeft", "ShiftRight", "Space", "KeyE", "KeyQ", "KeyT"].includes(e.code)) e.preventDefault();
       if ((e.code === "ShiftLeft" || e.code === "ShiftRight") && !keys.current.has(e.code)) dashQueued.current = true;
       keys.current.add(e.code);
       if (e.code === "KeyQ") spawnEcho();
@@ -1248,7 +1281,54 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     const g = game.current;
     const angle = from.angle || 0;
     const perks = owner === "player" ? getPetPerks(cosmetic) : {};
-    g.bullets.push({ x: from.x + Math.cos(angle) * 24, y: from.y + Math.sin(angle) * 24, vx: Math.cos(angle) * 620, vy: Math.sin(angle) * 620, life: 900, owner, damage: perks.bulletDamage || 1 });
+    const weapon = owner === "player" ? getWeaponById(g.player.weaponId || cosmetic.weapon) : null;
+    const speed = weapon?.bulletSpeed || 620;
+    g.bullets.push({
+      x: from.x + Math.cos(angle) * 24,
+      y: from.y + Math.sin(angle) * 24,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 900,
+      owner,
+      damage: (weapon?.damage || 1) + (perks.bulletDamage || 0)
+    });
+  }
+
+  function startReload(now) {
+    const g = game.current;
+    const weapon = getWeaponById(g.player.weaponId || cosmetic.weapon);
+    if (g.player.isReloading || g.player.ammo >= weapon.ammoMax) return;
+    g.player.isReloading = true;
+    g.player.reloadUntil = now + weapon.reloadMs;
+  }
+
+  function firePlayerWeapon(now) {
+    const g = game.current;
+    const weapon = getWeaponById(g.player.weaponId || cosmetic.weapon);
+    if (g.player.isReloading) return;
+    if (g.player.ammo <= 0) {
+      startReload(now);
+      return;
+    }
+    if (now < g.player.nextShotAt) return;
+    g.player.ammo -= 1;
+    const base = g.player.angle;
+    for (let i = 0; i < weapon.shotsPerTrigger; i += 1) {
+      const spread = weapon.spread ? (Math.random() * 2 - 1) * weapon.spread : 0;
+      const a = base + spread;
+      const burstDelay = i * (weapon.burstGap || 0);
+      if (burstDelay === 0) {
+        shoot({ x: g.player.x, y: g.player.y, angle: a }, "player");
+      } else {
+        setTimeout(() => {
+          const live = game.current;
+          if (!live || live.status !== "playing") return;
+          shoot({ x: live.player.x, y: live.player.y, angle: a }, "player");
+        }, burstDelay);
+      }
+    }
+    g.player.nextShotAt = now + weapon.fireDelay;
+    if (g.player.ammo <= 0) startReload(now);
   }
 
   function tryMove(entity, dx, dy, level) {
@@ -1317,10 +1397,11 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         dashQueued.current = false;
       }
       g.player.angle = Math.atan2(mouse.current.y - g.player.y, mouse.current.x - g.player.x);
-      if ((mouse.current.down || keys.current.has("Space")) && now - fireLatch.current > 210) {
-        fireLatch.current = now;
-        shoot(g.player);
-      }
+      const wantsShoot = mouse.current.down || keys.current.has("Space");
+      if (wantsShoot && !g.player.triggerHeld) firePlayerWeapon(now);
+      if (wantsShoot && (g.player.weaponId === "storm" || g.player.weaponId === "pulse" || g.player.weaponId === "needle")) firePlayerWeapon(now);
+      g.player.triggerHeld = wantsShoot;
+      if (keys.current.has("KeyT")) startReload(now);
       if (keys.current.has("KeyE")) interact(g.player);
 
       g.echoes.forEach((e) => {
@@ -1444,6 +1525,12 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       g.recording.push({ x: g.player.x, y: g.player.y, angle: g.player.angle, fire: didFire, interact: keys.current.has("KeyE") });
       while (g.recording.length > ECHO_MS / 50) g.recording.shift();
       g.player.dash = clamp(g.player.dash + dt * 0.055 * (perks.dashRegenMultiplier || 1), 0, 100);
+      const activeWeapon = getWeaponById(g.player.weaponId || cosmetic.weapon);
+      g.player.ammoMax = activeWeapon.ammoMax;
+      if (g.player.isReloading && now >= g.player.reloadUntil) {
+        g.player.isReloading = false;
+        g.player.ammo = activeWeapon.ammoMax;
+      }
       g.player.dashTrail = Math.max(0, (g.player.dashTrail || 0) - dt);
       g.dashBursts.forEach((burst) => burst.life -= dt);
       g.dashBursts = g.dashBursts.filter((burst) => burst.life > 0);
@@ -1504,7 +1591,9 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
           <div className="stat-tile"><Sparkles size={16} /><span>Coins</span><strong>{g?.player.coinsEarned ?? 0}</strong></div>
           <button className="stat-tile" onClick={spawnEcho}><Radio size={16} /><span>Echo</span><strong>{g?.echoes.length ?? 0}/3</strong></button>
           <div className="stat-tile"><Zap size={16} /><span>Dash</span><strong>{Math.round(g?.player.dash ?? 100)}%</strong></div>
-          <div className="hud-help">Keyboard recommended. Escape pauses. R restarts room.</div>
+          <div className="stat-tile"><Crosshair size={16} /><span>Ammo</span><strong>{g?.player.isReloading ? "..." : `${g?.player.ammo ?? 0}/${g?.player.ammoMax ?? 0}`}</strong></div>
+          <div className="stat-tile"><Gauge size={16} /><span>Weapon</span><strong>{getWeaponById(g?.player.weaponId).label.split(" ")[0]}</strong></div>
+          <div className="hud-help">Keyboard recommended. Escape pauses. R restarts room. T reloads weapon.</div>
         </div>
       </div>
     </>
@@ -1616,6 +1705,8 @@ function ProfileScreen({ user, setUser, setScreen }) {
       frame: owned.frames.includes(cosmetic.frame) ? cosmetic.frame : COSMETIC_DEFAULTS.frame,
       pet: owned.pets.includes(cosmetic.pet) ? cosmetic.pet : "none",
       dashStyle: owned.dashes.includes(cosmetic.dashStyle) ? cosmetic.dashStyle : "streak"
+      ,
+      weapon: owned.weapons.includes(cosmetic.weapon) ? cosmetic.weapon : WEAPON_DEFAULT
     };
     const session = updateStoredUserProfile({ ...current, avatar, cosmetic: nextCosmetic });
     setUser(session);
@@ -1688,6 +1779,12 @@ function ProfileScreen({ user, setUser, setScreen }) {
               <label>Pet</label>
               <div className="frame-row">
                 {PETS.map((pet) => <button key={pet.id} data-active={cosmetic.pet === pet.id} data-locked={!owned.pets.includes(pet.id)} onClick={() => owned.pets.includes(pet.id) ? setCosmetic({ ...cosmetic, pet: pet.id }) : setMessage("Unlock this pet in the shop first.")}><span>{pet.label}</span><small>{pet.perk}</small></button>)}
+              </div>
+            </div>
+            <div>
+              <label>Weapon Style</label>
+              <div className="frame-row">
+                {WEAPONS.map((weapon) => <button key={weapon.id} data-active={cosmetic.weapon === weapon.id} data-locked={!owned.weapons.includes(weapon.id)} onClick={() => owned.weapons.includes(weapon.id) ? setCosmetic({ ...cosmetic, weapon: weapon.id }) : setMessage("Unlock this weapon in the shop first.")}><span>{weapon.label}</span><small>{weapon.perk}</small></button>)}
               </div>
             </div>
           </div>
@@ -1772,6 +1869,11 @@ function ShopScreen({ user, setUser, setScreen }) {
               <ShopItem key={pet.id} owned={economy.owned.pets.includes(pet.id)} label={pet.label} detail={pet.perk} price={pet.price} color={pet.color} onBuy={() => buy("pets", pet.id, pet.price, pet.label)} />
             ))}
           </ShopSection>
+          <ShopSection title="Weapon Styles">
+            {WEAPONS.filter((weapon) => weapon.id !== WEAPON_DEFAULT).map((weapon) => (
+              <ShopItem key={weapon.id} owned={economy.owned.weapons.includes(weapon.id)} label={weapon.label} detail={weapon.perk} price={weapon.price} onBuy={() => buy("weapons", weapon.id, weapon.price, weapon.label)} />
+            ))}
+          </ShopSection>
           <ShopSection title="Coin Packs Demo">
             {COIN_PACKS.map((pack) => (
               <ShopItem key={pack.id} label={`${pack.label} ${pack.price}`} price={`${pack.coins} coins`} onBuy={() => demoCoinPack(pack)} />
@@ -1819,7 +1921,7 @@ function Toggle({ title, text, value, onChange }) {
 }
 
 function Controls({ setScreen }) {
-  const items = ["Move: WASD / Arrows", "Aim: Mouse", "Shoot: Left Click / Space", "Dash: Shift", "Interact: E at terminals and switches", "Spawn Echo: Q replays your last 8 seconds", "Pressure plates need any body standing on them", "Scanner beams can be blocked by Echo bodies"];
+  const items = ["Move: WASD / Arrows", "Aim: Mouse", "Shoot: Left Click / Space", "Dash: Shift", "Reload: T", "Interact: E at terminals and switches", "Spawn Echo: Q replays your last 8 seconds", "Pressure plates need any body standing on them", "Scanner beams can be blocked by Echo bodies"];
   return (
     <div className="overlay">
       <section className="panel modal">
