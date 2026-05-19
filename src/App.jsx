@@ -447,15 +447,23 @@ const rectsTouch = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 const playerRect = (p) => ({ x: p.x - 15, y: p.y - 15, w: 30, h: 30 });
+const getSolidBlocks = (level) => [...level.walls, ...level.doors.filter((d) => !d.open), ...level.crates];
 const segmentIntersectsRect = (a, b, r) => {
-  const steps = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 14);
-  for (let i = 0; i <= steps; i += 1) {
-    const t = i / steps;
-    const x = a.x + (b.x - a.x) * t;
-    const y = a.y + (b.y - a.y) * t;
-    if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) return true;
-  }
-  return false;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  let tMin = 0.04;
+  let tMax = 0.96;
+  const checkAxis = (start, delta, min, max) => {
+    if (Math.abs(delta) < 0.0001) return start >= min && start <= max;
+    const t1 = (min - start) / delta;
+    const t2 = (max - start) / delta;
+    const near = Math.min(t1, t2);
+    const far = Math.max(t1, t2);
+    tMin = Math.max(tMin, near);
+    tMax = Math.min(tMax, far);
+    return tMin <= tMax;
+  };
+  return checkAxis(a.x, dx, r.x, r.x + r.w) && checkAxis(a.y, dy, r.y, r.y + r.h) && tMax >= 0.04 && tMin <= 0.96;
 };
 const hasLineOfSight = (from, to, blockers) => !blockers.some((b) => segmentIntersectsRect(from, to, b));
 
@@ -822,6 +830,17 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS) {
 
   level.turrets.forEach((t) => {
     if (t.hp <= 0) return;
+    if (t.seesPlayer) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(255, 78, 65, 0.34)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 8]);
+      ctx.beginPath();
+      ctx.moveTo(t.x, t.y);
+      ctx.lineTo(game.player.x, game.player.y);
+      ctx.stroke();
+      ctx.restore();
+    }
     drawLabel(ctx, t.seesPlayer ? "TURRET LOCK" : "TURRET", t.x - 28, t.y - 38, t.seesPlayer ? "#ff4e41" : "#ff7c72");
     drawHealthBar(ctx, t.x, t.y - 50, t.hp, t.maxHp || 3, "#ff4e41");
     ctx.fillStyle = "#33272a";
@@ -1122,7 +1141,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
   }
 
   function tryMove(entity, dx, dy, level) {
-    const blocks = [...level.walls, ...level.doors.filter((d) => !d.open), ...level.crates];
+    const blocks = getSolidBlocks(level);
     entity.x += dx;
     if (blocks.some((b) => rectsTouch(playerRect(entity), b))) entity.x -= dx;
     entity.y += dy;
@@ -1243,7 +1262,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       level.turrets.forEach((t) => {
         if (t.hp <= 0) return;
         t.cooldown -= dt;
-        const blockers = [...level.walls, ...level.doors.filter((d) => !d.open), ...level.crates];
+        const blockers = getSolidBlocks(level);
         const seesPlayer = hasLineOfSight(t, g.player, blockers);
         t.seesPlayer = seesPlayer;
         if (t.cooldown <= 0 && seesPlayer) {
@@ -1257,7 +1276,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         b.x += b.vx * dt / 1000;
         b.y += b.vy * dt / 1000;
         b.life -= dt;
-        if (level.walls.some((w) => rectsTouch({ x: b.x - 3, y: b.y - 3, w: 6, h: 6 }, w))) b.life = 0;
+        if (getSolidBlocks(level).some((w) => rectsTouch({ x: b.x - 3, y: b.y - 3, w: 6, h: 6 }, w))) b.life = 0;
         level.turrets.forEach((t) => {
           if (b.owner !== "enemy" && t.hp > 0 && dist(b, t) < 25) {
             t.hp -= 1;
