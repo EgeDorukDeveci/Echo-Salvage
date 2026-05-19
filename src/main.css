@@ -748,6 +748,9 @@ textarea {
   display: grid;
   grid-template-columns: repeat(5, minmax(70px, 1fr));
   gap: 10px;
+  max-height: min(52vh, 520px);
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .room-card {

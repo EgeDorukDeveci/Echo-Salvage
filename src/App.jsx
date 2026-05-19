@@ -60,7 +60,58 @@ const rooms = [
   "Memory Dock",
   "Capraza Fire",
   "Phase Lock",
-  "Archive Core"
+  "Archive Core",
+  "Cargo Chapel",
+  "Relay Atrium",
+  "Scanner Chapel",
+  "Echo Nursery",
+  "Locked Orchard",
+  "Vacuum Gallery",
+  "Hunter Drone Nest",
+  "Pressure Foundry",
+  "Split Circuit",
+  "Amber Causeway",
+  "Blind Turret Row",
+  "Scrap Conservatory",
+  "Twin Echo Vault",
+  "Switchyard Delta",
+  "Pulse Corridor",
+  "Drone Kennel",
+  "Reactor Cloister",
+  "Glass Spine",
+  "Memory Switchback",
+  "Redline Transit",
+  "Coin Cache Depot",
+  "Tri-Plate Annex",
+  "Echo Bait Lab",
+  "Sentry Choir",
+  "Forked Laser Hall",
+  "Null Dock",
+  "Cargo Switch Maze",
+  "Drone Refueling Bay",
+  "Golden Pressure Court",
+  "Lockstep Furnace",
+  "Archive Sluice",
+  "Signal Cathedral",
+  "Broken Gatehouse",
+  "Turret Blindspot",
+  "Phase Loom",
+  "Scrapline Arcade",
+  "Mirror Relay Stack",
+  "Hunter Drone Chapel",
+  "Reactor Halo",
+  "Long Echo Crossing",
+  "Laser Bloom",
+  "Cinder Switchyard",
+  "Plate Orchestra",
+  "Silent Hangar",
+  "Coin Cache Promenade",
+  "Red Archive",
+  "Echo Gauntlet",
+  "Final Relay",
+  "Salvage Crown",
+  "Station Heart",
+  "The Last Eight Seconds"
 ];
 
 const AUTH_USERS_KEY = "echo-salvage-users";
@@ -1360,7 +1411,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
         <div className="hud-cluster">
           <div className="hud-title">
             <span>{g?.level.name ?? "Training Bay"}</span>
-            <strong>Deck {levelIndex + 1}/15</strong>
+            <strong>Deck {levelIndex + 1}/{rooms.length}</strong>
           </div>
           <Meter label="Hull" value={g?.player.hp ?? 100} color="#ffd52d" />
           <Meter label="Energy" value={g?.player.energy ?? MAX_ENERGY} max={MAX_ENERGY} color="#ffd52d" />
