@@ -67,6 +67,8 @@ const AUTH_USERS_KEY = "echo-salvage-users";
 const AUTH_SESSION_KEY = "echo-salvage-session";
 const COMMUNITY_LEVELS_KEY = "echo-salvage-community-levels";
 const LEVEL_API_URL = import.meta.env.VITE_LEVEL_API_URL || "http://localhost:8787";
+const DEV_LOGIN = { nickname: "developer", password: "echo-dev" };
+const DEV_COINS = 999999;
 const AVATARS = [
   { id: "yellow", label: "Signal Drone", colors: ["#ffd52d", "#061012"] },
   { id: "cyan", label: "Echo Wing", colors: ["#00f0d2", "#062125"] },
@@ -119,8 +121,9 @@ const COIN_PACKS = [
 ];
 
 function normalizeEconomy(data = {}) {
+  const devMode = data.devMode || data.nickname?.toLowerCase() === DEV_LOGIN.nickname;
   return {
-    coins: Number.isFinite(data.coins) ? data.coins : 25,
+    coins: devMode ? DEV_COINS : Number.isFinite(data.coins) ? data.coins : 25,
     owned: {
       bodies: [...new Set([...(data.owned?.bodies || []), ...DEFAULT_OWNED.bodies])],
       trails: [...new Set([...(data.owned?.trails || []), ...DEFAULT_OWNED.trails])],
@@ -134,7 +137,7 @@ function normalizeEconomy(data = {}) {
 
 function makeSession(user) {
   const economy = normalizeEconomy(user);
-  return { id: user.id, nickname: user.nickname, email: user.email, avatar: user.avatar || "yellow", ...economy };
+  return { id: user.id, nickname: user.nickname, email: user.email, avatar: user.avatar || "yellow", devMode: Boolean(user.devMode), ...economy };
 }
 
 function getStoredUsers() {
@@ -526,6 +529,34 @@ function AuthScreen({ onAuth }) {
     }
     if (cleanPassword.length < 4) {
       setMessage("Password needs at least 4 characters.");
+      return;
+    }
+    if (cleanNick.toLowerCase() === DEV_LOGIN.nickname && cleanPassword === DEV_LOGIN.password) {
+      const users = getStoredUsers();
+      const existing = users.find((u) => u.nickname.toLowerCase() === DEV_LOGIN.nickname);
+      const devUser = {
+        ...(existing || {}),
+        id: existing?.id || "dev-local-profile",
+        nickname: DEV_LOGIN.nickname,
+        email: existing?.email || "",
+        password: DEV_LOGIN.password,
+        avatar: existing?.avatar || "gold",
+        cosmetic: existing?.cosmetic || COSMETIC_DEFAULTS,
+        coins: DEV_COINS,
+        owned: {
+          bodies: BODY_COLORS,
+          trails: TRAIL_COLORS,
+          frames: DRONE_FRAMES.map((frame) => frame.id),
+          pets: PETS.map((pet) => pet.id),
+          dashes: DASH_STYLES.map((dash) => dash.id)
+        },
+        devMode: true,
+        createdAt: existing?.createdAt || new Date().toISOString()
+      };
+      saveStoredUsers([devUser, ...users.filter((u) => u.id !== devUser.id && u.nickname.toLowerCase() !== DEV_LOGIN.nickname)]);
+      const session = makeSession(devUser);
+      localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+      onAuth(session);
       return;
     }
     const users = getStoredUsers();
@@ -1338,7 +1369,7 @@ function MainMenu({ setScreen, setLevelIndex, user, onLogout }) {
             <span className="badge">Orbital Salvage Run</span>
             <button className="profile-pill" onClick={() => setScreen("profile")}>
               <AvatarBadge avatar={user?.avatar} />
-              <span>Pilot {user?.nickname}</span>
+              <span>{user?.devMode ? "Dev" : "Pilot"} {user?.nickname}</span>
             </button>
           </div>
           <h1 className="title">Echo Salvage</h1>
@@ -1537,7 +1568,7 @@ function ShopScreen({ user, setUser, setScreen }) {
           <div>
             <span className="badge">Salvage Shop</span>
             <h2>{economy.coins} Coins</h2>
-            <p className="small-copy">Earn coins from orange crates in rooms, then unlock skins, dash effects, and pets.</p>
+            <p className="small-copy">{user?.devMode ? "Developer wallet active for testing." : "Earn coins from orange crates in rooms, then unlock skins, dash effects, and pets."}</p>
           </div>
           <Button onClick={() => setScreen("profile")}>Profile</Button>
         </div>
