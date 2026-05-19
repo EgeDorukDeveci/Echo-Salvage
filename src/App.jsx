@@ -188,7 +188,29 @@ function normalizeEconomy(data = {}) {
 
 function makeSession(user) {
   const economy = normalizeEconomy(user);
-  return { id: user.id, nickname: user.nickname, email: user.email, avatar: user.avatar || "yellow", devMode: Boolean(user.devMode), ...economy };
+  return { id: user.id, nickname: user.nickname, email: user.email, avatar: user.avatar || "yellow", devMode: Boolean(user.devMode), progress: user.progress || {}, ...economy };
+}
+
+function getStarsForRoom(index, summary) {
+  if (summary.result !== "Extracted") return 0;
+  let stars = 1;
+  if (summary.scrap >= 2) stars += 1;
+  if (summary.hull >= 55) stars += 1;
+  return stars;
+}
+
+function getRequiredStars(index) {
+  if (index < 5) return 0;
+  return Math.max(0, Math.floor((index - 4) / 2));
+}
+
+function getTotalStars(progress = {}) {
+  return Object.values(progress).reduce((sum, value) => sum + (Number(value) || 0), 0);
+}
+
+function isRoomUnlocked(index, user) {
+  if (user?.devMode) return true;
+  return getTotalStars(user?.progress) >= getRequiredStars(index);
 }
 
 function getStoredUsers() {
@@ -1373,7 +1395,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       g.shake = Math.max(0, g.shake - dt * 0.03);
 
       if (g.player.hp <= 0) {
-        setSummary({ result: "Signal Lost", scrap: g.player.scrap, time: Math.round((now - g.started) / 1000), room: level.name });
+        setSummary({ result: "Signal Lost", scrap: g.player.scrap, hull: Math.max(0, Math.round(g.player.hp)), time: Math.round((now - g.started) / 1000), room: level.name, levelIndex });
         setScreen("summary");
       }
       const roomSecured =
@@ -1381,7 +1403,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         level.turrets.every((t) => t.hp <= 0) &&
         (level.drones || []).every((d) => d.hp <= 0);
       if (rectsTouch(playerRect(g.player), level.exit) && level.doors.every((d) => d.open) && roomSecured) {
-        setSummary({ result: "Extracted", scrap: g.player.scrap, time: Math.round((now - g.started) / 1000), room: level.name });
+        setSummary({ result: "Extracted", scrap: g.player.scrap, hull: Math.max(0, Math.round(g.player.hp)), time: Math.round((now - g.started) / 1000), room: level.name, levelIndex });
         setScreen("summary");
       }
 
@@ -1443,6 +1465,7 @@ function Meter({ label, value, max = 100, color }) {
 }
 
 function MainMenu({ setScreen, setLevelIndex, user, onLogout }) {
+  const totalStars = getTotalStars(user?.progress);
   return (
     <div className="overlay">
       <div className="menu-grid">
@@ -1470,13 +1493,18 @@ function MainMenu({ setScreen, setLevelIndex, user, onLogout }) {
         <section className="panel">
           <h2>Run Brief</h2>
           <Brief icon={<Bot />} title="Tutorial" text="Room one teaches movement, cargo crates, coin caches, interacting, combat, and pressure plates before the Echo puzzles escalate." />
+          <div className="star-brief"><Sparkles size={18} /><span>{totalStars} stars recovered</span><small>Later decks unlock gently as you extract from earlier rooms.</small></div>
           <div className="rooms">
-            {rooms.map((r, i) => (
-              <button className="room-card" key={r} onClick={() => { setLevelIndex(i); setScreen("playing"); }}>
+            {rooms.map((r, i) => {
+              const unlocked = isRoomUnlocked(i, user);
+              const roomStars = user?.progress?.[i] || 0;
+              return (
+              <button className="room-card" data-locked={!unlocked} disabled={!unlocked} key={r} onClick={() => { if (!unlocked) return; setLevelIndex(i); setScreen("playing"); }}>
                 <span className="room-num">{i + 1}</span>
                 <span className="room-name">{r}</span>
+                <span className="room-stars">{unlocked ? `${"★".repeat(roomStars)}${"☆".repeat(3 - roomStars)}` : `${getRequiredStars(i)} ★`}</span>
               </button>
-            ))}
+            );})}
           </div>
           <p className="small-copy" style={{ marginTop: 16 }}>Keyboard recommended. Pause with Escape. Restart room with R.</p>
         </section>
@@ -1760,13 +1788,25 @@ function PauseMenu({ setScreen, retryLevel }) {
   );
 }
 
-function Summary({ summary, setScreen, next }) {
+function Summary({ summary, setScreen, next, user, setUser }) {
+  const earnedStars = getStarsForRoom(summary.levelIndex, summary);
+  useEffect(() => {
+    if (summary.result !== "Extracted" || user?.devMode) return;
+    const current = getStoredUsers().find((u) => u.id === user?.id) || user;
+    const progress = { ...(current.progress || {}) };
+    const previous = progress[summary.levelIndex] || 0;
+    if (earnedStars > previous) {
+      progress[summary.levelIndex] = earnedStars;
+      setUser(updateStoredUserProfile({ ...current, progress }));
+    }
+  }, [summary.result, summary.levelIndex]);
   return (
     <div className="overlay">
       <section className="panel modal">
         <span className="badge">Run Summary</span>
         <h1 className="title" style={{ fontSize: 58 }}>{summary.result}</h1>
-        <p className="lead">{summary.room} | {summary.time}s | Scrap recovered: {summary.scrap}</p>
+        <p className="lead">{summary.room} | {summary.time}s | Scrap recovered: {summary.scrap} | Hull {summary.hull ?? 0}%</p>
+        <div className="summary-stars">{"★".repeat(earnedStars)}{"☆".repeat(3 - earnedStars)}</div>
         <div className="button-grid">
           <Button primary onClick={next}><DoorOpen /> Next Room</Button>
           <Button onClick={() => setScreen("menu")}><BookOpen /> Main Menu</Button>
@@ -1965,9 +2005,16 @@ function App() {
   const [runSeed, setRunSeed] = useState(0);
   const [customLevel, setCustomLevel] = useState(null);
   const [settings, setSettings] = useState(defaultSettings);
-  const [summary, setSummary] = useState({ result: "Extracted", scrap: 0, time: 0, room: rooms[0] });
+  const [summary, setSummary] = useState({ result: "Extracted", scrap: 0, hull: 100, time: 0, room: rooms[0], levelIndex: 0 });
   useAmbient(settings);
-  const next = () => { setCustomLevel(null); setLevelIndex((v) => (v + 1) % rooms.length); setScreen("playing"); };
+  const next = () => {
+    setCustomLevel(null);
+    setLevelIndex((v) => {
+      const target = (v + 1) % rooms.length;
+      return isRoomUnlocked(target, user) ? target : v;
+    });
+    setScreen("playing");
+  };
   const retryLevel = () => {
     setRunSeed((v) => v + 1);
     setScreen("playing");
@@ -1998,7 +2045,7 @@ function App() {
       {screen === "settings" && <SettingsDrawer settings={settings} setSettings={setSettings} setScreen={setScreen} />}
       {screen === "controls" && <Controls setScreen={setScreen} />}
       {screen === "paused" && <PauseMenu setScreen={setScreen} retryLevel={retryLevel} />}
-      {screen === "summary" && <Summary summary={summary} setScreen={setScreen} next={next} />}
+      {screen === "summary" && <Summary summary={summary} setScreen={setScreen} next={next} user={user} setUser={setUser} />}
       {screen === "community" && <CommunityLevels setScreen={setScreen} playLevel={playCommunityLevel} />}
       {screen === "editor" && <Editor user={user} setScreen={setScreen} setCustomLevel={setCustomLevel} />}
     </div>

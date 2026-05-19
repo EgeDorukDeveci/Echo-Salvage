@@ -753,11 +753,43 @@ textarea {
   padding-right: 4px;
 }
 
+.star-brief {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 8px;
+  align-items: center;
+  border: 1px solid var(--line);
+  background: rgba(8, 17, 20, 0.82);
+  padding: 10px;
+  margin: 12px 0;
+}
+
+.star-brief svg,
+.star-brief span {
+  color: var(--yellow);
+}
+
+.star-brief span {
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.star-brief small {
+  grid-column: 2;
+  color: var(--muted);
+}
+
 .room-card {
   min-height: 92px;
   padding: 10px;
   text-align: left;
   color: var(--text);
+}
+
+.room-card[data-locked="true"] {
+  opacity: 0.42;
+  filter: grayscale(0.65);
+  cursor: not-allowed;
 }
 
 .room-num {
@@ -775,6 +807,21 @@ textarea {
   font-weight: 900;
   line-height: 1.05;
   text-transform: uppercase;
+}
+
+.room-stars {
+  display: block;
+  margin-top: 8px;
+  color: var(--yellow);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.summary-stars {
+  margin-top: 18px;
+  color: var(--yellow);
+  font-size: 38px;
+  letter-spacing: 0.08em;
 }
 
 .drawer {
