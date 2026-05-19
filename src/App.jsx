@@ -76,7 +76,7 @@ const AVATARS = [
   { id: "white", label: "Archive Glider", colors: ["#e7f0ef", "#19272d"] },
   { id: "gold", label: "Salvage Ace", colors: ["#ffb000", "#221706"] }
 ];
-const COSMETIC_DEFAULTS = { body: "#dfe9e8", accent: "#ffd52d", trail: "#00f0d2", frame: "arrow" };
+const COSMETIC_DEFAULTS = { body: "#dfe9e8", accent: "#ffd52d", trail: "#00f0d2", frame: "arrow", pet: "none", dashStyle: "streak" };
 const BODY_COLORS = ["#dfe9e8", "#ffd52d", "#00f0d2", "#58e07a", "#ff4e41", "#ffb000"];
 const TRAIL_COLORS = ["#00f0d2", "#ffd52d", "#58e07a", "#ff4e41", "#e7f0ef", "#ff8a00"];
 const DRONE_FRAMES = [
@@ -84,6 +84,59 @@ const DRONE_FRAMES = [
   { id: "split", label: "Split Wing" },
   { id: "needle", label: "Needle" }
 ];
+const PETS = [
+  { id: "none", label: "No Pet", color: "#6f858a", price: 0 },
+  { id: "spark", label: "Spark Bit", color: "#ffd52d", price: 35 },
+  { id: "wisp", label: "Echo Wisp", color: "#00f0d2", price: 45 },
+  { id: "ember", label: "Ember Dot", color: "#ff4e41", price: 55 },
+  { id: "moss", label: "Moss Byte", color: "#58e07a", price: 55 },
+  { id: "orbit", label: "Orbit Pup", color: "#e7f0ef", price: 70 },
+  { id: "bolt", label: "Bolt Mite", color: "#ffb000", price: 80 },
+  { id: "lumen", label: "Lumen Eye", color: "#b2fff6", price: 95 },
+  { id: "nova", label: "Nova Seed", color: "#ff8a00", price: 110 },
+  { id: "royal", label: "Royal Core", color: "#b78cff", price: 140 },
+  { id: "void", label: "Void Fleck", color: "#8aa0ff", price: 160 }
+];
+const DASH_STYLES = [
+  { id: "streak", label: "Streak", price: 0 },
+  { id: "ring", label: "Pulse Ring", price: 60 },
+  { id: "spark", label: "Spark Spray", price: 90 },
+  { id: "comet", label: "Comet Tail", price: 130 }
+];
+const DEFAULT_OWNED = {
+  bodies: ["#dfe9e8"],
+  trails: ["#00f0d2"],
+  frames: ["arrow"],
+  pets: ["none"],
+  dashes: ["streak"]
+};
+const BODY_PRICES = { "#ffd52d": 35, "#00f0d2": 45, "#58e07a": 55, "#ff4e41": 70, "#ffb000": 100 };
+const TRAIL_PRICES = { "#ffd52d": 35, "#58e07a": 50, "#ff4e41": 65, "#e7f0ef": 80, "#ff8a00": 95 };
+const FRAME_PRICES = { split: 80, needle: 120 };
+const COIN_PACKS = [
+  { id: "tiny", label: "Tiny Cache", coins: 100, price: "$0.49" },
+  { id: "small", label: "Small Cache", coins: 260, price: "$0.99" },
+  { id: "crew", label: "Crew Cache", coins: 700, price: "$1.99" }
+];
+
+function normalizeEconomy(data = {}) {
+  return {
+    coins: Number.isFinite(data.coins) ? data.coins : 25,
+    owned: {
+      bodies: [...new Set([...(data.owned?.bodies || []), ...DEFAULT_OWNED.bodies])],
+      trails: [...new Set([...(data.owned?.trails || []), ...DEFAULT_OWNED.trails])],
+      frames: [...new Set([...(data.owned?.frames || []), ...DEFAULT_OWNED.frames])],
+      pets: [...new Set([...(data.owned?.pets || []), ...DEFAULT_OWNED.pets])],
+      dashes: [...new Set([...(data.owned?.dashes || []), ...DEFAULT_OWNED.dashes])]
+    },
+    cosmetic: { ...COSMETIC_DEFAULTS, ...(data.cosmetic || {}) }
+  };
+}
+
+function makeSession(user) {
+  const economy = normalizeEconomy(user);
+  return { id: user.id, nickname: user.nickname, email: user.email, avatar: user.avatar || "yellow", ...economy };
+}
 
 function getStoredUsers() {
   try {
@@ -99,18 +152,26 @@ function saveStoredUsers(users) {
 
 function getStoredSession() {
   try {
-    return JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || "null");
+    const session = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || "null");
+    return session ? makeSession(session) : null;
   } catch {
     return null;
   }
 }
 
 function updateStoredUserProfile(updated) {
-  const users = getStoredUsers().map((u) => (u.id === updated.id ? { ...u, ...updated } : u));
+  const normalized = { ...updated, ...normalizeEconomy(updated) };
+  const users = getStoredUsers().map((u) => (u.id === normalized.id ? { ...u, ...normalized } : u));
   saveStoredUsers(users);
-  const session = { id: updated.id, nickname: updated.nickname, email: updated.email, avatar: updated.avatar, cosmetic: updated.cosmetic || COSMETIC_DEFAULTS };
+  const session = makeSession(normalized);
   localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
   return session;
+}
+
+function updateUserEconomy(user, updater) {
+  const current = getStoredUsers().find((u) => u.id === user?.id) || user;
+  const next = updater({ ...current, ...normalizeEconomy(current) });
+  return updateStoredUserProfile(next);
 }
 
 function getLocalCommunityLevels() {
@@ -172,6 +233,7 @@ function makeLevel(index = 0) {
       { x: 800, y: 435, w: 26, h: 205 }
     ],
     crates: [{ x: 520, y: 460, w: 38, h: 38 }],
+    coinCrates: [{ x: 360, y: 560, w: 34, h: 34, value: 12, taken: false }],
     plates: [{ x: 220, y: 330, r: 34, id: "A" }],
     switches: [{ x: 620, y: 160, r: 25, id: "B", on: false }],
     doors: [{ x: 1080, y: 302, w: 34, h: 116, requires: ["A", "B"], open: false }],
@@ -362,6 +424,10 @@ function makeLevel(index = 0) {
     base.turrets.push({ x: 985, y: 560, hp: 2, cooldown: 500 });
     if (index % 2 === 0) base.lasers.push({ x1: 720, y1: 110, x2: 1070, y2: 110, id: "L2", disabledBy: "C" });
   }
+  base.coinCrates = base.coinCrates?.length ? base.coinCrates : [
+    { x: 335 + (index % 4) * 90, y: 560 - (index % 3) * 80, w: 34, h: 34, value: 10 + index * 2, taken: false },
+    { x: 880 - (index % 5) * 45, y: 165 + (index % 4) * 70, w: 34, h: 34, value: 8 + index, taken: false }
+  ];
   return structuredClone(base);
 }
 
@@ -477,10 +543,12 @@ function AuthScreen({ onAuth }) {
         password: cleanPassword,
         avatar: "yellow",
         cosmetic: COSMETIC_DEFAULTS,
+        coins: 25,
+        owned: DEFAULT_OWNED,
         createdAt: new Date().toISOString()
       };
       saveStoredUsers([...users, user]);
-      const session = { id: user.id, nickname: user.nickname, email: user.email, avatar: user.avatar, cosmetic: user.cosmetic };
+      const session = makeSession(user);
       localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
       onAuth(session);
       return;
@@ -489,7 +557,7 @@ function AuthScreen({ onAuth }) {
       setMessage("Nickname or password is incorrect.");
       return;
     }
-    const session = { id: found.id, nickname: found.nickname, email: found.email, avatar: found.avatar || "yellow", cosmetic: found.cosmetic || COSMETIC_DEFAULTS };
+    const session = makeSession(found);
     localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
     onAuth(session);
   };
@@ -630,6 +698,16 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS) {
     ctx.fillRect(c.x + 8, c.y + 7, c.w - 16, 3);
   });
 
+  level.coinCrates?.forEach((c) => {
+    if (c.taken) return;
+    glowRect(ctx, c.x, c.y, c.w, c.h, "#ffb000", "rgba(85, 52, 9, 0.82)", 18, 3);
+    ctx.fillStyle = "#ffed8a";
+    ctx.font = "900 18px Rajdhani, Bahnschrift, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("C", c.x + c.w / 2, c.y + c.h / 2 + 6);
+    ctx.textAlign = "left";
+  });
+
   const active = game.activeIds;
   level.plates.forEach((p) => {
     ctx.beginPath();
@@ -736,9 +814,10 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS) {
   ctx.fillText("OPEN", level.exit.x + level.exit.w / 2, level.exit.y + level.exit.h / 2);
   ctx.textAlign = "left";
 
-  game.dashBursts?.forEach((burst) => drawDashBurst(ctx, burst));
+  game.dashBursts?.forEach((burst) => drawDashBurst(ctx, burst, cosmetic));
   game.echoes.forEach((e) => drawDrone(ctx, e, true, cosmetic));
   drawDrone(ctx, game.player, false, cosmetic);
+  drawPet(ctx, game.player, cosmetic, performance.now());
 
   game.bullets.forEach((b) => {
     ctx.fillStyle = b.owner === "enemy" ? "#ff4e41" : "#ffd52d";
@@ -749,18 +828,37 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS) {
   ctx.restore();
 }
 
-function drawDashBurst(ctx, burst) {
+function drawDashBurst(ctx, burst, cosmetic = COSMETIC_DEFAULTS) {
   const life = burst.life / burst.maxLife;
   ctx.save();
   ctx.globalAlpha = Math.max(0, life) * 0.65;
   ctx.translate(burst.x, burst.y);
   ctx.rotate(burst.angle);
-  ctx.shadowColor = "#00f0d2";
+  ctx.shadowColor = cosmetic.trail;
   ctx.shadowBlur = 22;
+  if (cosmetic.dashStyle === "ring") {
+    ctx.strokeStyle = cosmetic.trail;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, 52 * (1 - life) + 12, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+  if (cosmetic.dashStyle === "spark") {
+    ctx.fillStyle = cosmetic.trail;
+    for (let i = 0; i < 9; i += 1) {
+      ctx.beginPath();
+      ctx.arc(-20 - i * 8, Math.sin(i * 1.7) * 18 * life, 3 + life * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
   const grad = ctx.createLinearGradient(-95, 0, 20, 0);
   grad.addColorStop(0, "rgba(0, 240, 210, 0)");
-  grad.addColorStop(0.35, "rgba(0, 240, 210, 0.45)");
-  grad.addColorStop(1, "rgba(255, 213, 45, 0.75)");
+  grad.addColorStop(0.35, cosmetic.dashStyle === "comet" ? "rgba(255, 138, 0, 0.52)" : "rgba(0, 240, 210, 0.45)");
+  grad.addColorStop(1, cosmetic.trail);
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.moveTo(22, 0);
@@ -853,7 +951,52 @@ function drawDrone(ctx, p, echo, cosmetic = COSMETIC_DEFAULTS) {
   ctx.restore();
 }
 
-function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, cosmetic }) {
+function drawPet(ctx, player, cosmetic = COSMETIC_DEFAULTS, now = 0) {
+  if (!cosmetic.pet || cosmetic.pet === "none") return;
+  const pet = PETS.find((item) => item.id === cosmetic.pet);
+  if (!pet) return;
+  const bob = Math.sin(now / 260) * 5;
+  const px = player.x - Math.cos(player.angle || 0) * 46;
+  const py = player.y - Math.sin(player.angle || 0) * 46 + bob;
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.shadowColor = pet.color;
+  ctx.shadowBlur = 14;
+  ctx.fillStyle = pet.color;
+  ctx.strokeStyle = "rgba(5, 13, 16, 0.9)";
+  ctx.lineWidth = 3;
+  if (cosmetic.pet === "orbit" || cosmetic.pet === "royal") {
+    ctx.beginPath();
+    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = pet.color;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 18, 7, now / 600, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (cosmetic.pet === "bolt") {
+    ctx.beginPath();
+    ctx.moveTo(8, -13);
+    ctx.lineTo(-3, -1);
+    ctx.lineTo(5, -1);
+    ctx.lineTo(-8, 13);
+    ctx.lineTo(-1, 2);
+    ctx.lineTo(-9, 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.arc(0, 0, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "rgba(5, 13, 16, 0.85)";
+    ctx.fillRect(-3, -2, 6, 4);
+  }
+  ctx.restore();
+}
+
+function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, cosmetic, awardCoins }) {
   const canvas = useRef(null);
   const game = useRef(null);
   const keys = useRef(new Set());
@@ -863,6 +1006,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
 
   const reset = () => {
     const level = customLevel ? structuredClone(customLevel) : makeLevel(levelIndex);
+    level.coinCrates = level.coinCrates || [];
     level.turrets.forEach((t) => {
       t.maxHp = t.maxHp || t.hp || 2;
     });
@@ -872,7 +1016,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     game.current = {
       level,
       activeIds: new Set(),
-      player: { x: level.player.x, y: level.player.y, angle: 0, hp: 100, energy: MAX_ENERGY, dash: 100, scrap: 0 },
+      player: { x: level.player.x, y: level.player.y, angle: 0, hp: 100, energy: MAX_ENERGY, dash: 100, scrap: 0, coinsEarned: 0 },
       echoes: [],
       bullets: [],
       dashBursts: [],
@@ -1028,6 +1172,15 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         }
       });
 
+      level.coinCrates?.forEach((c) => {
+        if (!c.taken && dist(g.player, { x: c.x + c.w / 2, y: c.y + c.h / 2 }) < 32) {
+          c.taken = true;
+          const amount = c.value || 10;
+          g.player.coinsEarned += amount;
+          awardCoins?.(amount);
+        }
+      });
+
       level.drones?.forEach((d) => {
         if (d.hp <= 0) return;
         const a = Math.atan2(g.player.y - d.y, g.player.x - d.x);
@@ -1131,8 +1284,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
   return { canvas, game, reset, spawnEcho };
 }
 
-function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSummary, cosmetic }) {
-  const { canvas, game, reset, spawnEcho } = useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, cosmetic });
+function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSummary, cosmetic, awardCoins }) {
+  const { canvas, game, reset, spawnEcho } = useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, cosmetic, awardCoins });
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setTick((v) => v + 1), 120);
@@ -1158,6 +1311,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
         </div>
         <div className="hud-cluster stat-grid">
           <div className="stat-tile"><Shield size={16} /><span>Scrap</span><strong>{g?.player.scrap ?? 0}</strong></div>
+          <div className="stat-tile"><Sparkles size={16} /><span>Coins</span><strong>{g?.player.coinsEarned ?? 0}</strong></div>
           <button className="stat-tile" onClick={spawnEcho}><Radio size={16} /><span>Echo</span><strong>{g?.echoes.length ?? 0}/3</strong></button>
           <div className="stat-tile"><Zap size={16} /><span>Dash</span><strong>{Math.round(g?.player.dash ?? 100)}%</strong></div>
           <div className="hud-help">Keyboard recommended. Escape pauses. R restarts room.</div>
@@ -1195,6 +1349,7 @@ function MainMenu({ setScreen, setLevelIndex, user, onLogout }) {
             <Button onClick={() => setScreen("editor")}><Wand2 size={20} /> Level Creator</Button>
             <Button onClick={() => setScreen("community")}><Globe2 size={20} /> Community Levels</Button>
             <Button onClick={() => setScreen("profile")}><UserRound size={20} /> Profile</Button>
+            <Button onClick={() => setScreen("shop")}><Sparkles size={20} /> Shop</Button>
             <Button onClick={() => setScreen("settings")}><Settings size={20} /> Settings</Button>
             <Button onClick={() => setScreen("controls")}><Gamepad2 size={20} /> Controls</Button>
             <Button danger onClick={onLogout}><LogOut size={20} /> Logout</Button>
@@ -1249,6 +1404,7 @@ function ProfileScreen({ user, setUser, setScreen }) {
   const [avatar, setAvatar] = useState(user?.avatar || "yellow");
   const [cosmetic, setCosmetic] = useState({ ...COSMETIC_DEFAULTS, ...(user?.cosmetic || {}) });
   const [message, setMessage] = useState("");
+  const owned = normalizeEconomy(user).owned;
 
   const save = () => {
     const current = getStoredUsers().find((u) => u.id === user?.id);
@@ -1256,7 +1412,16 @@ function ProfileScreen({ user, setUser, setScreen }) {
       setMessage("Profile not found. Log in again.");
       return;
     }
-    const session = updateStoredUserProfile({ ...current, avatar, cosmetic });
+    const nextCosmetic = {
+      ...cosmetic,
+      body: owned.bodies.includes(cosmetic.body) ? cosmetic.body : COSMETIC_DEFAULTS.body,
+      trail: owned.trails.includes(cosmetic.trail) ? cosmetic.trail : COSMETIC_DEFAULTS.trail,
+      accent: owned.trails.includes(cosmetic.accent) ? cosmetic.accent : COSMETIC_DEFAULTS.accent,
+      frame: owned.frames.includes(cosmetic.frame) ? cosmetic.frame : COSMETIC_DEFAULTS.frame,
+      pet: owned.pets.includes(cosmetic.pet) ? cosmetic.pet : "none",
+      dashStyle: owned.dashes.includes(cosmetic.dashStyle) ? cosmetic.dashStyle : "streak"
+    };
+    const session = updateStoredUserProfile({ ...current, avatar, cosmetic: nextCosmetic });
     setUser(session);
     setMessage("Profile picture updated.");
   };
@@ -1296,29 +1461,136 @@ function ProfileScreen({ user, setUser, setScreen }) {
           <div>
             <label>Body Color</label>
             <div className="swatch-row">
-              {BODY_COLORS.map((color) => <button key={color} className="swatch" data-active={cosmetic.body === color} style={{ background: color }} onClick={() => setCosmetic({ ...cosmetic, body: color })} />)}
+              {BODY_COLORS.map((color) => <button key={color} className="swatch" data-active={cosmetic.body === color} data-locked={!owned.bodies.includes(color)} style={{ background: color }} onClick={() => owned.bodies.includes(color) ? setCosmetic({ ...cosmetic, body: color }) : setMessage("Unlock this body color in the shop first.")} />)}
             </div>
           </div>
           <div>
             <label>Trail Color</label>
             <div className="swatch-row">
-              {TRAIL_COLORS.map((color) => <button key={color} className="swatch" data-active={cosmetic.trail === color} style={{ background: color }} onClick={() => setCosmetic({ ...cosmetic, trail: color, accent: color })} />)}
+              {TRAIL_COLORS.map((color) => <button key={color} className="swatch" data-active={cosmetic.trail === color} data-locked={!owned.trails.includes(color)} style={{ background: color }} onClick={() => owned.trails.includes(color) ? setCosmetic({ ...cosmetic, trail: color, accent: color }) : setMessage("Unlock this trail color in the shop first.")} />)}
             </div>
           </div>
           <div>
             <label>Drone Frame</label>
             <div className="frame-row">
-              {DRONE_FRAMES.map((frame) => <button key={frame.id} data-active={cosmetic.frame === frame.id} onClick={() => setCosmetic({ ...cosmetic, frame: frame.id })}>{frame.label}</button>)}
+              {DRONE_FRAMES.map((frame) => <button key={frame.id} data-active={cosmetic.frame === frame.id} data-locked={!owned.frames.includes(frame.id)} onClick={() => owned.frames.includes(frame.id) ? setCosmetic({ ...cosmetic, frame: frame.id }) : setMessage("Unlock this frame in the shop first.")}>{frame.label}</button>)}
+            </div>
+          </div>
+          <div>
+            <label>Dash Animation</label>
+            <div className="frame-row">
+              {DASH_STYLES.map((dash) => <button key={dash.id} data-active={cosmetic.dashStyle === dash.id} data-locked={!owned.dashes.includes(dash.id)} onClick={() => owned.dashes.includes(dash.id) ? setCosmetic({ ...cosmetic, dashStyle: dash.id }) : setMessage("Unlock this dash animation in the shop first.")}>{dash.label}</button>)}
+            </div>
+          </div>
+          <div>
+            <label>Pet</label>
+            <div className="frame-row">
+              {PETS.map((pet) => <button key={pet.id} data-active={cosmetic.pet === pet.id} data-locked={!owned.pets.includes(pet.id)} onClick={() => owned.pets.includes(pet.id) ? setCosmetic({ ...cosmetic, pet: pet.id }) : setMessage("Unlock this pet in the shop first.")}>{pet.label}</button>)}
             </div>
           </div>
         </div>
         {message && <p className="auth-message">{message}</p>}
         <div className="button-grid">
           <Button primary onClick={save}><UserRound /> Save Character</Button>
+          <Button onClick={() => setScreen("shop")}><Sparkles /> Open Shop</Button>
           <Button onClick={() => setScreen("menu")}>Back To Menu</Button>
         </div>
       </section>
     </div>
+  );
+}
+
+function ShopScreen({ user, setUser, setScreen }) {
+  const [message, setMessage] = useState("");
+  const economy = normalizeEconomy(user);
+
+  const buy = (bucket, id, price, label) => {
+    if (economy.owned[bucket].includes(id)) {
+      setMessage(`${label} is already unlocked.`);
+      return;
+    }
+    if (economy.coins < price) {
+      setMessage(`Need ${price - economy.coins} more coins for ${label}.`);
+      return;
+    }
+    const session = updateUserEconomy(user, (current) => ({
+      ...current,
+      coins: normalizeEconomy(current).coins - price,
+      owned: {
+        ...normalizeEconomy(current).owned,
+        [bucket]: [...normalizeEconomy(current).owned[bucket], id]
+      }
+    }));
+    setUser(session);
+    setMessage(`Unlocked ${label}.`);
+  };
+
+  const demoCoinPack = (pack) => {
+    const session = updateUserEconomy(user, (current) => ({ ...current, coins: normalizeEconomy(current).coins + pack.coins }));
+    setUser(session);
+    setMessage(`${pack.label} added ${pack.coins} coins in demo mode. Real payments need Stripe checkout before launch.`);
+  };
+
+  return (
+    <div className="overlay">
+      <section className="panel shop-panel">
+        <div className="drawer-head">
+          <div>
+            <span className="badge">Salvage Shop</span>
+            <h2>{economy.coins} Coins</h2>
+            <p className="small-copy">Earn coins from orange crates in rooms, then unlock skins, dash effects, and pets.</p>
+          </div>
+          <Button onClick={() => setScreen("profile")}>Profile</Button>
+        </div>
+        {message && <p className="auth-message">{message}</p>}
+        <div className="shop-sections">
+          <ShopSection title="Body Skins">
+            {BODY_COLORS.filter((c) => c !== COSMETIC_DEFAULTS.body).map((color) => (
+              <ShopItem key={color} owned={economy.owned.bodies.includes(color)} label={color.toUpperCase()} price={BODY_PRICES[color] || 50} color={color} onBuy={() => buy("bodies", color, BODY_PRICES[color] || 50, "body skin")} />
+            ))}
+          </ShopSection>
+          <ShopSection title="Dash Trails">
+            {TRAIL_COLORS.filter((c) => c !== COSMETIC_DEFAULTS.trail).map((color) => (
+              <ShopItem key={color} owned={economy.owned.trails.includes(color)} label={color.toUpperCase()} price={TRAIL_PRICES[color] || 50} color={color} onBuy={() => buy("trails", color, TRAIL_PRICES[color] || 50, "trail color")} />
+            ))}
+          </ShopSection>
+          <ShopSection title="Frames">
+            {DRONE_FRAMES.filter((f) => f.id !== "arrow").map((frame) => (
+              <ShopItem key={frame.id} owned={economy.owned.frames.includes(frame.id)} label={frame.label} price={FRAME_PRICES[frame.id] || 80} onBuy={() => buy("frames", frame.id, FRAME_PRICES[frame.id] || 80, frame.label)} />
+            ))}
+          </ShopSection>
+          <ShopSection title="Dash Animations">
+            {DASH_STYLES.filter((d) => d.id !== "streak").map((dash) => (
+              <ShopItem key={dash.id} owned={economy.owned.dashes.includes(dash.id)} label={dash.label} price={dash.price} onBuy={() => buy("dashes", dash.id, dash.price, dash.label)} />
+            ))}
+          </ShopSection>
+          <ShopSection title="Pets">
+            {PETS.filter((p) => p.id !== "none").map((pet) => (
+              <ShopItem key={pet.id} owned={economy.owned.pets.includes(pet.id)} label={pet.label} price={pet.price} color={pet.color} onBuy={() => buy("pets", pet.id, pet.price, pet.label)} />
+            ))}
+          </ShopSection>
+          <ShopSection title="Coin Packs Demo">
+            {COIN_PACKS.map((pack) => (
+              <ShopItem key={pack.id} label={`${pack.label} ${pack.price}`} price={`${pack.coins} coins`} onBuy={() => demoCoinPack(pack)} />
+            ))}
+          </ShopSection>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ShopSection({ title, children }) {
+  return <div className="shop-section"><h3>{title}</h3><div className="shop-grid">{children}</div></div>;
+}
+
+function ShopItem({ label, price, owned, color, onBuy }) {
+  return (
+    <button className="shop-item" data-owned={owned} onClick={onBuy}>
+      {color && <span className="shop-swatch" style={{ background: color }} />}
+      <strong>{label}</strong>
+      <span>{owned ? "Owned" : price}</span>
+    </button>
   );
 }
 
@@ -1548,10 +1820,15 @@ function App() {
   return (
     <div className="app">
       <div className="frame" />
-      {(screen === "playing" || screen === "paused" || screen === "summary") && <GameView key={`${levelIndex}-${runSeed}-${customLevel ? "custom" : "stock"}`} levelIndex={levelIndex} customLevel={customLevel} screen={screen === "playing" ? "playing" : "idle"} setScreen={setScreen} settings={settings} setSummary={setSummary} cosmetic={{ ...COSMETIC_DEFAULTS, ...(user?.cosmetic || {}) }} />}
+      {(screen === "playing" || screen === "paused" || screen === "summary") && <GameView key={`${levelIndex}-${runSeed}-${customLevel ? "custom" : "stock"}`} levelIndex={levelIndex} customLevel={customLevel} screen={screen === "playing" ? "playing" : "idle"} setScreen={setScreen} settings={settings} setSummary={setSummary} cosmetic={{ ...COSMETIC_DEFAULTS, ...(user?.cosmetic || {}) }} awardCoins={(amount) => {
+        if (!user?.id) return;
+        const session = updateUserEconomy(user, (current) => ({ ...current, coins: normalizeEconomy(current).coins + amount }));
+        setUser(session);
+      }} />}
       {screen === "auth" && <AuthScreen onAuth={(session) => { setUser(session); setScreen("menu"); }} />}
       {screen === "menu" && <MainMenu user={user} onLogout={logout} setScreen={setScreen} setLevelIndex={(i) => { setCustomLevel(null); setLevelIndex(i); }} />}
       {screen === "profile" && <ProfileScreen user={user} setUser={setUser} setScreen={setScreen} />}
+      {screen === "shop" && <ShopScreen user={user} setUser={setUser} setScreen={setScreen} />}
       {screen === "briefing" && <Briefing setScreen={setScreen} />}
       {screen === "settings" && <SettingsDrawer settings={settings} setSettings={setSettings} setScreen={setScreen} />}
       {screen === "controls" && <Controls setScreen={setScreen} />}

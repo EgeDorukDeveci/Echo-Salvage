@@ -203,7 +203,7 @@ textarea {
 
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(3, 74px);
+  grid-template-columns: repeat(4, 68px);
   gap: 8px;
 }
 
@@ -438,6 +438,12 @@ textarea {
   box-shadow: 0 0 0 2px rgba(255, 213, 45, 0.16);
 }
 
+.swatch[data-locked="true"],
+.frame-row button[data-locked="true"] {
+  opacity: 0.38;
+  filter: grayscale(0.75);
+}
+
 .frame-row button {
   min-height: 36px;
   border: 1px solid var(--line);
@@ -446,6 +452,74 @@ textarea {
   padding: 8px 11px;
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.shop-panel {
+  width: min(1100px, 96vw);
+  max-height: 90vh;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+}
+
+.shop-sections {
+  display: grid;
+  gap: 16px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.shop-section {
+  border-top: 1px solid rgba(75, 116, 128, 0.35);
+  padding-top: 12px;
+}
+
+.shop-section h3 {
+  margin: 0 0 10px;
+  color: var(--yellow);
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.shop-item {
+  display: grid;
+  min-height: 84px;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: rgba(8, 17, 20, 0.82);
+  color: var(--text);
+  padding: 10px;
+  text-align: center;
+}
+
+.shop-item[data-owned="true"] {
+  border-color: rgba(88, 224, 122, 0.58);
+  color: #cfffe0;
+}
+
+.shop-item strong {
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.shop-item span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.shop-swatch {
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
 }
 
 .title {
