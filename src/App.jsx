@@ -137,17 +137,17 @@ const DRONE_FRAMES = [
   { id: "needle", label: "Needle" }
 ];
 const PETS = [
-  { id: "none", label: "No Pet", color: "#6f858a", price: 0 },
-  { id: "spark", label: "Spark Bit", color: "#ffd52d", price: 35 },
-  { id: "wisp", label: "Echo Wisp", color: "#00f0d2", price: 45 },
-  { id: "ember", label: "Ember Dot", color: "#ff4e41", price: 55 },
-  { id: "moss", label: "Moss Byte", color: "#58e07a", price: 55 },
-  { id: "orbit", label: "Orbit Pup", color: "#e7f0ef", price: 70 },
-  { id: "bolt", label: "Bolt Mite", color: "#ffb000", price: 80 },
-  { id: "lumen", label: "Lumen Eye", color: "#b2fff6", price: 95 },
-  { id: "nova", label: "Nova Seed", color: "#ff8a00", price: 110 },
-  { id: "royal", label: "Royal Core", color: "#b78cff", price: 140 },
-  { id: "void", label: "Void Fleck", color: "#8aa0ff", price: 160 }
+  { id: "none", label: "No Pet", color: "#6f858a", price: 0, perk: "No perk" },
+  { id: "spark", label: "Spark Bit", color: "#ffd52d", price: 35, perk: "Slowly refills energy" },
+  { id: "wisp", label: "Echo Wisp", color: "#00f0d2", price: 45, perk: "Echo costs less energy" },
+  { id: "ember", label: "Ember Dot", color: "#ff4e41", price: 55, perk: "Bullets hit harder" },
+  { id: "moss", label: "Moss Byte", color: "#58e07a", price: 55, perk: "Slow hull repair" },
+  { id: "orbit", label: "Orbit Pup", color: "#e7f0ef", price: 70, perk: "Small shield bar" },
+  { id: "bolt", label: "Bolt Mite", color: "#ffb000", price: 80, perk: "Dash cooldown is shorter" },
+  { id: "lumen", label: "Lumen Eye", color: "#b2fff6", price: 95, perk: "Stronger shield recharge" },
+  { id: "nova", label: "Nova Seed", color: "#ff8a00", price: 110, perk: "Bigger coin cache rewards" },
+  { id: "royal", label: "Royal Core", color: "#b78cff", price: 140, perk: "Energy and hull trickle" },
+  { id: "void", label: "Void Fleck", color: "#8aa0ff", price: 160, perk: "Lasers hurt less" }
 ];
 const DASH_STYLES = [
   { id: "streak", label: "Streak", price: 0 },
@@ -1089,24 +1089,30 @@ function drawPet(ctx, player, cosmetic = COSMETIC_DEFAULTS, now = 0) {
   if (!cosmetic.pet || cosmetic.pet === "none") return;
   const pet = PETS.find((item) => item.id === cosmetic.pet);
   if (!pet) return;
-  const bob = Math.sin(now / 260) * 5;
-  const px = player.x - Math.cos(player.angle || 0) * 46;
-  const py = player.y - Math.sin(player.angle || 0) * 46 + bob;
+  const orbit = now / 620;
+  const px = player.x + Math.cos(orbit) * 34 - 22;
+  const py = player.y + Math.sin(orbit) * 18 + 24;
   ctx.save();
+  ctx.strokeStyle = "rgba(0, 240, 210, 0.22)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(player.x, player.y);
+  ctx.lineTo(px, py);
+  ctx.stroke();
   ctx.translate(px, py);
   ctx.shadowColor = pet.color;
-  ctx.shadowBlur = 14;
+  ctx.shadowBlur = 20;
   ctx.fillStyle = pet.color;
   ctx.strokeStyle = "rgba(5, 13, 16, 0.9)";
   ctx.lineWidth = 3;
   if (cosmetic.pet === "orbit" || cosmetic.pet === "royal") {
     ctx.beginPath();
-    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+    ctx.arc(0, 0, 13, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     ctx.strokeStyle = pet.color;
     ctx.beginPath();
-    ctx.ellipse(0, 0, 18, 7, now / 600, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, 23, 9, now / 600, 0, Math.PI * 2);
     ctx.stroke();
   } else if (cosmetic.pet === "bolt") {
     ctx.beginPath();
@@ -1121,13 +1127,40 @@ function drawPet(ctx, player, cosmetic = COSMETIC_DEFAULTS, now = 0) {
     ctx.stroke();
   } else {
     ctx.beginPath();
-    ctx.arc(0, 0, 9, 0, Math.PI * 2);
+    ctx.arc(0, 0, 12, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = "rgba(5, 13, 16, 0.85)";
-    ctx.fillRect(-3, -2, 6, 4);
+    ctx.fillRect(-4, -3, 8, 6);
   }
   ctx.restore();
+}
+
+function getPetPerks(cosmetic = COSMETIC_DEFAULTS) {
+  switch (cosmetic.pet) {
+    case "spark":
+      return { energyRegen: 2.8 };
+    case "wisp":
+      return { echoDiscount: 6 };
+    case "ember":
+      return { bulletDamage: 2 };
+    case "moss":
+      return { hullRegen: 1.5 };
+    case "orbit":
+      return { maxShield: 18, shieldRegen: 1.2 };
+    case "bolt":
+      return { dashRegenMultiplier: 1.55 };
+    case "lumen":
+      return { maxShield: 26, shieldRegen: 2.4 };
+    case "nova":
+      return { coinBonus: 1.35 };
+    case "royal":
+      return { maxShield: 18, shieldRegen: 1.2, energyRegen: 1.5, hullRegen: 0.8 };
+    case "void":
+      return { maxShield: 14, shieldRegen: 1.2, laserResist: 0.45 };
+    default:
+      return {};
+  }
 }
 
 function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, cosmetic, awardCoins }) {
@@ -1140,6 +1173,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
 
   const reset = () => {
     const level = customLevel ? structuredClone(customLevel) : makeLevel(levelIndex);
+    const perks = getPetPerks(cosmetic);
+    const maxShield = perks.maxShield || 0;
     level.coinCrates = level.coinCrates || [];
     level.turrets.forEach((t) => {
       t.maxHp = t.maxHp || t.hp || 2;
@@ -1150,7 +1185,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     game.current = {
       level,
       activeIds: new Set(),
-      player: { x: level.player.x, y: level.player.y, angle: 0, hp: 100, energy: MAX_ENERGY, dash: 100, scrap: 0, coinsEarned: 0 },
+      player: { x: level.player.x, y: level.player.y, angle: 0, hp: 100, energy: MAX_ENERGY, shield: maxShield, maxShield, dash: 100, scrap: 0, coinsEarned: 0 },
       echoes: [],
       bullets: [],
       dashBursts: [],
@@ -1201,8 +1236,10 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
 
   function spawnEcho() {
     const g = game.current;
-    if (!g || g.recording.length < 8 || g.player.energy < ECHO_COST) return;
-    g.player.energy -= ECHO_COST;
+    const perks = getPetPerks(cosmetic);
+    const echoCost = Math.max(8, ECHO_COST - (perks.echoDiscount || 0));
+    if (!g || g.recording.length < 8 || g.player.energy < echoCost) return;
+    g.player.energy -= echoCost;
     g.echoes.push({ frames: g.recording.slice(), age: 0, x: g.recording[0].x, y: g.recording[0].y, angle: 0, fired: 0 });
     if (settings.shake && !settings.reduced) g.shake = 8;
   }
@@ -1210,7 +1247,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
   function shoot(from, owner = "player") {
     const g = game.current;
     const angle = from.angle || 0;
-    g.bullets.push({ x: from.x + Math.cos(angle) * 24, y: from.y + Math.sin(angle) * 24, vx: Math.cos(angle) * 620, vy: Math.sin(angle) * 620, life: 900, owner });
+    const perks = owner === "player" ? getPetPerks(cosmetic) : {};
+    g.bullets.push({ x: from.x + Math.cos(angle) * 24, y: from.y + Math.sin(angle) * 24, vx: Math.cos(angle) * 620, vy: Math.sin(angle) * 620, life: 900, owner, damage: perks.bulletDamage || 1 });
   }
 
   function tryMove(entity, dx, dy, level) {
@@ -1230,6 +1268,13 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     });
   }
 
+  function damagePlayer(g, amount) {
+    if (amount <= 0) return;
+    const blocked = Math.min(g.player.shield || 0, amount);
+    g.player.shield = Math.max(0, (g.player.shield || 0) - blocked);
+    g.player.hp -= amount - blocked;
+  }
+
   useEffect(() => {
     let raf;
     const loop = (now) => {
@@ -1241,6 +1286,10 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       const dt = Math.min(34, now - g.last);
       g.last = now;
       const level = g.level;
+      const perks = getPetPerks(cosmetic);
+      const maxShield = perks.maxShield || 0;
+      g.player.maxShield = maxShield;
+      g.player.shield = clamp(g.player.shield || 0, 0, maxShield);
       const speed = 170;
       let mx = 0;
       let my = 0;
@@ -1309,7 +1358,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       level.coinCrates?.forEach((c) => {
         if (!c.taken && dist(g.player, { x: c.x + c.w / 2, y: c.y + c.h / 2 }) < 32) {
           c.taken = true;
-          const amount = c.value || 10;
+          const amount = Math.round((c.value || 10) * (perks.coinBonus || 1));
           g.player.coinsEarned += amount;
           awardCoins?.(amount);
         }
@@ -1322,7 +1371,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         const gap = dist(d, g.player);
         if (gap > 155) tryMove(d, Math.cos(a) * 115 * dt / 1000, Math.sin(a) * 115 * dt / 1000, level);
         if (gap < 34) {
-          g.player.hp -= dt * 0.035;
+          damagePlayer(g, dt * 0.035);
           if (settings.shake && !settings.reduced) g.shake = Math.max(g.shake, 4);
         }
         d.cooldown -= dt;
@@ -1352,13 +1401,13 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         if (getSolidBlocks(level).some((w) => rectsTouch({ x: b.x - 3, y: b.y - 3, w: 6, h: 6 }, w))) b.life = 0;
         level.turrets.forEach((t) => {
           if (b.owner !== "enemy" && t.hp > 0 && dist(b, t) < 25) {
-            t.hp -= 1;
+            t.hp -= b.damage || 1;
             b.life = 0;
           }
         });
         level.drones?.forEach((d) => {
           if (b.owner !== "enemy" && d.hp > 0 && dist(b, d) < 24) {
-            d.hp -= 1;
+            d.hp -= b.damage || 1;
             b.life = 0;
             if (d.hp <= 0) {
               g.player.energy = clamp(g.player.energy + 12, 0, MAX_ENERGY);
@@ -1366,12 +1415,12 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
           }
         });
         if (b.owner !== "enemy" && level.core?.alive && dist(b, level.core) < 32) {
-          level.core.hp -= 1;
+          level.core.hp -= b.damage || 1;
           b.life = 0;
           if (level.core.hp <= 0) level.core.alive = false;
         }
         if (b.owner === "enemy" && dist(b, g.player) < 18) {
-          g.player.hp -= settings.difficulty === "Easy" ? 7 : 11;
+          damagePlayer(g, settings.difficulty === "Easy" ? 7 : 11);
           b.life = 0;
           if (settings.shake && !settings.reduced) g.shake = 7;
         }
@@ -1382,13 +1431,16 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         if (g.activeIds.has(l.disabledBy)) return;
         const vertical = Math.abs(l.x1 - l.x2) < 2;
         const near = vertical ? Math.abs(g.player.x - l.x1) < 14 && g.player.y > Math.min(l.y1, l.y2) && g.player.y < Math.max(l.y1, l.y2) : Math.abs(g.player.y - l.y1) < 14 && g.player.x > Math.min(l.x1, l.x2) && g.player.x < Math.max(l.x1, l.x2);
-        if (near) g.player.hp -= dt * 0.018;
+        if (near) damagePlayer(g, dt * 0.018 * (perks.laserResist || 1));
       });
 
+      g.player.energy = clamp(g.player.energy + (perks.energyRegen || 0) * dt / 1000, 0, MAX_ENERGY);
+      g.player.hp = clamp(g.player.hp + (perks.hullRegen || 0) * dt / 1000, 0, 100);
+      if (g.player.maxShield > 0) g.player.shield = clamp((g.player.shield || 0) + (perks.shieldRegen || 0) * dt / 1000, 0, g.player.maxShield);
       const didFire = mouse.current.down || keys.current.has("Space");
       g.recording.push({ x: g.player.x, y: g.player.y, angle: g.player.angle, fire: didFire, interact: keys.current.has("KeyE") });
       while (g.recording.length > ECHO_MS / 50) g.recording.shift();
-      g.player.dash = clamp(g.player.dash + dt * 0.055, 0, 100);
+      g.player.dash = clamp(g.player.dash + dt * 0.055 * (perks.dashRegenMultiplier || 1), 0, 100);
       g.player.dashTrail = Math.max(0, (g.player.dashTrail || 0) - dt);
       g.dashBursts.forEach((burst) => burst.life -= dt);
       g.dashBursts = g.dashBursts.filter((burst) => burst.life > 0);
@@ -1413,7 +1465,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [screen, settings, levelIndex]);
+  }, [screen, settings, levelIndex, cosmetic]);
 
   return { canvas, game, reset, spawnEcho };
 }
@@ -1437,6 +1489,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
           </div>
           <Meter label="Hull" value={g?.player.hp ?? 100} color="#ffd52d" />
           <Meter label="Energy" value={g?.player.energy ?? MAX_ENERGY} max={MAX_ENERGY} color="#ffd52d" />
+          {(g?.player.maxShield ?? 0) > 0 && <Meter label="Shield" value={g?.player.shield ?? 0} max={g?.player.maxShield ?? 1} color="#00f0d2" />}
         </div>
         <div className="hud-card objective-card">
           <strong>Objective</strong>
@@ -1588,7 +1641,9 @@ function ProfileScreen({ user, setUser, setScreen }) {
               if (!node) return;
               const ctx = node.getContext("2d");
               ctx.clearRect(0, 0, 180, 120);
-              drawDrone(ctx, { x: 90, y: 60, angle: 0, dashTrail: 160 }, false, cosmetic);
+              const previewPlayer = { x: 90, y: 60, angle: 0, dashTrail: 160 };
+              drawDrone(ctx, previewPlayer, false, cosmetic);
+              drawPet(ctx, previewPlayer, cosmetic, performance.now());
             }}
           />
         </div>
@@ -1629,7 +1684,7 @@ function ProfileScreen({ user, setUser, setScreen }) {
             <div>
               <label>Pet</label>
               <div className="frame-row">
-                {PETS.map((pet) => <button key={pet.id} data-active={cosmetic.pet === pet.id} data-locked={!owned.pets.includes(pet.id)} onClick={() => owned.pets.includes(pet.id) ? setCosmetic({ ...cosmetic, pet: pet.id }) : setMessage("Unlock this pet in the shop first.")}>{pet.label}</button>)}
+                {PETS.map((pet) => <button key={pet.id} data-active={cosmetic.pet === pet.id} data-locked={!owned.pets.includes(pet.id)} onClick={() => owned.pets.includes(pet.id) ? setCosmetic({ ...cosmetic, pet: pet.id }) : setMessage("Unlock this pet in the shop first.")}><span>{pet.label}</span><small>{pet.perk}</small></button>)}
               </div>
             </div>
           </div>
@@ -1711,7 +1766,7 @@ function ShopScreen({ user, setUser, setScreen }) {
           </ShopSection>
           <ShopSection title="Pets">
             {PETS.filter((p) => p.id !== "none").map((pet) => (
-              <ShopItem key={pet.id} owned={economy.owned.pets.includes(pet.id)} label={pet.label} price={pet.price} color={pet.color} onBuy={() => buy("pets", pet.id, pet.price, pet.label)} />
+              <ShopItem key={pet.id} owned={economy.owned.pets.includes(pet.id)} label={pet.label} detail={pet.perk} price={pet.price} color={pet.color} onBuy={() => buy("pets", pet.id, pet.price, pet.label)} />
             ))}
           </ShopSection>
           <ShopSection title="Coin Packs Demo">
@@ -1729,11 +1784,12 @@ function ShopSection({ title, children }) {
   return <div className="shop-section"><h3>{title}</h3><div className="shop-grid">{children}</div></div>;
 }
 
-function ShopItem({ label, price, owned, color, onBuy }) {
+function ShopItem({ label, detail, price, owned, color, onBuy }) {
   return (
     <button className="shop-item" data-owned={owned} onClick={onBuy}>
       {color && <span className="shop-swatch" style={{ background: color }} />}
       <strong>{label}</strong>
+      {detail && <small>{detail}</small>}
       <span>{owned ? "Owned" : price}</span>
     </button>
   );
@@ -2006,6 +2062,7 @@ function App() {
   const [customLevel, setCustomLevel] = useState(null);
   const [settings, setSettings] = useState(defaultSettings);
   const [summary, setSummary] = useState({ result: "Extracted", scrap: 0, hull: 100, time: 0, room: rooms[0], levelIndex: 0 });
+  const activeCosmetic = useMemo(() => ({ ...COSMETIC_DEFAULTS, ...(user?.cosmetic || {}) }), [user?.cosmetic]);
   useAmbient(settings);
   const next = () => {
     setCustomLevel(null);
@@ -2032,7 +2089,7 @@ function App() {
   return (
     <div className="app">
       <div className="frame" />
-      {(screen === "playing" || screen === "paused" || screen === "summary") && <GameView key={`${levelIndex}-${runSeed}-${customLevel ? "custom" : "stock"}`} levelIndex={levelIndex} customLevel={customLevel} screen={screen === "playing" ? "playing" : "idle"} setScreen={setScreen} settings={settings} setSummary={setSummary} cosmetic={{ ...COSMETIC_DEFAULTS, ...(user?.cosmetic || {}) }} awardCoins={(amount) => {
+      {(screen === "playing" || screen === "paused" || screen === "summary") && <GameView key={`${levelIndex}-${runSeed}-${customLevel ? "custom" : "stock"}`} levelIndex={levelIndex} customLevel={customLevel} screen={screen === "playing" ? "playing" : "idle"} setScreen={setScreen} settings={settings} setSummary={setSummary} cosmetic={activeCosmetic} awardCoins={(amount) => {
         if (!user?.id) return;
         const session = updateUserEconomy(user, (current) => ({ ...current, coins: normalizeEconomy(current).coins + amount }));
         setUser(session);
