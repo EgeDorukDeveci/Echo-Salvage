@@ -188,6 +188,14 @@ function saveLocalCommunityLevels(levels) {
   localStorage.setItem(COMMUNITY_LEVELS_KEY, JSON.stringify(levels));
 }
 
+function encodeLevelCode(level) {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(level))));
+}
+
+function decodeLevelCode(code) {
+  return JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
+}
+
 async function fetchCommunityLevels() {
   try {
     const response = await fetch(`${LEVEL_API_URL}/api/levels`);
@@ -199,16 +207,18 @@ async function fetchCommunityLevels() {
 }
 
 async function publishCommunityLevel(payload) {
+  const levelCode = payload.code || encodeLevelCode(payload.level);
+  const codedPayload = { ...payload, code: levelCode };
   try {
     const response = await fetch(`${LEVEL_API_URL}/api/levels`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(codedPayload)
     });
     if (!response.ok) throw new Error("Publish failed");
     return { level: await response.json(), source: "global" };
   } catch {
-    const level = { ...payload, id: `local-${Date.now()}`, plays: 0, likes: 0, createdAt: new Date().toISOString() };
+    const level = { ...codedPayload, id: `local-${Date.now()}`, plays: 0, likes: 0, createdAt: new Date().toISOString() };
     saveLocalCommunityLevels([level, ...getLocalCommunityLevels()]);
     return { level, source: "local" };
   }
@@ -1737,9 +1747,9 @@ function CommunityLevels({ setScreen, playLevel }) {
               <div>
                 <h3>{entry.title}</h3>
                 <p>{entry.description || "No briefing attached."}</p>
-                <small>By {entry.author || "Unknown"} | {source === "global" ? "Global" : "Local"} | Plays {entry.plays || 0}</small>
+                <small>By {entry.author || "Unknown"} | {source === "global" ? "Global" : "Local"} | Code {entry.code ? entry.code.slice(0, 10) : "legacy"} | Plays {entry.plays || 0}</small>
               </div>
-              <Button primary onClick={() => playLevel(entry.level)}><Play /> Play</Button>
+              <Button primary onClick={() => playLevel(entry.level || decodeLevelCode(entry.code))}><Play /> Play</Button>
             </article>
           ))}
         </div>
@@ -1790,15 +1800,38 @@ function Editor({ setScreen, setCustomLevel, user }) {
       return;
     }
     setPublishStatus("Publishing...");
+    const publishedLevel = { ...structuredClone(level), name: cleanName };
+    const levelCode = encodeLevelCode(publishedLevel);
     const payload = {
       title: cleanName,
       description: publishNote.trim(),
       author: user?.nickname || "Anonymous",
-      level: { ...structuredClone(level), name: cleanName },
+      level: publishedLevel,
+      code: levelCode,
       version: 1
     };
     const result = await publishCommunityLevel(payload);
-    setPublishStatus(result.source === "global" ? "Published globally." : "Saved locally. Start the community server to publish globally.");
+    setCode(levelCode);
+    setPublishStatus(result.source === "global" ? "Published as level code and saved to the relay." : "Saved as a level code in this browser.");
+  };
+
+  const exportCode = () => {
+    setCode(encodeLevelCode(level));
+    setPublishStatus("Level code generated.");
+  };
+
+  const importCode = () => {
+    try {
+      setLevel(decodeLevelCode(code));
+      setPublishStatus("Level code imported.");
+    } catch {
+      try {
+        setLevel(JSON.parse(code));
+        setPublishStatus("Legacy JSON imported.");
+      } catch {
+        setPublishStatus("Invalid level code.");
+      }
+    }
   };
 
   return (
@@ -1808,8 +1841,8 @@ function Editor({ setScreen, setCustomLevel, user }) {
         <div className="tools">{tools.map((t) => <button className="tool-btn" data-active={tool === t} key={t} onClick={() => setTool(t)}>{t}</button>)}</div>
         <div className="button-grid">
           <Button primary onClick={() => { setCustomLevel(level); setScreen("playing"); }}><Play /> Test</Button>
-          <Button onClick={() => setCode(JSON.stringify(level))}>Export</Button>
-          <Button onClick={() => { try { setLevel(JSON.parse(code)); } catch { setCode("Invalid level JSON"); } }}>Import</Button>
+          <Button onClick={exportCode}>Make Code</Button>
+          <Button onClick={importCode}>Import Code</Button>
           <Button onClick={() => setScreen("menu")}>Menu</Button>
         </div>
         <div className="publish-box">
@@ -1820,7 +1853,7 @@ function Editor({ setScreen, setCustomLevel, user }) {
           <Button primary onClick={publish}><UploadCloud /> Publish Map</Button>
           {publishStatus && <p className="small-copy">{publishStatus}</p>}
         </div>
-        <div className="setting"><label>Share Code</label><textarea rows="8" value={code} onChange={(e) => setCode(e.target.value)} /></div>
+        <div className="setting"><label>Level Code</label><textarea rows="8" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Published maps become a code here. Share or import this code." /></div>
       </aside>
       <main className="editor-canvas-wrap"><canvas ref={canvas} className="editor-canvas" width={W} height={H} onClick={place} /></main>
     </div>

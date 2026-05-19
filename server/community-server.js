@@ -57,8 +57,8 @@ const server = createServer(async (req, res) => {
   if (req.url === "/api/levels" && req.method === "POST") {
     try {
       const body = await readBody(req);
-      if (!body.title || !body.level || !body.author) {
-        send(res, 400, { error: "Missing title, author, or level." });
+      if (!body.title || !body.author || (!body.level && !body.code)) {
+        send(res, 400, { error: "Missing title, author, or level code." });
         return;
       }
       const level = {
@@ -67,6 +67,7 @@ const server = createServer(async (req, res) => {
         description: String(body.description || "").slice(0, 240),
         author: String(body.author).slice(0, 32),
         level: body.level,
+        code: String(body.code || ""),
         version: 1,
         plays: 0,
         likes: 0,
