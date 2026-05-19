@@ -76,6 +76,14 @@ const AVATARS = [
   { id: "white", label: "Archive Glider", colors: ["#e7f0ef", "#19272d"] },
   { id: "gold", label: "Salvage Ace", colors: ["#ffb000", "#221706"] }
 ];
+const COSMETIC_DEFAULTS = { body: "#dfe9e8", accent: "#ffd52d", trail: "#00f0d2", frame: "arrow" };
+const BODY_COLORS = ["#dfe9e8", "#ffd52d", "#00f0d2", "#58e07a", "#ff4e41", "#ffb000"];
+const TRAIL_COLORS = ["#00f0d2", "#ffd52d", "#58e07a", "#ff4e41", "#e7f0ef", "#ff8a00"];
+const DRONE_FRAMES = [
+  { id: "arrow", label: "Arrow" },
+  { id: "split", label: "Split Wing" },
+  { id: "needle", label: "Needle" }
+];
 
 function getStoredUsers() {
   try {
@@ -100,7 +108,7 @@ function getStoredSession() {
 function updateStoredUserProfile(updated) {
   const users = getStoredUsers().map((u) => (u.id === updated.id ? { ...u, ...updated } : u));
   saveStoredUsers(users);
-  const session = { id: updated.id, nickname: updated.nickname, email: updated.email, avatar: updated.avatar };
+  const session = { id: updated.id, nickname: updated.nickname, email: updated.email, avatar: updated.avatar, cosmetic: updated.cosmetic || COSMETIC_DEFAULTS };
   localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
   return session;
 }
@@ -468,10 +476,11 @@ function AuthScreen({ onAuth }) {
         email: cleanEmail,
         password: cleanPassword,
         avatar: "yellow",
+        cosmetic: COSMETIC_DEFAULTS,
         createdAt: new Date().toISOString()
       };
       saveStoredUsers([...users, user]);
-      const session = { id: user.id, nickname: user.nickname, email: user.email, avatar: user.avatar };
+      const session = { id: user.id, nickname: user.nickname, email: user.email, avatar: user.avatar, cosmetic: user.cosmetic };
       localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
       onAuth(session);
       return;
@@ -480,7 +489,7 @@ function AuthScreen({ onAuth }) {
       setMessage("Nickname or password is incorrect.");
       return;
     }
-    const session = { id: found.id, nickname: found.nickname, email: found.email, avatar: found.avatar || "yellow" };
+    const session = { id: found.id, nickname: found.nickname, email: found.email, avatar: found.avatar || "yellow", cosmetic: found.cosmetic || COSMETIC_DEFAULTS };
     localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
     onAuth(session);
   };
@@ -566,7 +575,7 @@ function useAmbient(settings) {
   }, [settings.music, settings.volume]);
 }
 
-function drawLevel(ctx, level, game, shake = 0) {
+function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS) {
   ctx.save();
   ctx.clearRect(0, 0, W, H);
   if (shake) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
@@ -728,8 +737,8 @@ function drawLevel(ctx, level, game, shake = 0) {
   ctx.textAlign = "left";
 
   game.dashBursts?.forEach((burst) => drawDashBurst(ctx, burst));
-  game.echoes.forEach((e) => drawDrone(ctx, e, true));
-  drawDrone(ctx, game.player, false);
+  game.echoes.forEach((e) => drawDrone(ctx, e, true, cosmetic));
+  drawDrone(ctx, game.player, false, cosmetic);
 
   game.bullets.forEach((b) => {
     ctx.fillStyle = b.owner === "enemy" ? "#ff4e41" : "#ffd52d";
@@ -789,14 +798,15 @@ function drawHostileDrone(ctx, d) {
   drawLabel(ctx, "HUNTER DRONE", d.x - 38, d.y - 34, "#ff7c72");
 }
 
-function drawDrone(ctx, p, echo) {
+function drawDrone(ctx, p, echo, cosmetic = COSMETIC_DEFAULTS) {
+  const skin = echo ? { body: "rgba(0,240,210,.28)", accent: "#00f0d2", trail: "#00f0d2", frame: cosmetic.frame } : { ...COSMETIC_DEFAULTS, ...cosmetic };
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.rotate(p.angle || 0);
   ctx.globalAlpha = echo ? 0.48 : 1;
   if (p.dashTrail && !echo) {
     ctx.globalAlpha = 0.35;
-    ctx.fillStyle = "#00f0d2";
+    ctx.fillStyle = skin.trail;
     ctx.beginPath();
     ctx.moveTo(-10, 0);
     ctx.lineTo(-54, -12);
@@ -806,28 +816,44 @@ function drawDrone(ctx, p, echo) {
     ctx.fill();
     ctx.globalAlpha = 1;
   }
-  ctx.shadowColor = echo ? "#00f0d2" : "#ffd52d";
+  ctx.shadowColor = echo ? "#00f0d2" : skin.accent;
   ctx.shadowBlur = echo ? 16 : p.dashTrail ? 22 : 12;
-  ctx.fillStyle = echo ? "rgba(0,240,210,.28)" : "#dfe9e8";
-  ctx.strokeStyle = echo ? "#00f0d2" : "#ffd52d";
+  ctx.fillStyle = skin.body;
+  ctx.strokeStyle = echo ? "#00f0d2" : skin.accent;
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(23, 0);
-  ctx.lineTo(-16, -15);
-  ctx.lineTo(-7, 0);
-  ctx.lineTo(-16, 15);
+  if (skin.frame === "split") {
+    ctx.moveTo(23, 0);
+    ctx.lineTo(-8, -18);
+    ctx.lineTo(-1, -5);
+    ctx.lineTo(-20, -10);
+    ctx.lineTo(-10, 0);
+    ctx.lineTo(-20, 10);
+    ctx.lineTo(-1, 5);
+    ctx.lineTo(-8, 18);
+  } else if (skin.frame === "needle") {
+    ctx.moveTo(28, 0);
+    ctx.lineTo(-10, -9);
+    ctx.lineTo(-22, 0);
+    ctx.lineTo(-10, 9);
+  } else {
+    ctx.moveTo(23, 0);
+    ctx.lineTo(-16, -15);
+    ctx.lineTo(-7, 0);
+    ctx.lineTo(-16, 15);
+  }
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
   ctx.shadowBlur = 0;
   ctx.fillStyle = echo ? "#00f0d2" : "#061012";
   ctx.fillRect(-2, -4, 12, 8);
-  ctx.fillStyle = echo ? "rgba(0,240,210,.55)" : "#ffd52d";
+  ctx.fillStyle = echo ? "rgba(0,240,210,.55)" : skin.accent;
   ctx.fillRect(-18, -3, 7, 6);
   ctx.restore();
 }
 
-function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary }) {
+function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, cosmetic }) {
   const canvas = useRef(null);
   const game = useRef(null);
   const keys = useRef(new Set());
@@ -1095,7 +1121,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       }
 
       const ctx = canvas.current?.getContext("2d");
-      if (ctx) drawLevel(ctx, level, g, g.shake);
+      if (ctx) drawLevel(ctx, level, g, g.shake, cosmetic);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -1105,8 +1131,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
   return { canvas, game, reset, spawnEcho };
 }
 
-function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSummary }) {
-  const { canvas, game, reset, spawnEcho } = useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary });
+function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSummary, cosmetic }) {
+  const { canvas, game, reset, spawnEcho } = useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, cosmetic });
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setTick((v) => v + 1), 120);
@@ -1221,6 +1247,7 @@ function Brief({ icon, title, text }) {
 
 function ProfileScreen({ user, setUser, setScreen }) {
   const [avatar, setAvatar] = useState(user?.avatar || "yellow");
+  const [cosmetic, setCosmetic] = useState({ ...COSMETIC_DEFAULTS, ...(user?.cosmetic || {}) });
   const [message, setMessage] = useState("");
 
   const save = () => {
@@ -1229,7 +1256,7 @@ function ProfileScreen({ user, setUser, setScreen }) {
       setMessage("Profile not found. Log in again.");
       return;
     }
-    const session = updateStoredUserProfile({ ...current, avatar });
+    const session = updateStoredUserProfile({ ...current, avatar, cosmetic });
     setUser(session);
     setMessage("Profile picture updated.");
   };
@@ -1245,6 +1272,18 @@ function ProfileScreen({ user, setUser, setScreen }) {
           </div>
           <AvatarBadge avatar={avatar} size="lg" />
         </div>
+        <div className="profile-preview">
+          <canvas
+            width="180"
+            height="120"
+            ref={(node) => {
+              if (!node) return;
+              const ctx = node.getContext("2d");
+              ctx.clearRect(0, 0, 180, 120);
+              drawDrone(ctx, { x: 90, y: 60, angle: 0, dashTrail: 160 }, false, cosmetic);
+            }}
+          />
+        </div>
         <div className="avatar-grid">
           {AVATARS.map((item) => (
             <button className="avatar-choice" data-active={avatar === item.id} key={item.id} onClick={() => setAvatar(item.id)}>
@@ -1253,9 +1292,29 @@ function ProfileScreen({ user, setUser, setScreen }) {
             </button>
           ))}
         </div>
+        <div className="customizer-grid">
+          <div>
+            <label>Body Color</label>
+            <div className="swatch-row">
+              {BODY_COLORS.map((color) => <button key={color} className="swatch" data-active={cosmetic.body === color} style={{ background: color }} onClick={() => setCosmetic({ ...cosmetic, body: color })} />)}
+            </div>
+          </div>
+          <div>
+            <label>Trail Color</label>
+            <div className="swatch-row">
+              {TRAIL_COLORS.map((color) => <button key={color} className="swatch" data-active={cosmetic.trail === color} style={{ background: color }} onClick={() => setCosmetic({ ...cosmetic, trail: color, accent: color })} />)}
+            </div>
+          </div>
+          <div>
+            <label>Drone Frame</label>
+            <div className="frame-row">
+              {DRONE_FRAMES.map((frame) => <button key={frame.id} data-active={cosmetic.frame === frame.id} onClick={() => setCosmetic({ ...cosmetic, frame: frame.id })}>{frame.label}</button>)}
+            </div>
+          </div>
+        </div>
         {message && <p className="auth-message">{message}</p>}
         <div className="button-grid">
-          <Button primary onClick={save}><UserRound /> Save Profile Pic</Button>
+          <Button primary onClick={save}><UserRound /> Save Character</Button>
           <Button onClick={() => setScreen("menu")}>Back To Menu</Button>
         </div>
       </section>
@@ -1489,7 +1548,7 @@ function App() {
   return (
     <div className="app">
       <div className="frame" />
-      {(screen === "playing" || screen === "paused" || screen === "summary") && <GameView key={`${levelIndex}-${runSeed}-${customLevel ? "custom" : "stock"}`} levelIndex={levelIndex} customLevel={customLevel} screen={screen === "playing" ? "playing" : "idle"} setScreen={setScreen} settings={settings} setSummary={setSummary} />}
+      {(screen === "playing" || screen === "paused" || screen === "summary") && <GameView key={`${levelIndex}-${runSeed}-${customLevel ? "custom" : "stock"}`} levelIndex={levelIndex} customLevel={customLevel} screen={screen === "playing" ? "playing" : "idle"} setScreen={setScreen} settings={settings} setSummary={setSummary} cosmetic={{ ...COSMETIC_DEFAULTS, ...(user?.cosmetic || {}) }} />}
       {screen === "auth" && <AuthScreen onAuth={(session) => { setUser(session); setScreen("menu"); }} />}
       {screen === "menu" && <MainMenu user={user} onLogout={logout} setScreen={setScreen} setLevelIndex={(i) => { setCustomLevel(null); setLevelIndex(i); }} />}
       {screen === "profile" && <ProfileScreen user={user} setUser={setUser} setScreen={setScreen} />}
