@@ -344,7 +344,7 @@ textarea {
 }
 
 .avatar-lg {
-  --avatar-size: 86px;
+  --avatar-size: 72px;
 }
 
 .avatar-badge span {
@@ -363,6 +363,16 @@ textarea {
   overflow: hidden;
 }
 
+.profile-panel .drawer-head {
+  margin-bottom: 12px;
+}
+
+.profile-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .profile-scroll {
   min-height: 0;
   overflow: auto;
@@ -377,7 +387,7 @@ textarea {
 
 .avatar-choice {
   display: grid;
-  min-height: 104px;
+  min-height: 84px;
   place-items: center;
   gap: 8px;
   border: 1px solid var(--line);
@@ -422,7 +432,7 @@ textarea {
 
 .profile-preview canvas {
   width: 180px;
-  height: 120px;
+  height: 92px;
 }
 
 .customizer-grid {

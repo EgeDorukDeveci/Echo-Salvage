@@ -1465,7 +1465,10 @@ function ProfileScreen({ user, setUser, setScreen }) {
             <h2>{user?.nickname}</h2>
             <p className="small-copy">{user?.email || "No email attached"}</p>
           </div>
-          <AvatarBadge avatar={avatar} size="lg" />
+          <div className="profile-head-actions">
+            <AvatarBadge avatar={avatar} size="lg" />
+            <Button onClick={() => setScreen("menu")} aria-label="Close profile"><X /></Button>
+          </div>
         </div>
         <div className="profile-preview">
           <canvas
