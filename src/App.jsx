@@ -42,8 +42,7 @@ const defaultSettings = {
   music: false,
   shake: true,
   reduced: false,
-  difficulty: "Standard",
-  language: "English"
+  difficulty: "Standard"
 };
 
 const rooms = [
@@ -1606,7 +1605,6 @@ function SettingsDrawer({ settings, setSettings, setScreen }) {
       <Toggle title="Screen Shake" text="Impact feedback from hits, lasers, and Echo deployment." value={settings.shake} onChange={(shake) => setSettings({ ...settings, shake })} />
       <Toggle title="Reduced Motion" text="Softens camera jitter and heavy pulses." value={settings.reduced} onChange={(reduced) => setSettings({ ...settings, reduced })} />
       <div className="setting"><label>Difficulty</label><select value={settings.difficulty} onChange={(e) => setSettings({ ...settings, difficulty: e.target.value })}><option>Easy</option><option>Standard</option><option>Hard</option></select></div>
-      <div className="setting"><label>Language</label><select value={settings.language} onChange={(e) => setSettings({ ...settings, language: e.target.value })}><option>English</option><option>Turkce</option></select></div>
     </div>
   );
 }
