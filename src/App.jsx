@@ -1775,6 +1775,7 @@ function Editor({ setScreen, setCustomLevel, user }) {
     { id: "plate", label: "Pressure Plate", hint: "Needs a body or Echo" },
     { id: "switch", label: "Terminal", hint: "Interact with E" },
     { id: "turret", label: "Turret", hint: "Shoots when it sees you" },
+    { id: "drone", label: "Enemy Drone", hint: "Chases and attacks the player" },
     { id: "scrap", label: "Scrap", hint: "Restores energy" },
     { id: "exit", label: "Exit Gate", hint: "Extraction target" },
     { id: "erase", label: "Erase", hint: "Remove editor pieces" }
@@ -1800,10 +1801,14 @@ function Editor({ setScreen, setCustomLevel, user }) {
     if (tool === "plate") next.plates.push({ x: x + 20, y: y + 20, r: 26, id: `P${next.plates.length + 1}` });
     if (tool === "switch") next.switches.push({ x: x + 20, y: y + 20, r: 22, id: `S${next.switches.length + 1}`, on: false });
     if (tool === "turret") next.turrets.push({ x: x + 20, y: y + 20, hp: 2, cooldown: 0 });
+    if (tool === "drone") {
+      next.drones = next.drones || [];
+      next.drones.push({ x: x + 20, y: y + 20, hp: 2, cooldown: 450 });
+    }
     if (tool === "scrap") next.scrap.push({ x: x + 20, y: y + 20, taken: false });
     if (tool === "exit") next.exit = { x, y, w: 58, h: 114 };
     if (tool === "erase") {
-      ["walls", "crates", "coinCrates", "plates", "switches", "turrets", "scrap"].forEach((k) => {
+      ["walls", "crates", "coinCrates", "plates", "switches", "turrets", "drones", "scrap"].forEach((k) => {
         next[k] = next[k] || [];
         next[k] = next[k].filter((o) => !rectsTouch({ x, y, w: CELL, h: CELL }, { x: (o.x ?? 0) - (o.r ?? 0), y: (o.y ?? 0) - (o.r ?? 0), w: o.w ?? (o.r ?? 22) * 2, h: o.h ?? (o.r ?? 22) * 2 }));
       });
