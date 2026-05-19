@@ -733,6 +733,7 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS) {
   });
 
   level.crates.forEach((c) => {
+    drawLabel(ctx, "CARGO", c.x - 5, c.y - 14, "#9ab0b2");
     glowRect(ctx, c.x, c.y, c.w, c.h, "#ffd52d", "rgba(81, 65, 22, 0.78)", 15, 3);
     ctx.fillStyle = "rgba(255, 213, 45, 0.28)";
     ctx.fillRect(c.x + 8, c.y + 7, c.w - 16, 3);
@@ -740,11 +741,12 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS) {
 
   level.coinCrates?.forEach((c) => {
     if (c.taken) return;
+    drawLabel(ctx, "COIN CACHE", c.x - 19, c.y - 14, "#ffb000");
     glowRect(ctx, c.x, c.y, c.w, c.h, "#ffb000", "rgba(85, 52, 9, 0.82)", 18, 3);
     ctx.fillStyle = "#ffed8a";
     ctx.font = "900 18px Rajdhani, Bahnschrift, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("C", c.x + c.w / 2, c.y + c.h / 2 + 6);
+    ctx.fillText("$", c.x + c.w / 2, c.y + c.h / 2 + 6);
     ctx.textAlign = "left";
   });
 
@@ -1397,7 +1399,7 @@ function MainMenu({ setScreen, setLevelIndex, user, onLogout }) {
         </section>
         <section className="panel">
           <h2>Run Brief</h2>
-          <Brief icon={<Bot />} title="Tutorial" text="Room one teaches movement, salvage crates, interacting, combat, and pressure plates before the Echo puzzles escalate." />
+          <Brief icon={<Bot />} title="Tutorial" text="Room one teaches movement, cargo crates, coin caches, interacting, combat, and pressure plates before the Echo puzzles escalate." />
           <div className="rooms">
             {rooms.map((r, i) => (
               <button className="room-card" key={r} onClick={() => { setLevelIndex(i); setScreen("playing"); }}>
