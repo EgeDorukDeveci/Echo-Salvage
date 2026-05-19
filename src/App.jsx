@@ -1369,7 +1369,10 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         const a = Math.atan2(g.player.y - d.y, g.player.x - d.x);
         d.angle = a;
         const gap = dist(d, g.player);
-        if (gap > 155) tryMove(d, Math.cos(a) * 115 * dt / 1000, Math.sin(a) * 115 * dt / 1000, level);
+        if (gap > 155) {
+          d.x = clamp(d.x + Math.cos(a) * 115 * dt / 1000, 58, W - 58);
+          d.y = clamp(d.y + Math.sin(a) * 115 * dt / 1000, 58, H - 58);
+        }
         if (gap < 34) {
           damagePlayer(g, dt * 0.035);
           if (settings.shake && !settings.reduced) g.shake = Math.max(g.shake, 4);
