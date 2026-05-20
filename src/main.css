@@ -63,6 +63,33 @@ textarea {
   background-size: 34px 34px, 34px 34px, 100% 100%, 100% 100%, 100% 100%;
 }
 
+.app[data-theme="hazard"] {
+  background:
+    linear-gradient(rgba(255, 213, 45, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 78, 65, 0.04) 1px, transparent 1px),
+    radial-gradient(circle at 72% 28%, rgba(255, 78, 65, 0.14), transparent 30%),
+    radial-gradient(circle at 24% 80%, rgba(255, 213, 45, 0.1), transparent 34%),
+    #110c08;
+}
+
+.app[data-theme="reactor"] {
+  background:
+    linear-gradient(rgba(88, 224, 122, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 210, 0.04) 1px, transparent 1px),
+    radial-gradient(circle at 70% 25%, rgba(88, 224, 122, 0.13), transparent 30%),
+    radial-gradient(circle at 22% 75%, rgba(0, 240, 210, 0.12), transparent 35%),
+    #07130f;
+}
+
+.app[data-theme="midnight"] {
+  background:
+    linear-gradient(rgba(154, 176, 178, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(122, 136, 168, 0.04) 1px, transparent 1px),
+    radial-gradient(circle at 72% 28%, rgba(138, 160, 255, 0.12), transparent 30%),
+    radial-gradient(circle at 24% 80%, rgba(178, 255, 246, 0.07), transparent 35%),
+    #0a0d14;
+}
+
 .app::before {
   content: "";
   position: absolute;
@@ -86,6 +113,116 @@ textarea {
   width: 100%;
   height: 100%;
   cursor: crosshair;
+}
+.game-shell {
+  position: absolute;
+  inset: 0;
+}
+.mode-chip {
+  border: 1px solid var(--line);
+  background: rgba(255, 213, 45, 0.12);
+  color: var(--yellow);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  margin-right: 8px;
+}
+.mobile-layout .game-canvas {
+  height: calc(100% - 150px);
+}
+.mobile-dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 150px;
+  border-top: 1px solid var(--line);
+  background: rgba(8, 17, 20, 0.96);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 18px;
+}
+.mobile-stick {
+  width: 136px;
+  height: 136px;
+  align-self: center;
+  flex: 0 0 136px;
+  border-radius: 50%;
+  border: 2px solid rgba(86, 121, 130, 0.7);
+  background: radial-gradient(circle at 35% 30%, rgba(190, 216, 221, 0.16), rgba(10, 26, 32, 0.9));
+  position: relative;
+  touch-action: none;
+}
+.mobile-stick-ring {
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(133, 177, 189, 0.55);
+  background: radial-gradient(circle, rgba(0, 240, 210, 0.08), transparent 70%);
+}
+.mobile-stick-fire-ring {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 94, 78, 0.7);
+  box-shadow: 0 0 18px rgba(255, 78, 65, 0.18);
+  pointer-events: none;
+}
+.mobile-stick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -28px;
+  border-radius: 50%;
+  border: 2px solid rgba(34, 87, 116, 0.9);
+  background: radial-gradient(circle at 38% 28%, #53a7d8 8%, #0e4f82 68%, #08365c 100%);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.35);
+}
+.mobile-stick-aim .mobile-stick-knob {
+  border-color: rgba(11, 58, 94, 0.9);
+  background: radial-gradient(circle at 35% 30%, #79d6ff 8%, #1f78b2 68%, #12486f 100%);
+}
+.mobile-actions {
+  flex: 1 1 380px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 18px 14px;
+  align-items: center;
+  justify-items: stretch;
+  margin: 0 8px;
+}
+.mobile-action {
+  border: 1px solid var(--line-bright);
+  border-radius: 999px;
+  background: rgba(0, 240, 210, 0.08);
+  color: var(--text);
+  font-weight: 800;
+  min-height: 50px;
+  min-width: 156px;
+  width: 100%;
+  max-width: none;
+}
+.mobile-action-dash {
+  grid-column: 1;
+  grid-row: 1;
+}
+.mobile-action-ability {
+  grid-column: 2;
+  grid-row: 1;
+}
+.mobile-action-echo {
+  grid-column: 1;
+  grid-row: 2;
+}
+.mobile-action-pause {
+  grid-column: 2;
+  grid-row: 2;
 }
 
 .hud {
@@ -203,13 +340,14 @@ textarea {
 
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(4, 68px);
-  gap: 8px;
+  grid-template-columns: repeat(2, 64px);
+  gap: 6px;
+  align-self: start;
 }
 
 .stat-tile {
   display: grid;
-  min-height: 70px;
+  min-height: 54px;
   place-items: center;
   border: 1px solid var(--line);
   background: rgba(8, 17, 20, 0.82);
@@ -223,13 +361,13 @@ textarea {
 
 .stat-tile span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
 }
 
 .stat-tile strong {
   color: var(--text);
-  font-size: 18px;
+  font-size: 15px;
   line-height: 1;
 }
 
@@ -407,13 +545,36 @@ textarea {
 .profile-preview {
   display: grid;
   place-items: center;
+  gap: 10px;
   margin-bottom: 10px;
+  padding: 14px;
   border: 1px solid var(--line);
   background:
     linear-gradient(rgba(0, 240, 210, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 240, 210, 0.05) 1px, transparent 1px),
     rgba(5, 13, 16, 0.88);
   background-size: 20px 20px;
+}
+
+.profile-preview-copy {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  text-align: center;
+}
+
+.profile-preview-copy strong {
+  color: var(--text);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.profile-preview-copy span {
+  max-width: 340px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.2;
 }
 
 .profile-actions {
@@ -431,8 +592,10 @@ textarea {
 }
 
 .profile-preview canvas {
-  width: 180px;
-  height: 92px;
+  width: min(100%, 220px);
+  height: 126px;
+  border: 1px solid rgba(75, 116, 128, 0.38);
+  background: rgba(2, 8, 10, 0.5);
 }
 
 .customizer-grid {
@@ -935,8 +1098,34 @@ textarea {
 
 .control-card {
   min-height: 44px;
+  border: 1px solid var(--line);
+  background: rgba(8, 17, 20, 0.82);
   padding: 12px;
   color: #d7e4e3;
+}
+
+.control-bind {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+}
+
+.control-bind strong {
+  color: var(--yellow);
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.control-bind[data-listening="true"] {
+  border-color: var(--yellow);
+  box-shadow: 0 0 0 2px rgba(255, 213, 45, 0.16);
+}
+
+.controls-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .editor {
@@ -1153,5 +1342,21 @@ textarea {
 
   .editor-canvas-wrap {
     min-height: 540px;
+  }
+  .hud {
+    inset: 6px 6px auto 6px;
+    gap: 6px;
+  }
+  .objective-card {
+    display: none;
+  }
+  .stat-grid {
+    grid-template-columns: repeat(2, 58px);
+  }
+  .hud-help {
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
 }
