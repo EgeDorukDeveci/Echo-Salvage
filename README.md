@@ -1,19 +1,48 @@
 # Echo Salvage
 
-Echo Salvage is a top-down browser game about solving space-station puzzles with copies of your recent past.
+Echo Salvage is a top-down browser action-puzzle game set inside abandoned orbital stations. You pilot a salvage drone, solve locked rooms, fight hostile station systems, collect scrap and coins, and use your main power: an **Echo** that replays your recent actions.
 
-You pilot a salvage drone through abandoned orbital rooms, collecting scrap, dodging lasers, fighting turrets and hunter drones, opening locked exits, and using **Echoes**: ghost drones that replay your last 8 seconds of movement, shooting, and interactions.
+The Echo records an eight-second window of movement, shooting, dashing, and interactions. When released, it replays that window and keeps following the next recorded action sequence, letting you coordinate with your own past and future movement patterns.
 
-## Features
+## Current Features
 
-- Canvas-based 2D action-puzzle gameplay
-- Echo replay mechanic with recorded movement, shooting, and interaction
-- Distinct station rooms with plates, switches, doors, lasers, turrets, drones, scrap, and reactor cores
-- Dash movement with energy cost
-- Local sign up/login flow with nickname, password, and optional email
-- Level creator with import/export
-- Community level publishing API with local fallback
-- Procedural ambient background music generated in-browser
+- Canvas-based 2D station gameplay
+- Handmade 21-room campaign ordered by difficulty
+- Echo replay puzzles with plates, switches, doors, lasers, cargo, and timing
+- Hostiles: turrets, chase drones, missile sentries, gravity nodes, echo jammers, laser sweepers, shield drones, repair bots, and blink hunters
+- Dash, abilities, weapons, ammo, reloads, health, shield, energy, scrap, and coins
+- Coin crates and a coin-based shop for cosmetics, pets, weapons, abilities, and dash effects
+- Character customization with live previews
+- Local sign up/login with nickname, password, and optional email
+- Customizable controls, mouse sensitivity, visual themes, and mobile/PC control options
+- Level creator with import/export and testing
+- Procedural ambient background music generated in the browser
+
+## Campaign Rooms
+
+The campaign is listed from easiest to hardest:
+
+1. Echo Plate Training
+2. Cargo Pressure Chapel
+3. Laser Switch Spine
+4. First Turret Gallery
+5. Drone Chase Hangar
+6. Split Echo Circuit
+7. Forklift Cargo Lab
+8. Relay Turret Yard
+9. Memory Laser Switchback
+10. Locked Drone Orchard
+11. Twin Echo Nursery
+12. Pressure Cargo Foundry
+13. Scrap Turret Conservatory
+14. Dual Drone Relay
+15. Missile Dash Range
+16. Gravity Node Primer
+17. Jammer Mirror Lock
+18. Sweeper Repair Bay
+19. Shield Drone Gauntlet
+20. Blink Hunter Furnace
+21. Echo Core Finale
 
 ## Controls
 
@@ -23,8 +52,11 @@ You pilot a salvage drone through abandoned orbital rooms, collecting scrap, dod
 - Dash: `Shift`
 - Interact: `E`
 - Spawn Echo: `Q`
+- Reload: configured reload key
 - Pause: `Esc`
 - Retry room: `R` or Pause menu > Retry Level
+
+Controls can be changed in the in-game Controls/Settings screens.
 
 ## Run Locally
 
@@ -52,36 +84,14 @@ Build the static app:
 npm run build
 ```
 
-## Community Level Server
+## Community Levels
 
-Start the local publishing server:
+The Community Levels tab is currently marked **In Construction**.
 
-```bash
-npm run community
-```
+For now, the level creator is focused on local building, testing, importing, and exporting. Global publishing was intentionally paused while the core game and campaign are being improved.
 
-The local API runs at:
+## Notes
 
-```text
-http://localhost:8787
-```
-
-The game uses `VITE_LEVEL_API_URL` when set. Without it, it falls back to the local server and then to local browser storage.
-
-Example `.env.local`:
-
-```env
-VITE_LEVEL_API_URL=http://localhost:8787
-```
-
-## Deploy Global Publishing
-
-The project includes `render.yaml` for deploying the community server on Render.
-
-1. Push this project to GitHub.
-2. In Render, create a new Blueprint from the repo.
-3. Render will use `npm run community`.
-4. Published maps are saved to the configured persistent disk.
-5. Set the frontend `VITE_LEVEL_API_URL` to the deployed server URL.
-
-More details are in `DEPLOY.md`.
+- Real-money purchases are not active.
+- The game is a Vite/React app with the gameplay rendered on HTML canvas.
+- The background music is original procedural Web Audio, not an imported copyrighted song.
