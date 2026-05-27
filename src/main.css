@@ -762,6 +762,34 @@ textarea {
   margin-top: 58px;
 }
 
+.construction-tab {
+  position: relative;
+}
+
+.construction-tab span {
+  margin-left: auto;
+  border: 1px solid rgba(255, 213, 45, 0.45);
+  background: rgba(255, 213, 45, 0.12);
+  color: var(--yellow);
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  animation: construction-pulse 1.45s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes construction-pulse {
+  0%, 100% {
+    transform: scale(0.92);
+    opacity: 0.72;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
 .btn {
   display: inline-flex;
   min-height: 46px;
@@ -981,9 +1009,22 @@ textarea {
   line-height: 0.9;
 }
 
+.room-tier {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 2px 6px;
+  border: 1px solid rgba(0, 240, 210, 0.32);
+  border-radius: 4px;
+  color: var(--cyan);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
 .room-name {
   display: block;
-  margin-top: 10px;
+  margin-top: 8px;
   font-size: 12px;
   font-weight: 900;
   line-height: 1.05;
@@ -1152,10 +1193,17 @@ textarea {
 }
 
 .editor-tool-status span,
-.editor-tool-status p {
+.editor-tool-status p,
+.editor-tool-status small {
   margin: 0;
   color: var(--muted);
   font-size: 12px;
+}
+
+.editor-tool-status small {
+  color: var(--yellow);
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .editor-tool-status strong {
@@ -1222,6 +1270,14 @@ textarea {
   padding-top: 16px;
   border-top: 1px solid rgba(75, 116, 128, 0.35);
   background: rgba(8, 17, 20, 0.34);
+}
+
+.construction-badge {
+  width: fit-content;
+  background: rgba(255, 213, 45, 0.16);
+  color: var(--yellow);
+  animation: construction-pulse 1.45s ease-in-out infinite;
+  transform-origin: left center;
 }
 
 .publish-box label {
@@ -1295,6 +1351,24 @@ textarea {
   place-items: center;
   text-align: center;
   color: var(--muted);
+}
+
+.construction-empty {
+  min-height: 260px;
+  align-content: center;
+  gap: 10px;
+}
+
+.construction-empty h3 {
+  margin: 0;
+  color: var(--text);
+  text-transform: uppercase;
+}
+
+.construction-empty p {
+  max-width: 520px;
+  margin: 0;
+  line-height: 1.35;
 }
 
 .modal {

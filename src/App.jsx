@@ -32,6 +32,9 @@ import "./main.css";
 const W = 1280;
 const H = 720;
 const ECHO_MS = 8000;
+const ECHO_FUTURE_MS = 8000;
+const ECHO_FRAME_MS = 50;
+const MAX_ECHOES = 3;
 const CELL = 40;
 const MAX_ENERGY = 120;
 const ECHO_COST = 22;
@@ -79,79 +82,34 @@ const keybindActions = [
 ];
 
 const rooms = [
-  "Training Bay",
-  "Cargo Chapel",
-  "Laser Spine",
-  "Pressure Lock",
-  "Relay Atrium",
-  "Split Circuit",
-  "Forklift Lab",
-  "Switchyard Delta",
-  "Memory Switchback",
-  "Locked Orchard",
-  "Echo Nursery",
-  "Pressure Foundry",
-  "Scrap Conservatory",
-  "Memory Dock",
-  "Twin Echo Vault",
-  "Dual Relay",
-  "Lockstep Furnace",
-  "Null Dock",
-  "Signal Cathedral",
-  "Mirror Relay Stack",
-  "Cinder Switchyard",
-  "Scanner Chapel",
-  "Glass Spine",
-  "Mirror Plate",
-  "Amber Causeway",
-  "Final Relay",
-  "Golden Pressure Court",
-  "Tri-Plate Annex",
-  "Turret Gallery",
-  "Echo Bait Lab",
-  "Vacuum Gallery",
-  "Reactor Seed",
-  "Laser Cage",
-  "Capraza Fire",
-  "Pulse Corridor",
-  "Archive Sluice",
-  "Long Echo Crossing",
-  "Redline Transit",
-  "Phase Lock",
-  "Cargo Switch Maze",
-  "Signal Storm",
-  "Coin Cache Depot",
-  "Forked Laser Hall",
-  "Drone Hangar",
-  "Laser Bloom",
-  "Plate Orchestra",
-  "Red Archive",
-  "Echo Gauntlet",
-  "Broken Gatehouse",
-  "Phase Loom",
-  "Coin Cache Promenade",
-  "Blind Turret Row",
-  "Hunter Drone Nest",
-  "Sentry Choir",
-  "Drone Kennel",
-  "Turret Blindspot",
-  "Drone Refueling Bay",
-  "Hunter Drone Chapel",
-  "Silent Hangar",
-  "Scrapline Arcade",
-  "Reactor Cloister",
-  "Archive Core",
-  "Reactor Halo",
-  "Salvage Crown",
-  "Station Heart",
-  "The Last Eight Seconds"
+  "Echo Plate Training",
+  "Cargo Pressure Chapel",
+  "Laser Switch Spine",
+  "First Turret Gallery",
+  "Drone Chase Hangar",
+  "Split Echo Circuit",
+  "Forklift Cargo Lab",
+  "Relay Turret Yard",
+  "Memory Laser Switchback",
+  "Locked Drone Orchard",
+  "Twin Echo Nursery",
+  "Pressure Cargo Foundry",
+  "Scrap Turret Conservatory",
+  "Dual Drone Relay",
+  "Missile Dash Range",
+  "Gravity Node Primer",
+  "Jammer Mirror Lock",
+  "Sweeper Repair Bay",
+  "Shield Drone Gauntlet",
+  "Blink Hunter Furnace",
+  "Echo Core Finale"
 ];
 
 const AUTH_USERS_KEY = "echo-salvage-users";
 const AUTH_SESSION_KEY = "echo-salvage-session";
 const COMMUNITY_LEVELS_KEY = "echo-salvage-community-levels";
 const LEVEL_API_URL = import.meta.env.VITE_LEVEL_API_URL || "http://localhost:8787";
-const DEV_LOGIN = { nickname: "developer", password: "echo-dev" };
+const DEV_LOGIN = { nickname: "developer", password: "developer" };
 const DEV_COINS = 999999;
 const AVATARS = [
   { id: "yellow", label: "Signal Drone", colors: ["#ffd52d", "#061012"] },
@@ -211,7 +169,7 @@ const ARMORS = [
 ];
 const PETS = [
   { id: "none", label: "No Pet", color: "#6f858a", price: 0, perk: "No perk" },
-  { id: "spark", label: "Spark Bit", color: "#ffd52d", price: 35, perk: "Slowly refills energy" },
+  { id: "spark", label: "Spark Bit", color: "#ffd52d", price: 35, perk: "Very slowly refills energy" },
   { id: "wisp", label: "Echo Wisp", color: "#00f0d2", price: 45, perk: "Echo costs less energy" },
   { id: "ember", label: "Ember Dot", color: "#ff4e41", price: 55, perk: "Bullets hit harder" },
   { id: "moss", label: "Moss Byte", color: "#58e07a", price: 55, perk: "Slow hull repair" },
@@ -257,11 +215,6 @@ const DEFAULT_OWNED = {
 const BODY_PRICES = { "#ffd52d": 35, "#00f0d2": 45, "#58e07a": 55, "#ff4e41": 70, "#ffb000": 100, "#ff8a00": 80, "#b78cff": 120, "#8aa0ff": 125, "#ff6ec7": 130, "#9df6a3": 110, "#7ef9ff": 115, "#f5f7ff": 135, "#ff9f7f": 90, "#c9ff45": 105, "#4de0ff": 95, "#f4dd74": 98, "#f77d9d": 112, "#8cffda": 118, "#7a91ff": 128, "#f0a6ff": 138, "#7ef0b6": 108, "#ffcf6b": 102, "#e3ffe7": 116, "#fbe7ff": 124, "#9fb8ff": 132 };
 const TRAIL_PRICES = { "#ffd52d": 35, "#58e07a": 50, "#ff4e41": 65, "#e7f0ef": 80, "#ff8a00": 95, "#b78cff": 110, "#8aa0ff": 115, "#ff6ec7": 120, "#9df6a3": 90, "#7ef9ff": 100, "#f5f7ff": 125, "#f77d9d": 105, "#c9ff45": 92, "#4de0ff": 96, "#ffcf6b": 99, "#f0a6ff": 130, "#8cffda": 108 };
 const FRAME_PRICES = { split: 80, needle: 120 };
-const COIN_PACKS = [
-  { id: "tiny", label: "Tiny Cache", coins: 100, price: "$0.49" },
-  { id: "small", label: "Small Cache", coins: 260, price: "$0.99" },
-  { id: "crew", label: "Crew Cache", coins: 700, price: "$1.99" }
-];
 
 function normalizeEconomy(data = {}) {
   const devMode = data.devMode || data.nickname?.toLowerCase() === DEV_LOGIN.nickname;
@@ -300,6 +253,15 @@ function getStarsForRoom(index, summary) {
 function getRequiredStars(index) {
   if (index < 5) return 0;
   return Math.max(0, Math.floor((index - 4) / 2));
+}
+
+function getRoomTier(index) {
+  if (index < 3) return "Training";
+  if (index < 7) return "Basic";
+  if (index < 12) return "Combat";
+  if (index < 17) return "Advanced";
+  if (index < 20) return "Expert";
+  return "Finale";
 }
 
 function getTotalStars(progress = {}) {
@@ -425,475 +387,309 @@ async function publishCommunityLevel(payload) {
 }
 
 function makeLevel(index = 0) {
-  const name = rooms[index] ?? "Custom Deck";
   const shell = [
     { x: 40, y: 40, w: 1200, h: 22 },
     { x: 40, y: 658, w: 1200, h: 22 },
     { x: 40, y: 40, w: 22, h: 640 },
     { x: 1218, y: 40, w: 22, h: 640 }
   ];
-  const base = {
-    name,
-    player: { x: 100, y: 360 },
+  const wall = (x, y, w, h) => ({ x, y, w, h });
+  const plate = (id, x, y) => ({ x, y, r: 34, id });
+  const sw = (id, x, y) => ({ x, y, r: 25, id, on: false });
+  const gate = (...requires) => [{ x: 1080, y: 305, w: 58, h: 112, requires, open: false }];
+  const scrap = (...points) => points.map(([x, y]) => ({ x, y, taken: false }));
+  const coin = (x, y, value) => ({ x, y, w: 34, h: 34, value, taken: false });
+  const crate = (x, y, size = 42) => ({ x, y, w: size, h: size });
+
+  const fallback = {
+    name: "Custom Deck",
+    player: { x: 160, y: 360 },
     exit: { x: 1160, y: 360, w: 58, h: 114 },
-    theme: index,
-    walls: [
-      ...shell,
-      { x: 310, y: 90, w: 26, h: 210 },
-      { x: 310, y: 420, w: 26, h: 210 },
-      { x: 800, y: 80, w: 26, h: 205 },
-      { x: 800, y: 435, w: 26, h: 205 }
-    ],
-    crates: [{ x: 520, y: 460, w: 38, h: 38 }],
-    coinCrates: [{ x: 360, y: 560, w: 34, h: 34, value: 12, taken: false }],
-    plates: [{ x: 220, y: 330, r: 34, id: "A" }],
-    switches: [{ x: 620, y: 160, r: 25, id: "B", on: false }],
-    doors: [{ x: 1080, y: 302, w: 34, h: 116, requires: ["A", "B"], open: false }],
-    turrets: [{ x: 900, y: 160, hp: 2, cooldown: 0 }],
+    walls: [wall(430, 190, 42, 250), wall(690, 235, 250, 42)],
+    crates: [crate(350, 285)],
+    coinCrates: [coin(360, 560, 12), coin(850, 180, 10)],
+    plates: [plate("A", 255, 360)],
+    switches: [sw("B", 925, 360)],
+    doors: gate("A", "B"),
+    turrets: [],
     drones: [],
     missileSentries: [],
-    lasers: [{ x1: 455, y1: 110, x2: 455, y2: 610, id: "L1", disabledBy: "A" }],
-    scrap: [
-      { x: 470, y: 180, taken: false },
-      { x: 710, y: 560, taken: false },
-      { x: 980, y: 520, taken: false }
-    ],
-    core: { x: 1030, y: 190, hp: 4, alive: true }
+    gravityNodes: [],
+    echoJammers: [],
+    laserSweepers: [],
+    blinkHunters: [],
+    shieldDrones: [],
+    repairBots: [],
+    lasers: [],
+    scrap: scrap([470, 180], [710, 560], [980, 520]),
+    core: null
   };
 
-  const set = (patch) => Object.assign(base, patch);
-  if (name === "Training Bay") {
-    set({
-      walls: [...shell, { x: 430, y: 190, w: 42, h: 250 }, { x: 690, y: 235, w: 250, h: 42 }],
-      crates: [{ x: 350, y: 285, w: 42, h: 42 }, { x: 545, y: 500, w: 42, h: 42 }],
-      turrets: [],
-      lasers: [],
-      core: null,
-      plates: [{ x: 255, y: 360, r: 34, id: "A" }],
-      switches: [{ x: 925, y: 360, r: 25, id: "B", on: false }],
-      doors: [{ x: 1080, y: 305, w: 58, h: 112, requires: ["A", "B"], open: false }]
-    });
-  } else if (name === "Pressure Lock") {
-    set({
-      walls: [...shell, { x: 300, y: 95, w: 42, h: 230 }, { x: 300, y: 395, w: 42, h: 230 }, { x: 710, y: 95, w: 42, h: 530 }],
-      plates: [{ x: 230, y: 190, r: 34, id: "A" }, { x: 230, y: 525, r: 34, id: "B" }],
-      switches: [{ x: 560, y: 360, r: 25, id: "C", on: false }],
-      doors: [{ x: 1080, y: 305, w: 58, h: 112, requires: ["A", "B", "C"], open: false }],
-      turrets: [],
-      lasers: [],
-      core: null,
-      crates: [{ x: 500, y: 180, w: 42, h: 42 }, { x: 500, y: 515, w: 42, h: 42 }]
-    });
-  } else if (name === "Laser Spine") {
-    set({
-      walls: [...shell, { x: 365, y: 120, w: 42, h: 460 }, { x: 770, y: 120, w: 42, h: 460 }],
-      plates: [{ x: 590, y: 360, r: 34, id: "A" }],
-      switches: [{ x: 1010, y: 175, r: 25, id: "B", on: false }],
-      doors: [{ x: 1080, y: 305, w: 58, h: 112, requires: ["A", "B"], open: false }],
+  const layouts = [
+    {
+      name: "Echo Plate Training",
+      walls: [wall(440, 150, 42, 170), wall(440, 410, 42, 170), wall(730, 240, 240, 42)],
+      crates: [crate(545, 510)],
+      plates: [plate("A", 250, 360)],
+      switches: [sw("B", 920, 360)],
+      doors: gate("A", "B"),
+      scrap: scrap([520, 190], [820, 530], [1010, 260])
+    },
+    {
+      name: "Cargo Pressure Chapel",
+      walls: [wall(350, 110, 42, 235), wall(350, 395, 42, 235), wall(735, 155, 42, 410), wall(895, 305, 165, 42)],
+      crates: [crate(500, 180), crate(500, 500)],
+      plates: [plate("A", 235, 190), plate("B", 235, 530)],
+      switches: [sw("C", 1000, 500)],
+      doors: gate("A", "B", "C"),
+      scrap: scrap([540, 360], [825, 205], [995, 220])
+    },
+    {
+      name: "Laser Switch Spine",
+      walls: [wall(360, 120, 42, 460), wall(760, 120, 42, 460), wall(520, 235, 130, 42), wall(520, 445, 130, 42)],
+      crates: [crate(245, 515)],
+      plates: [plate("A", 585, 360)],
+      switches: [sw("B", 1000, 180)],
+      doors: gate("A", "B"),
       lasers: [
         { x1: 485, y1: 90, x2: 485, y2: 630, id: "L1", disabledBy: "A" },
         { x1: 665, y1: 90, x2: 665, y2: 630, id: "L2", disabledBy: "B" }
       ],
-      turrets: [],
-      core: null,
-      crates: [{ x: 245, y: 515, w: 42, h: 42 }]
-    });
-  } else if (name === "Turret Gallery") {
-    set({
-      walls: [...shell, { x: 390, y: 120, w: 420, h: 42 }, { x: 390, y: 558, w: 420, h: 42 }, { x: 610, y: 270, w: 42, h: 180 }],
-      turrets: [{ x: 510, y: 245, hp: 2, cooldown: 0 }, { x: 790, y: 475, hp: 2, cooldown: 350 }, { x: 980, y: 210, hp: 3, cooldown: 700 }],
-      plates: [{ x: 235, y: 360, r: 34, id: "A" }],
-      switches: [{ x: 940, y: 535, r: 25, id: "B", on: false }],
-      doors: [{ x: 1080, y: 305, w: 58, h: 112, requires: ["A", "B"], open: false }],
-      lasers: [],
-      core: null
-    });
-  } else if (name === "Reactor Seed") {
-    set({
-      walls: [...shell, { x: 280, y: 110, w: 42, h: 500 }, { x: 930, y: 110, w: 42, h: 500 }, { x: 430, y: 200, w: 390, h: 42 }, { x: 430, y: 480, w: 390, h: 42 }],
-      core: { x: 650, y: 360, hp: 6, alive: true },
-      plates: [{ x: 225, y: 160, r: 34, id: "A" }, { x: 225, y: 560, r: 34, id: "B" }],
-      switches: [{ x: 1030, y: 360, r: 25, id: "C", on: false }],
-      doors: [{ x: 1080, y: 305, w: 58, h: 112, requires: ["A", "B", "C"], open: false }],
-      turrets: [{ x: 835, y: 360, hp: 2, cooldown: 200 }],
-      lasers: [{ x1: 380, y1: 100, x2: 380, y2: 620, id: "L1", disabledBy: "A" }]
-    });
-  } else if (name === "Forklift Lab") {
-    set({
-      walls: [...shell, { x: 285, y: 170, w: 210, h: 42 }, { x: 285, y: 500, w: 210, h: 42 }, { x: 735, y: 170, w: 42, h: 370 }],
-      crates: [{ x: 410, y: 330, w: 62, h: 62 }, { x: 580, y: 165, w: 42, h: 42 }, { x: 580, y: 515, w: 42, h: 42 }],
-      plates: [{ x: 255, y: 360, r: 34, id: "A" }, { x: 665, y: 360, r: 34, id: "B" }],
-      switches: [{ x: 1015, y: 360, r: 25, id: "C", on: false }],
-      doors: [{ x: 1080, y: 305, w: 58, h: 112, requires: ["A", "B", "C"], open: false }],
-      turrets: [],
-      lasers: [],
-      core: null
-    });
-  } else if (name === "Dual Relay") {
-    set({
-      walls: [...shell, { x: 360, y: 90, w: 42, h: 245 }, { x: 360, y: 385, w: 42, h: 245 }, { x: 760, y: 90, w: 42, h: 245 }, { x: 760, y: 385, w: 42, h: 245 }],
-      plates: [{ x: 235, y: 205, r: 34, id: "A" }, { x: 235, y: 520, r: 34, id: "B" }],
-      switches: [{ x: 585, y: 205, r: 25, id: "C", on: false }, { x: 940, y: 520, r: 25, id: "D", on: false }],
-      doors: [{ x: 1080, y: 305, w: 58, h: 112, requires: ["A", "B", "C", "D"], open: false }],
-      turrets: [],
+      scrap: scrap([245, 190], [590, 530], [1000, 540])
+    },
+    {
+      name: "First Turret Gallery",
+      walls: [wall(350, 120, 360, 42), wall(350, 558, 360, 42), wall(600, 265, 42, 190), wall(900, 180, 42, 360)],
+      crates: [crate(255, 500)],
+      plates: [plate("A", 235, 360), plate("B", 780, 535)],
+      switches: [sw("C", 1015, 190)],
+      doors: gate("A", "B", "C"),
+      turrets: [{ x: 520, y: 245, hp: 2, cooldown: 450 }],
+      scrap: scrap([510, 520], [780, 180], [995, 500])
+    },
+    {
+      name: "Drone Chase Hangar",
+      walls: [wall(315, 110, 42, 500), wall(610, 80, 42, 220), wall(610, 420, 42, 220), wall(870, 180, 210, 42), wall(870, 500, 210, 42)],
+      crates: [crate(465, 500)],
+      plates: [plate("A", 240, 360)],
+      switches: [sw("B", 760, 360)],
+      doors: gate("A", "B"),
+      drones: [{ x: 540, y: 180, hp: 2, cooldown: 700 }, { x: 980, y: 525, hp: 2, cooldown: 1000 }],
+      lasers: [{ x1: 700, y1: 100, x2: 700, y2: 620, id: "L1", disabledBy: "B" }],
+      scrap: scrap([500, 245], [805, 520], [1030, 250])
+    },
+    {
+      name: "Split Echo Circuit",
+      walls: [wall(390, 100, 42, 210), wall(390, 410, 42, 210), wall(650, 80, 42, 250), wall(650, 390, 42, 250), wall(910, 170, 42, 380)],
+      crates: [crate(515, 185)],
+      plates: [plate("A", 235, 205), plate("B", 235, 515)],
+      switches: [sw("C", 795, 205), sw("D", 1015, 515)],
+      doors: gate("A", "B", "C", "D"),
+      turrets: [{ x: 805, y: 360, hp: 2, cooldown: 750 }],
+      lasers: [{ x1: 545, y1: 95, x2: 545, y2: 625, id: "L1", disabledBy: "C" }],
+      scrap: scrap([505, 520], [805, 515], [1015, 205])
+    },
+    {
+      name: "Forklift Cargo Lab",
+      walls: [wall(285, 170, 240, 42), wall(285, 500, 240, 42), wall(735, 150, 42, 420), wall(920, 250, 42, 220)],
+      crates: [crate(410, 330, 62), crate(580, 165), crate(580, 515)],
+      plates: [plate("A", 255, 360), plate("B", 665, 180), plate("C", 665, 540)],
+      switches: [sw("D", 1015, 360)],
+      doors: gate("A", "B", "C", "D"),
+      turrets: [{ x: 835, y: 360, hp: 2, cooldown: 700 }],
+      scrap: scrap([420, 250], [620, 360], [1000, 535])
+    },
+    {
+      name: "Relay Turret Yard",
+      walls: [wall(310, 155, 250, 42), wall(310, 525, 250, 42), wall(700, 100, 42, 220), wall(700, 400, 42, 220), wall(940, 220, 42, 280)],
+      plates: [plate("A", 230, 360)],
+      switches: [sw("B", 590, 180), sw("C", 590, 540), sw("D", 1015, 360)],
+      doors: gate("A", "B", "C", "D"),
+      turrets: [{ x: 825, y: 360, hp: 2, cooldown: 650 }, { x: 1030, y: 190, hp: 2, cooldown: 850 }],
+      lasers: [{ x1: 655, y1: 95, x2: 655, y2: 625, id: "L1", disabledBy: "B" }],
+      scrap: scrap([450, 360], [825, 540], [1015, 540])
+    },
+    {
+      name: "Memory Laser Switchback",
+      walls: [wall(315, 95, 42, 245), wall(315, 380, 42, 245), wall(555, 145, 260, 42), wall(555, 535, 260, 42), wall(920, 145, 42, 430)],
+      crates: [crate(470, 500)],
+      plates: [plate("A", 230, 200), plate("B", 230, 520)],
+      switches: [sw("C", 690, 360), sw("D", 1015, 360)],
+      doors: gate("A", "B", "C", "D"),
+      drones: [{ x: 835, y: 500, hp: 2, cooldown: 900 }],
+      lasers: [{ x1: 455, y1: 95, x2: 455, y2: 625, id: "L1", disabledBy: "A" }, { x1: 850, y1: 95, x2: 850, y2: 625, id: "L2", disabledBy: "C" }],
+      scrap: scrap([495, 205], [690, 520], [1015, 205])
+    },
+    {
+      name: "Locked Drone Orchard",
+      walls: [wall(285, 120, 42, 200), wall(285, 420, 42, 200), wall(520, 245, 280, 42), wall(520, 435, 280, 42), wall(940, 120, 42, 500)],
+      crates: [crate(410, 515)],
+      plates: [plate("A", 220, 360), plate("B", 655, 535)],
+      switches: [sw("C", 655, 185), sw("D", 1020, 360)],
+      doors: gate("A", "B", "C", "D"),
+      turrets: [{ x: 840, y: 360, hp: 2, cooldown: 650 }],
+      drones: [{ x: 1000, y: 520, hp: 2, cooldown: 950 }],
+      scrap: scrap([410, 190], [655, 360], [1015, 185])
+    },
+    {
+      name: "Twin Echo Nursery",
+      walls: [wall(340, 100, 42, 230), wall(340, 390, 42, 230), wall(675, 160, 42, 400), wall(920, 245, 42, 230)],
+      plates: [plate("A", 230, 205), plate("B", 230, 515), plate("C", 805, 360)],
+      switches: [sw("D", 1015, 360)],
+      doors: gate("A", "B", "C", "D"),
+      drones: [{ x: 530, y: 515, hp: 2, cooldown: 850 }, { x: 990, y: 190, hp: 2, cooldown: 1000 }],
+      lasers: [{ x1: 505, y1: 95, x2: 505, y2: 625, id: "L1", disabledBy: "C" }],
+      scrap: scrap([515, 205], [805, 515], [1010, 515])
+    },
+    {
+      name: "Pressure Cargo Foundry",
+      walls: [wall(320, 105, 42, 510), wall(610, 105, 42, 230), wall(610, 390, 42, 225), wall(910, 105, 42, 510)],
+      crates: [crate(480, 185), crate(480, 500), crate(760, 360)],
+      plates: [plate("A", 220, 185), plate("B", 220, 535), plate("C", 760, 185), plate("D", 760, 535)],
+      switches: [sw("E", 1030, 360)],
+      doors: gate("A", "B", "C", "D", "E"),
+      turrets: [{ x: 1030, y: 185, hp: 2, cooldown: 700 }],
+      scrap: scrap([480, 360], [760, 260], [1030, 535])
+    },
+    {
+      name: "Scrap Turret Conservatory",
+      walls: [wall(300, 145, 42, 430), wall(550, 100, 300, 42), wall(550, 578, 300, 42), wall(950, 145, 42, 430)],
+      crates: [crate(420, 505)],
+      plates: [plate("A", 230, 360), plate("B", 700, 535)],
+      switches: [sw("C", 1015, 360)],
+      doors: gate("A", "B", "C"),
+      turrets: [{ x: 640, y: 205, hp: 2, cooldown: 600 }, { x: 840, y: 515, hp: 2, cooldown: 900 }],
+      drones: [{ x: 1030, y: 205, hp: 2, cooldown: 950 }],
+      scrap: scrap([455, 205], [700, 360], [1000, 205])
+    },
+    {
+      name: "Dual Drone Relay",
+      walls: [wall(360, 90, 42, 245), wall(360, 385, 42, 245), wall(760, 90, 42, 245), wall(760, 385, 42, 245)],
+      plates: [plate("A", 235, 205), plate("B", 235, 520)],
+      switches: [sw("C", 585, 205), sw("D", 940, 520)],
+      doors: gate("A", "B", "C", "D"),
+      drones: [{ x: 560, y: 520, hp: 2, cooldown: 750 }, { x: 965, y: 205, hp: 3, cooldown: 950 }],
       lasers: [{ x1: 610, y1: 90, x2: 610, y2: 630, id: "L1", disabledBy: "C" }],
-      core: null
-    });
-  } else if (name === "Drone Hangar") {
-    set({
-      walls: [...shell, { x: 300, y: 140, w: 42, h: 440 }, { x: 610, y: 80, w: 42, h: 220 }, { x: 610, y: 420, w: 42, h: 220 }, { x: 880, y: 180, w: 210, h: 42 }, { x: 880, y: 500, w: 210, h: 42 }],
-      drones: [{ x: 520, y: 180, hp: 2, cooldown: 400 }, { x: 820, y: 520, hp: 2, cooldown: 800 }, { x: 990, y: 350, hp: 3, cooldown: 1200 }],
-      missileSentries: [{ x: 910, y: 360, hp: 3, cooldown: 2400, lockMs: 0 }],
-      plates: [{ x: 240, y: 360, r: 34, id: "A" }],
-      switches: [{ x: 760, y: 360, r: 25, id: "B", on: false }],
-      doors: [{ x: 1080, y: 305, w: 58, h: 112, requires: ["A", "B"], open: false }],
-      turrets: [],
-      lasers: [{ x1: 690, y1: 100, x2: 690, y2: 620, id: "L1", disabledBy: "B" }],
-      core: null
-    });
-  } else if (name === "Mirror Plate") {
-    set({
-      walls: [...shell, { x: 310, y: 130, w: 42, h: 180 }, { x: 310, y: 410, w: 42, h: 180 }, { x: 610, y: 130, w: 42, h: 180 }, { x: 610, y: 410, w: 42, h: 180 }, { x: 910, y: 130, w: 42, h: 180 }, { x: 910, y: 410, w: 42, h: 180 }],
-      plates: [{ x: 235, y: 205, r: 34, id: "A" }, { x: 235, y: 515, r: 34, id: "B" }, { x: 740, y: 360, r: 34, id: "C" }],
-      switches: [{ x: 520, y: 205, r: 25, id: "D", on: false }],
-      doors: [{ x: 1080, y: 305, w: 58, h: 112, requires: ["A", "B", "C", "D"], open: false }],
-      turrets: [{ x: 1030, y: 190, hp: 2, cooldown: 300 }],
-      lasers: [],
-      core: null,
-      crates: [{ x: 520, y: 500, w: 42, h: 42 }, { x: 740, y: 205, w: 42, h: 42 }]
-    });
-  } else if (name === "Signal Storm") {
-    set({
-      walls: [...shell, { x: 260, y: 180, w: 220, h: 42 }, { x: 260, y: 500, w: 220, h: 42 }, { x: 590, y: 95, w: 42, h: 220 }, { x: 590, y: 405, w: 42, h: 220 }, { x: 820, y: 180, w: 220, h: 42 }, { x: 820, y: 500, w: 220, h: 42 }],
-      plates: [{ x: 235, y: 360, r: 34, id: "A" }],
-      switches: [{ x: 715, y: 185, r: 25, id: "B", on: false }, { x: 715, y: 535, r: 25, id: "C", on: false }],
-      doors: [{ x: 1080, y: 305, w: 58, h: 112, requires: ["A", "B", "C"], open: false }],
-      lasers: [
-        { x1: 355, y1: 90, x2: 355, y2: 630, id: "L1", disabledBy: "A" },
-        { x1: 785, y1: 90, x2: 785, y2: 630, id: "L2", disabledBy: "B" },
-        { x1: 120, y1: 360, x2: 1100, y2: 360, id: "L3", disabledBy: "C" }
-      ],
-      drones: [{ x: 995, y: 535, hp: 2, cooldown: 600 }],
-      missileSentries: [{ x: 980, y: 140, hp: 3, cooldown: 2600, lockMs: 0 }],
-      turrets: [],
-      core: null
-    });
-  } else if (name === "Laser Cage") {
-    set({
-      walls: [...shell, { x: 250, y: 105, w: 42, h: 510 }, { x: 520, y: 105, w: 42, h: 510 }, { x: 790, y: 105, w: 42, h: 510 }, { x: 250, y: 105, w: 590, h: 42 }, { x: 250, y: 573, w: 590, h: 42 }],
-      plates: [{ x: 385, y: 360, r: 34, id: "A" }],
-      switches: [{ x: 655, y: 205, r: 25, id: "B", on: false }, { x: 655, y: 515, r: 25, id: "C", on: false }],
-      doors: [{ x: 1080, y: 305, w: 58, h: 112, requires: ["A", "B", "C"], open: false }],
-      lasers: [
-        { x1: 610, y1: 145, x2: 610, y2: 573, id: "L1", disabledBy: "B" },
-        { x1: 880, y1: 145, x2: 880, y2: 573, id: "L2", disabledBy: "C" }
-      ],
-      turrets: [{ x: 990, y: 360, hp: 2, cooldown: 200 }],
-      core: null,
-      crates: [{ x: 385, y: 205, w: 42, h: 42 }, { x: 385, y: 515, w: 42, h: 42 }]
-    });
-  } else if (name === "Memory Dock") {
-    set({
-      walls: [...shell, { x: 310, y: 150, w: 42, h: 420 }, { x: 470, y: 150, w: 280, h: 42 }, { x: 470, y: 528, w: 280, h: 42 }, { x: 880, y: 150, w: 42, h: 420 }],
-      plates: [{ x: 230, y: 360, r: 34, id: "A" }, { x: 610, y: 360, r: 34, id: "B" }],
-      switches: [{ x: 1015, y: 360, r: 25, id: "C", on: false }],
-      doors: [{ x: 1080, y: 305, w: 58, h: 112, requires: ["A", "B", "C"], open: false }],
-      lasers: [{ x1: 455, y1: 150, x2: 455, y2: 570, id: "L1", disabledBy: "A" }, { x1: 765, y1: 150, x2: 765, y2: 570, id: "L2", disabledBy: "B" }],
-      turrets: [],
-      core: null,
-      scrap: [{ x: 520, y: 250, taken: false }, { x: 520, y: 470, taken: false }, { x: 990, y: 180, taken: false }, { x: 990, y: 540, taken: false }]
-    });
-  } else if (name === "Capraza Fire") {
-    set({
-      walls: [...shell, { x: 260, y: 95, w: 42, h: 240 }, { x: 260, y: 385, w: 42, h: 240 }, { x: 505, y: 230, w: 300, h: 42 }, { x: 505, y: 450, w: 300, h: 42 }, { x: 930, y: 95, w: 42, h: 530 }],
-      plates: [{ x: 220, y: 360, r: 34, id: "A" }],
-      switches: [{ x: 620, y: 360, r: 25, id: "B", on: false }],
-      doors: [{ x: 1080, y: 305, w: 58, h: 112, requires: ["A", "B"], open: false }],
-      turrets: [{ x: 505, y: 150, hp: 2, cooldown: 0 }, { x: 805, y: 570, hp: 2, cooldown: 500 }],
-      drones: [{ x: 1010, y: 205, hp: 2, cooldown: 900 }],
-      lasers: [{ x1: 380, y1: 100, x2: 880, y2: 620, id: "L1", disabledBy: "B" }],
-      core: null
-    });
-  } else if (name === "Phase Lock") {
-    set({
-      walls: [...shell, { x: 325, y: 110, w: 42, h: 190 }, { x: 325, y: 420, w: 42, h: 190 }, { x: 535, y: 260, w: 250, h: 42 }, { x: 535, y: 420, w: 250, h: 42 }, { x: 950, y: 110, w: 42, h: 500 }],
-      plates: [{ x: 235, y: 205, r: 34, id: "A" }, { x: 235, y: 515, r: 34, id: "B" }],
-      switches: [{ x: 660, y: 340, r: 25, id: "C", on: false }],
-      doors: [{ x: 1080, y: 305, w: 58, h: 112, requires: ["A", "B", "C"], open: false }],
-      lasers: [
-        { x1: 440, y1: 105, x2: 440, y2: 615, id: "L1", disabledBy: "A" },
-        { x1: 835, y1: 105, x2: 835, y2: 615, id: "L2", disabledBy: "B" }
-      ],
-      turrets: [{ x: 1010, y: 360, hp: 3, cooldown: 350 }],
-      missileSentries: [{ x: 900, y: 560, hp: 3, cooldown: 2500, lockMs: 0 }],
-      core: null
-    });
-  } else if (name === "Archive Core") {
-    set({
-      walls: [...shell, { x: 260, y: 120, w: 42, h: 480 }, { x: 430, y: 120, w: 42, h: 175 }, { x: 430, y: 425, w: 42, h: 175 }, { x: 620, y: 120, w: 42, h: 480 }, { x: 790, y: 120, w: 42, h: 175 }, { x: 790, y: 425, w: 42, h: 175 }, { x: 965, y: 120, w: 42, h: 480 }],
-      plates: [{ x: 205, y: 180, r: 34, id: "A" }, { x: 535, y: 540, r: 34, id: "B" }, { x: 885, y: 180, r: 34, id: "C" }],
-      switches: [{ x: 535, y: 180, r: 25, id: "D", on: false }, { x: 885, y: 540, r: 25, id: "E", on: false }],
-      doors: [{ x: 1080, y: 305, w: 58, h: 112, requires: ["A", "B", "C", "D", "E"], open: false }],
-      turrets: [{ x: 350, y: 360, hp: 2, cooldown: 0 }, { x: 720, y: 360, hp: 2, cooldown: 450 }],
-      drones: [{ x: 1010, y: 180, hp: 2, cooldown: 500 }, { x: 1010, y: 540, hp: 2, cooldown: 850 }],
-      lasers: [{ x1: 710, y1: 95, x2: 710, y2: 625, id: "L1", disabledBy: "D" }, { x1: 890, y1: 95, x2: 890, y2: 625, id: "L2", disabledBy: "E" }],
-      core: { x: 1045, y: 360, hp: 8, alive: true }
-    });
-  } else {
-    const n = name.toLowerCase();
-    const v = index % 6;
-    const addWall = (x, y, w, h) => base.walls.push({ x, y, w, h });
-    const addLaser = (x1, y1, x2, y2, id, disabledBy = "C") => base.lasers.push({ x1, y1, x2, y2, id, disabledBy });
-    const addTurret = (x, y, hp = 2, cooldown = 350) => base.turrets.push({ x, y, hp, cooldown });
-    const addDrone = (x, y, hp = 2, cooldown = 650) => base.drones.push({ x, y, hp, cooldown });
-    const addMissile = (x, y, hp = 3, cooldown = 2600) => base.missileSentries.push({ x, y, hp, cooldown, lockMs: 0 });
-    const addPlate = (x, y, id) => base.plates.push({ x, y, r: 34, id });
-    const addSwitch = (x, y, id) => base.switches.push({ x, y, r: 25, id, on: false });
-    const setDoor = (requires) => {
-      const plateIds = new Set(base.plates.map((p) => p.id));
-      const switchIds = new Set(base.switches.map((s) => s.id));
-      const safeRequires = [...new Set(requires.filter((id) => plateIds.has(id) || switchIds.has(id)))];
-      base.doors = [{ x: 1080, y: 305, w: 58, h: 112, requires: safeRequires.length ? safeRequires : ["B"], open: false }];
-    };
-
-    base.walls = [...shell];
-    base.plates = [{ x: 230, y: 360, r: 34, id: "A" }];
-    base.switches = [{ x: 610, y: 360, r: 25, id: "B", on: false }];
-    base.lasers = [];
-    base.turrets = [];
-    base.drones = [];
-    base.missileSentries = [];
-    base.crates = [];
-    base.scrap = [
-      { x: 420 + v * 35, y: 170, taken: false },
-      { x: 660, y: 550 - v * 20, taken: false },
-      { x: 980 - v * 22, y: 510, taken: false }
-    ];
-    base.core = null;
-    setDoor(["A", "B"]);
-
-    if (n.includes("cargo") || n.includes("forklift") || n.includes("scrapline")) {
-      addWall(285, 150, 260, 42);
-      addWall(285, 505, 260, 42);
-      addWall(760, 170, 42, 380);
-      base.crates = [
-        { x: 390, y: 310, w: 62, h: 62 },
-        { x: 545, y: 190, w: 42, h: 42 },
-        { x: 570, y: 500, w: 42, h: 42 },
-        { x: 885, y: 330, w: 52, h: 52 }
-      ];
-      addPlate(645, 360, "C");
-      addSwitch(970, 190, "D");
-      setDoor(["A", "B", "C", "D"]);
-    } else if (n.includes("drone") || n.includes("hunter") || n.includes("hangar") || n.includes("kennel")) {
-      addWall(300, 110, 42, 500);
-      addWall(585, 90, 42, 210);
-      addWall(585, 420, 42, 210);
-      addWall(850, 160, 250, 42);
-      addWall(850, 520, 250, 42);
-      addDrone(500, 185, 2, 500);
-      addDrone(760, 520, 2, 900);
-      addDrone(1010, 360, 3, 1200);
-      if (index > 20) addMissile(930, 230);
-      addSwitch(760, 360, "C");
-      addLaser(700, 95, 700, 625, "L1", "C");
-      setDoor(["A", "B", "C"]);
-    } else if (n.includes("laser") || n.includes("scanner") || n.includes("glass") || n.includes("bloom")) {
-      addWall(250, 100, 42, 520);
-      addWall(505, 180, 42, 360);
-      addWall(760, 100, 42, 520);
-      addWall(980, 180, 42, 360);
-      addLaser(375, 95, 375, 625, "L1", "A");
-      addLaser(630, 95, 630, 625, "L2", "B");
-      addLaser(120, 360, 1110, 360, "L3", "C");
-      addPlate(890, 540, "C");
-      addSwitch(890, 180, "D");
-      setDoor(["A", "B", "C", "D"]);
-      addTurret(1040, 540, 2, 700);
-    } else if (n.includes("relay") || n.includes("switch") || n.includes("signal")) {
-      addWall(330, 90, 42, 230);
-      addWall(330, 400, 42, 230);
-      addWall(620, 220, 230, 42);
-      addWall(620, 460, 230, 42);
-      addWall(960, 120, 42, 480);
-      addSwitch(520, 185, "C");
-      addSwitch(720, 535, "D");
-      addSwitch(1015, 360, "E");
-      addPlate(235, 520, "F");
-      addLaser(575, 95, 575, 625, "L1", "C");
-      setDoor(["A", "B", "C", "D", "E", "F"]);
-    } else if (n.includes("reactor") || n.includes("core") || n.includes("heart") || n.includes("crown") || n.includes("last eight")) {
-      addWall(275, 105, 42, 510);
-      addWall(910, 105, 42, 510);
-      addWall(440, 205, 320, 42);
-      addWall(440, 475, 320, 42);
-      base.core = { x: 640, y: 360, hp: index > 55 ? 10 : 7, alive: true };
-      addTurret(820, 360, 3, 450);
-      if (index > 35) addMissile(1010, 190);
-      addPlate(215, 180, "C");
-      addPlate(215, 540, "D");
-      addSwitch(1020, 360, "E");
-      addLaser(385, 95, 385, 625, "L1", "C");
-      setDoor(["A", "B", "C", "D", "E"]);
-    } else if (n.includes("coin") || n.includes("golden") || n.includes("promenade") || n.includes("cache")) {
-      addWall(290, 135, 42, 190);
-      addWall(290, 405, 42, 190);
-      addWall(560, 95, 42, 230);
-      addWall(560, 395, 42, 230);
-      addWall(850, 245, 250, 42);
-      addWall(850, 435, 250, 42);
-      base.coinCrates = [
-        { x: 430, y: 170, w: 34, h: 34, value: 30 + index, taken: false },
-        { x: 430, y: 515, w: 34, h: 34, value: 24 + index, taken: false },
-        { x: 915, y: 340, w: 34, h: 34, value: 34 + index, taken: false }
-      ];
-      addTurret(745, 180, 2, 450);
-      addTurret(745, 540, 2, 850);
-      addSwitch(1015, 185, "C");
-      addPlate(690, 360, "D");
-      setDoor(["A", "B", "C", "D"]);
-    } else if (n.includes("mirror") || n.includes("echo") || n.includes("memory") || n.includes("archive")) {
-      addWall(310, 120, 42, 170);
-      addWall(310, 430, 42, 170);
-      addWall(520, 250, 250, 42);
-      addWall(520, 430, 250, 42);
-      addWall(940, 120, 42, 480);
-      addPlate(230, 190, "C");
-      addPlate(230, 530, "D");
-      addPlate(640, 360, "E");
-      addSwitch(1020, 360, "F");
-      addLaser(445, 95, 445, 625, "L1", "C");
-      addLaser(835, 95, 835, 625, "L2", "D");
-      setDoor(["A", "B", "C", "D", "E", "F"]);
-    } else if (n.includes("turret") || n.includes("sentry") || n.includes("choir") || n.includes("gallery")) {
-      addWall(380, 115, 450, 42);
-      addWall(380, 565, 450, 42);
-      addWall(610, 260, 42, 200);
-      addWall(950, 170, 42, 380);
-      addTurret(455, 245, 2, 0);
-      addTurret(780, 475, 2, 350);
-      addTurret(1015, 250, 3, 650);
-      if (index > 30) addMissile(910, 540);
-      addSwitch(900, 360, "C");
-      setDoor(["A", "B", "C"]);
-    } else if (n.includes("pressure") || n.includes("plate") || n.includes("orchestra") || n.includes("court")) {
-      addWall(330, 95, 42, 530);
-      addWall(630, 95, 42, 230);
-      addWall(630, 395, 42, 230);
-      addWall(930, 95, 42, 530);
-      addPlate(220, 185, "C");
-      addPlate(220, 535, "D");
-      addPlate(780, 185, "E");
-      addPlate(780, 535, "F");
-      addSwitch(1040, 360, "G");
-      base.crates = [{ x: 500, y: 180, w: 42, h: 42 }, { x: 500, y: 500, w: 42, h: 42 }, { x: 760, y: 340, w: 42, h: 42 }];
-      setDoor(["A", "B", "C", "D", "E", "F", "G"]);
-    } else if (n.includes("corridor") || n.includes("transit") || n.includes("causeway") || n.includes("crossing")) {
-      addWall(250, 120, 42, 180);
-      addWall(250, 420, 42, 180);
-      addWall(430, 260, 620, 42);
-      addWall(430, 420, 620, 42);
-      addLaser(410, 100, 410, 620, "L1", "A");
-      addLaser(810, 100, 810, 620, "L2", "C");
-      addPlate(620, 550, "C");
-      addTurret(980, 185, 2, 500);
-      addDrone(1020, 540, 2, 900);
-      setDoor(["A", "B", "C"]);
-    } else {
-      const offset = v * 55;
-      addWall(260 + offset, 95, 42, 260);
-      addWall(470, 420, 340, 42);
-      addWall(850 - offset / 3, 125, 42, 390);
-      addPlate(650, 550, "C");
-      setDoor(["A", "B", "C"]);
-      addTurret(985, 560, 2, 500);
-      if (index % 2 === 0) addLaser(720, 110, 1070, 110, "L2", "C");
+      scrap: scrap([585, 360], [940, 205], [1030, 540])
+    },
+    {
+      name: "Missile Dash Range",
+      walls: [wall(310, 105, 42, 510), wall(560, 220, 260, 42), wall(560, 460, 260, 42), wall(960, 105, 42, 510)],
+      crates: [crate(430, 520)],
+      plates: [plate("A", 230, 360), plate("B", 690, 540)],
+      switches: [sw("C", 1015, 180), sw("D", 1015, 540)],
+      doors: gate("A", "B", "C", "D"),
+      missileSentries: [{ x: 875, y: 360, hp: 3, cooldown: 2700, lockMs: 0 }],
+      turrets: [{ x: 700, y: 185, hp: 2, cooldown: 850 }],
+      scrap: scrap([430, 180], [700, 360], [1015, 360])
+    },
+    {
+      name: "Gravity Node Primer",
+      walls: [wall(350, 105, 42, 225), wall(350, 390, 42, 225), wall(790, 105, 42, 510), wall(560, 270, 125, 42)],
+      crates: [crate(530, 500)],
+      plates: [plate("A", 230, 360), plate("B", 625, 540)],
+      switches: [sw("C", 1015, 360)],
+      doors: gate("A", "B", "C"),
+      gravityNodes: [{ x: 600, y: 210, hp: 4, pulse: 0 }],
+      drones: [{ x: 900, y: 530, hp: 2, cooldown: 900 }],
+      scrap: scrap([525, 190], [625, 360], [1015, 530])
+    },
+    {
+      name: "Jammer Mirror Lock",
+      walls: [wall(300, 130, 42, 180), wall(300, 410, 42, 180), wall(620, 95, 42, 225), wall(620, 400, 42, 225), wall(930, 130, 42, 460)],
+      crates: [crate(475, 190)],
+      plates: [plate("A", 230, 205), plate("B", 230, 515), plate("C", 760, 360)],
+      switches: [sw("D", 1010, 360)],
+      doors: gate("A", "B", "C", "D"),
+      echoJammers: [{ x: 760, y: 200, hp: 5, pulse: 0 }],
+      turrets: [{ x: 880, y: 520, hp: 2, cooldown: 800 }],
+      lasers: [{ x1: 515, y1: 100, x2: 515, y2: 620, id: "L1", disabledBy: "C" }],
+      scrap: scrap([475, 520], [760, 520], [1010, 190])
+    },
+    {
+      name: "Sweeper Repair Bay",
+      walls: [wall(300, 100, 42, 520), wall(525, 220, 260, 42), wall(525, 460, 260, 42), wall(940, 100, 42, 520)],
+      crates: [crate(450, 530)],
+      plates: [plate("A", 230, 360), plate("B", 635, 540)],
+      switches: [sw("C", 1015, 185), sw("D", 1015, 535)],
+      doors: gate("A", "B", "C", "D"),
+      laserSweepers: [{ x: 650, y: 360, hp: 4, angle: 0, speed: 0.001 }],
+      repairBots: [{ x: 850, y: 360, hp: 3, cooldown: 900 }],
+      turrets: [{ x: 900, y: 535, hp: 2, cooldown: 800 }],
+      scrap: scrap([450, 185], [635, 185], [1015, 360])
+    },
+    {
+      name: "Shield Drone Gauntlet",
+      walls: [wall(280, 120, 42, 480), wall(485, 105, 42, 210), wall(485, 405, 42, 210), wall(760, 245, 230, 42), wall(760, 435, 230, 42)],
+      crates: [crate(390, 520), crate(640, 185)],
+      plates: [plate("A", 220, 185), plate("B", 220, 535), plate("C", 650, 360)],
+      switches: [sw("D", 1015, 360)],
+      doors: gate("A", "B", "C", "D"),
+      shieldDrones: [{ x: 820, y: 360, hp: 4, cooldown: 700 }],
+      turrets: [{ x: 720, y: 185, hp: 2, cooldown: 650 }, { x: 1000, y: 540, hp: 2, cooldown: 800 }],
+      drones: [{ x: 1015, y: 185, hp: 2, cooldown: 900 }],
+      scrap: scrap([390, 185], [650, 535], [1015, 250])
+    },
+    {
+      name: "Blink Hunter Furnace",
+      walls: [wall(270, 120, 42, 480), wall(500, 210, 320, 42), wall(500, 470, 320, 42), wall(930, 120, 42, 480)],
+      crates: [crate(395, 530)],
+      plates: [plate("A", 210, 180), plate("B", 210, 540), plate("C", 650, 360)],
+      switches: [sw("D", 1020, 180), sw("E", 1020, 540)],
+      doors: gate("A", "B", "C", "D", "E"),
+      blinkHunters: [{ x: 805, y: 360, hp: 4, cooldown: 900, blink: 700 }],
+      drones: [{ x: 1000, y: 360, hp: 2, cooldown: 1000 }],
+      lasers: [{ x1: 455, y1: 95, x2: 455, y2: 625, id: "L1", disabledBy: "C" }],
+      scrap: scrap([395, 185], [650, 540], [1020, 360])
+    },
+    {
+      name: "Echo Core Finale",
+      walls: [wall(250, 120, 42, 480), wall(430, 120, 42, 175), wall(430, 425, 42, 175), wall(620, 120, 42, 480), wall(790, 120, 42, 175), wall(790, 425, 42, 175), wall(965, 120, 42, 480)],
+      crates: [crate(350, 525), crate(710, 185)],
+      plates: [plate("A", 205, 180), plate("B", 535, 540), plate("C", 885, 180), plate("D", 885, 540)],
+      switches: [sw("E", 535, 180), sw("F", 1030, 360)],
+      doors: gate("A", "B", "C", "D", "E", "F"),
+      turrets: [{ x: 350, y: 360, hp: 3, cooldown: 650 }, { x: 720, y: 360, hp: 3, cooldown: 700 }],
+      drones: [{ x: 1010, y: 180, hp: 2, cooldown: 700 }, { x: 1010, y: 540, hp: 2, cooldown: 900 }],
+      missileSentries: [{ x: 900, y: 360, hp: 3, cooldown: 2600, lockMs: 0 }],
+      gravityNodes: [{ x: 650, y: 540, hp: 4, pulse: 0 }],
+      echoJammers: [{ x: 720, y: 185, hp: 5, pulse: 0 }],
+      shieldDrones: [{ x: 950, y: 250, hp: 4, cooldown: 700 }],
+      lasers: [{ x1: 700, y1: 95, x2: 700, y2: 625, id: "L1", disabledBy: "E" }],
+      core: { x: 1045, y: 360, hp: 8, alive: true },
+      scrap: scrap([350, 185], [535, 360], [1030, 535])
     }
-    const splitTallWall = (wall) => {
-      if (wall.w > 54 || wall.h < 430 || wall.x <= 70 || wall.x >= 1140) return [wall];
-      const midGap = 118;
-      const upper = Math.max(90, 300 - midGap / 2 - wall.y);
-      const lowerY = 300 + midGap / 2;
-      const lowerH = Math.max(90, wall.y + wall.h - lowerY);
-      return [
-        { ...wall, h: upper },
-        { ...wall, y: lowerY, h: lowerH }
-      ].filter((part) => part.h >= 70);
-    };
-    const splitWideWall = (wall) => {
-      if (wall.h > 54 || wall.w < 430 || wall.y <= 70 || wall.y >= 600) return [wall];
-      const midGap = 132;
-      const left = Math.max(120, 640 - midGap / 2 - wall.x);
-      const rightX = 640 + midGap / 2;
-      const rightW = Math.max(120, wall.x + wall.w - rightX);
-      return [
-        { ...wall, w: left },
-        { ...wall, x: rightX, w: rightW }
-      ].filter((part) => part.w >= 90);
-    };
-    base.walls = base.walls.flatMap((wall) => splitWideWall(wall).flatMap(splitTallWall));
-    base.crates = base.crates.filter((crate) => crate.x < 1010 && crate.x > 120);
-    base.switches = base.switches.map((s) => ({ ...s, x: clamp(s.x, 190, 1035), y: clamp(s.y, 120, 600) }));
-    base.plates = base.plates.map((p) => ({ ...p, x: clamp(p.x, 180, 990), y: clamp(p.y, 120, 600) }));
-    base.lasers = base.lasers.filter((l) => l.disabledBy && [...base.plates, ...base.switches].some((o) => o.id === l.disabledBy));
-    const required = new Set(base.doors.flatMap((door) => door.requires));
-    const available = new Set([...base.plates.map((p) => p.id), ...base.switches.map((s) => s.id)]);
-    base.doors.forEach((door) => {
-      door.requires = door.requires.filter((id) => available.has(id));
-      if (door.requires.length > 4) door.requires = door.requires.slice(0, 4);
-      if (!door.requires.length) door.requires = ["B"];
-    });
-    base.scrap = base.scrap.filter((s) => s.x > 110 && s.x < 1100 && s.y > 90 && s.y < 630);
-    if (!base.scrap.length) base.scrap = [{ x: 470, y: 180, taken: false }, { x: 790, y: 520, taken: false }];
-    [...required].forEach((id) => {
-      if (!available.has(id)) base.switches.push({ x: 620, y: 360, r: 25, id, on: false });
-    });
-    const tier = Math.min(5, Math.floor((index - 15) / 10) + 1);
-    const hpBonus = Math.floor(tier / 2);
-    const cooldownScale = 1 - tier * 0.055;
-    base.turrets.forEach((t) => {
-      t.hp = Math.min(6, (t.hp || 2) + hpBonus);
-      t.cooldown = Math.max(220, Math.round((t.cooldown || 500) * cooldownScale));
-    });
-    base.drones.forEach((d) => {
-      d.hp = Math.min(6, (d.hp || 2) + Math.floor((tier + 1) / 3));
-      d.cooldown = Math.max(360, Math.round((d.cooldown || 800) * cooldownScale));
-    });
-    base.missileSentries.forEach((m) => {
-      m.hp = Math.min(7, (m.hp || 3) + Math.floor(tier / 3));
-      m.cooldown = Math.max(1750, Math.round((m.cooldown || 2600) * (1 - tier * 0.04)));
-    });
-    if (base.core?.alive) base.core.hp = Math.min(12, (base.core.hp || 6) + tier);
+  ];
 
-    const addProgressSwitch = (id, x, y) => {
-      if (!base.switches.some((s) => s.id === id)) base.switches.push({ x, y, r: 25, id, on: false });
-      base.doors.forEach((door) => {
-        if (!door.requires.includes(id)) door.requires.push(id);
-      });
-    };
-    const lockTarget = Math.min(4, 2 + Math.floor(tier / 2));
-    if (base.doors[0]?.requires.length < lockTarget) addProgressSwitch("H", 505, tier % 2 ? 185 : 535);
-    if (base.doors[0]?.requires.length < lockTarget) addProgressSwitch("I", 915, tier % 2 ? 535 : 185);
-    base.doors.forEach((door) => {
-      door.requires = [...new Set(door.requires)].slice(0, lockTarget);
-    });
-
-    if (tier >= 2 && base.turrets.length + base.drones.length === 0) addTurret(900, 520, 2 + hpBonus, 650);
-    if (tier >= 3 && base.drones.length < 2 && !n.includes("pressure")) addDrone(960, 520, 2 + Math.floor(tier / 3), 850);
-    if (tier >= 4 && base.turrets.length < 2 && !n.includes("drone")) addTurret(1010, 190, 3 + hpBonus, 520);
-    if (tier >= 5 && !base.missileSentries.length && !n.includes("training")) addMissile(970, 360, 3 + Math.floor(tier / 3), 2300);
-    const openAt = (p) => ![...base.walls, ...base.crates].some((block) => rectsTouch({ x: p.x - 18, y: p.y - 18, w: 36, h: 36 }, block));
-    base.turrets = base.turrets.filter(openAt);
-    base.drones = base.drones.filter(openAt);
-    base.missileSentries = base.missileSentries.filter(openAt);
-    if (tier >= 4 && base.turrets.length + base.drones.length === 0) base.turrets.push({ x: 930, y: 500, hp: 3 + hpBonus, cooldown: 560 });
-  }
-  base.missileSentries = base.missileSentries || [];
-  base.coinCrates = base.coinCrates?.length ? base.coinCrates : [
+  const layout = layouts[index] || fallback;
+  const base = {
+    ...fallback,
+    ...layout,
+    name: rooms[index] || layout.name || fallback.name,
+    theme: index,
+    walls: [...shell, ...(layout.walls || fallback.walls)],
+    crates: layout.crates || [],
+    coinCrates: layout.coinCrates?.length ? layout.coinCrates : [
     { x: 335 + (index % 4) * 90, y: 560 - (index % 3) * 80, w: 34, h: 34, value: 10 + index * 2, taken: false },
     { x: 880 - (index % 5) * 45, y: 165 + (index % 4) * 70, w: 34, h: 34, value: 8 + index, taken: false }
-  ];
-  return structuredClone(base);
+    ],
+    plates: layout.plates || fallback.plates,
+    switches: layout.switches || fallback.switches,
+    doors: layout.doors || fallback.doors,
+    turrets: layout.turrets || [],
+    drones: layout.drones || [],
+    missileSentries: layout.missileSentries || [],
+    gravityNodes: layout.gravityNodes || [],
+    echoJammers: layout.echoJammers || [],
+    laserSweepers: layout.laserSweepers || [],
+    blinkHunters: layout.blinkHunters || [],
+    shieldDrones: layout.shieldDrones || [],
+    repairBots: layout.repairBots || [],
+    lasers: layout.lasers || [],
+    scrap: layout.scrap || fallback.scrap,
+    core: layout.core || null
+  };
+  return structuredClone(finalizeStockLevel(base));
 }
 
 const rectsTouch = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -901,6 +697,90 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 const playerRect = (p) => ({ x: p.x - 15, y: p.y - 15, w: 30, h: 30 });
 const getSolidBlocks = (level) => [...level.walls, ...level.doors.filter((d) => !d.open), ...level.crates];
+const SPECIAL_HOSTILE_KEYS = ["gravityNodes", "echoJammers", "laserSweepers", "blinkHunters", "shieldDrones", "repairBots"];
+const LEVEL_ARRAY_KEYS = ["walls", "crates", "coinCrates", "plates", "switches", "doors", "turrets", "drones", "missileSentries", ...SPECIAL_HOSTILE_KEYS, "lasers", "scrap"];
+
+function ensurePlayableSpawn(level) {
+  LEVEL_ARRAY_KEYS.forEach((key) => {
+    level[key] = level[key] || [];
+  });
+  level.exit = level.exit || { x: 1160, y: 360, w: 58, h: 114 };
+  const preferred = {
+    x: Number.isFinite(level.player?.x) ? level.player.x : 160,
+    y: Number.isFinite(level.player?.y) ? level.player.y : 360
+  };
+  const solidBlocks = () => getSolidBlocks(level);
+  const hostiles = () => [
+    ...(level.turrets || []),
+    ...(level.drones || []),
+    ...(level.missileSentries || []),
+    ...SPECIAL_HOSTILE_KEYS.flatMap((key) => level[key] || [])
+  ].filter((hostile) => (hostile.hp ?? 1) > 0);
+  const isOpen = (point) => {
+    const rect = playerRect(point);
+    return point.x >= 58 && point.x <= W - 58 && point.y >= 58 && point.y <= H - 58 && !solidBlocks().some((block) => rectsTouch(rect, block));
+  };
+  const clearanceScore = (point) => {
+    if (!isOpen(point)) return -Infinity;
+    const wallClearance = solidBlocks().reduce((best, block) => {
+      const cx = clamp(point.x, block.x, block.x + block.w);
+      const cy = clamp(point.y, block.y, block.y + block.h);
+      return Math.min(best, Math.hypot(point.x - cx, point.y - cy));
+    }, 240);
+    const hostileClearance = hostiles().reduce((best, hostile) => Math.min(best, dist(point, hostile)), 360);
+    const exitDistance = level.exit ? dist(point, { x: level.exit.x + level.exit.w / 2, y: level.exit.y + level.exit.h / 2 }) : 500;
+    return wallClearance * 2 + hostileClearance * 0.85 + Math.min(exitDistance, 520) * 0.18 - Math.abs(point.x - preferred.x) * 0.18 - Math.abs(point.y - preferred.y) * 0.12;
+  };
+  if (isOpen(preferred) && clearanceScore(preferred) >= 190) {
+    level.player = preferred;
+    return level;
+  }
+  const candidates = [
+    preferred,
+    { x: 140, y: 360 },
+    { x: 180, y: 360 },
+    { x: 160, y: 360 },
+    { x: 100, y: 360 },
+    { x: 115, y: 180 },
+    { x: 115, y: 540 },
+    { x: 180, y: 220 },
+    { x: 180, y: 500 },
+    { x: 220, y: 180 },
+    { x: 220, y: 540 },
+    { x: 260, y: 360 }
+  ];
+  for (let radius = 40; radius <= 420; radius += 40) {
+    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 6) {
+      candidates.push({
+        x: clamp(preferred.x + Math.cos(angle) * radius, 70, W - 70),
+        y: clamp(preferred.y + Math.sin(angle) * radius, 70, H - 70)
+      });
+    }
+  }
+  level.player = candidates.filter(isOpen).sort((a, b) => clearanceScore(b) - clearanceScore(a))[0] || { x: 160, y: 360 };
+  return level;
+}
+
+function finalizeStockLevel(level) {
+  LEVEL_ARRAY_KEYS.forEach((key) => {
+    level[key] = level[key] || [];
+  });
+  const maxHeldPlates = 1 + MAX_ECHOES + level.crates.length;
+  if (level.plates.length > maxHeldPlates) {
+    const kept = new Set(level.plates.slice(0, maxHeldPlates).map((p) => p.id));
+    level.plates = level.plates.filter((p) => kept.has(p.id));
+    level.lasers = level.lasers.filter((l) => kept.has(l.disabledBy) || level.switches.some((s) => s.id === l.disabledBy));
+  }
+  const plateIds = level.plates.map((p) => p.id);
+  const switchIds = level.switches.map((s) => s.id);
+  level.doors.forEach((door) => {
+    door.requires = [...new Set([...plateIds, ...switchIds])];
+  });
+  level.crates.forEach((crate) => {
+    crate.role = "plate-weight";
+  });
+  return ensurePlayableSpawn(level);
+}
 const segmentIntersectsRect = (a, b, r) => {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
@@ -1216,10 +1096,15 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
   });
 
   level.crates.forEach((c) => {
-    drawLabel(ctx, "CARGO", c.x - 5, c.y - 14, "#9ab0b2");
+    drawLabel(ctx, "PLATE CARGO", c.x - 18, c.y - 14, "#9ab0b2");
     glowRect(ctx, c.x, c.y, c.w, c.h, "#ffd52d", "rgba(81, 65, 22, 0.78)", 15, 3);
     ctx.fillStyle = "rgba(255, 213, 45, 0.28)";
     ctx.fillRect(c.x + 8, c.y + 7, c.w - 16, 3);
+    ctx.fillStyle = "#ffed8a";
+    ctx.font = "900 12px Rajdhani, Bahnschrift, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("WEIGHT", c.x + c.w / 2, c.y + c.h / 2 + 4);
+    ctx.textAlign = "left";
   });
 
   level.coinCrates?.forEach((c) => {
@@ -1333,6 +1218,58 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
     ctx.restore();
   });
 
+  level.gravityNodes?.forEach((h) => {
+    if (h.hp <= 0) return;
+    ctx.save();
+    ctx.strokeStyle = "rgba(138,160,255,0.22)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(h.x, h.y, 150 + Math.sin((h.pulse || 0) * 0.01) * 10, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    drawSpecialHostile(ctx, h, "GRAVITY NODE", "#8aa0ff", "diamond");
+  });
+  level.echoJammers?.forEach((h) => {
+    if (h.hp <= 0) return;
+    ctx.save();
+    ctx.strokeStyle = "rgba(183,140,255,0.24)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 8]);
+    ctx.beginPath();
+    ctx.arc(h.x, h.y, 185, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    drawSpecialHostile(ctx, h, "ECHO JAMMER", "#b78cff", "hex");
+  });
+  level.laserSweepers?.forEach((h) => {
+    if (h.hp <= 0) return;
+    const a = h.angle || 0;
+    ctx.save();
+    ctx.strokeStyle = "#ff4e41";
+    ctx.shadowColor = "#ff4e41";
+    ctx.shadowBlur = 16;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(h.x - Math.cos(a) * 220, h.y - Math.sin(a) * 220);
+    ctx.lineTo(h.x + Math.cos(a) * 220, h.y + Math.sin(a) * 220);
+    ctx.stroke();
+    ctx.restore();
+    drawSpecialHostile(ctx, h, "LASER SWEEPER", "#ff4e41", "circle");
+  });
+  level.blinkHunters?.forEach((h) => h.hp > 0 && drawSpecialHostile(ctx, h, "BLINK HUNTER", "#ff6ec7", "diamond"));
+  level.shieldDrones?.forEach((h) => {
+    if (h.hp <= 0) return;
+    ctx.save();
+    ctx.strokeStyle = "rgba(0,240,210,0.26)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(h.x, h.y, 105, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    drawSpecialHostile(ctx, h, "SHIELD DRONE", "#00f0d2", "hex");
+  });
+  level.repairBots?.forEach((h) => h.hp > 0 && drawSpecialHostile(ctx, h, "REPAIR BOT", "#58e07a", "circle"));
+
   level.turrets.forEach((t) => {
     if (t.hp <= 0) return;
     if (t.seesPlayer) {
@@ -1403,6 +1340,23 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
     ctx.restore();
   });
   game.echoes.forEach((e) => drawDrone(ctx, e, true, cosmetic));
+  if (game.spawnFlash > 0) {
+    const flash = clamp(game.spawnFlash / 1200, 0, 1);
+    ctx.save();
+    ctx.globalAlpha = 0.24 + flash * 0.48;
+    ctx.strokeStyle = cosmetic.trail || "#00f0d2";
+    ctx.shadowColor = cosmetic.trail || "#00f0d2";
+    ctx.shadowBlur = 22;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(game.player.x, game.player.y, 32 + (1 - flash) * 22, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(0, 240, 210, 0.13)";
+    ctx.beginPath();
+    ctx.arc(game.player.x, game.player.y, 22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
   drawDrone(ctx, game.player, false, cosmetic);
   drawPet(ctx, game.player, cosmetic, performance.now());
 
@@ -1534,6 +1488,44 @@ function drawHostileDrone(ctx, d) {
   ctx.fillRect(0, -4, 10, 8);
   ctx.restore();
   drawLabel(ctx, "HUNTER DRONE", d.x - 38, d.y - 34, "#ff7c72");
+}
+
+function drawSpecialHostile(ctx, h, label, color, shape = "circle") {
+  ctx.save();
+  ctx.translate(h.x, h.y);
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 16;
+  ctx.strokeStyle = color;
+  ctx.fillStyle = "rgba(13, 20, 24, 0.92)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  if (shape === "diamond") {
+    ctx.moveTo(0, -20);
+    ctx.lineTo(20, 0);
+    ctx.lineTo(0, 20);
+    ctx.lineTo(-20, 0);
+    ctx.closePath();
+  } else if (shape === "hex") {
+    for (let i = 0; i < 6; i += 1) {
+      const a = Math.PI / 6 + i * Math.PI / 3;
+      const x = Math.cos(a) * 21;
+      const y = Math.sin(a) * 21;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+  } else {
+    ctx.arc(0, 0, 20, 0, Math.PI * 2);
+  }
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(0, 0, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  drawLabel(ctx, label, h.x - 42, h.y - 38, color);
+  drawHealthBar(ctx, h.x, h.y - 50, h.hp, h.maxHp || 4, color);
 }
 
 function drawDrone(ctx, p, echo, cosmetic = COSMETIC_DEFAULTS) {
@@ -1806,7 +1798,7 @@ function drawPet(ctx, player, cosmetic = COSMETIC_DEFAULTS, now = 0) {
 function getPetPerks(cosmetic = COSMETIC_DEFAULTS) {
   switch (cosmetic.pet) {
     case "spark":
-      return { energyRegen: 2.8 };
+      return { energyRegen: 0.45 };
     case "wisp":
       return { echoDiscount: 6 };
     case "ember":
@@ -1851,7 +1843,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
   const mobileAim = useRef({ x: 0, y: 0, active: false, shooting: false });
 
   const reset = () => {
-    const level = customLevel ? structuredClone(customLevel) : makeLevel(levelIndex);
+    const level = customLevel ? ensurePlayableSpawn(structuredClone(customLevel)) : makeLevel(levelIndex);
     const perks = getPetPerks(cosmetic);
     const weapon = getWeaponById(cosmetic.weapon);
     const ability = getAbilityById(cosmetic.ability);
@@ -1867,6 +1859,13 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       m.maxHp = m.maxHp || m.hp || 3;
       m.cooldown = m.cooldown ?? 2400;
       m.lockMs = m.lockMs || 0;
+    });
+    SPECIAL_HOSTILE_KEYS.forEach((key) => {
+      level[key] = level[key] || [];
+      level[key].forEach((h) => {
+        h.maxHp = h.maxHp || h.hp || 3;
+        h.cooldown = h.cooldown ?? 900;
+      });
     });
     game.current = {
       level,
@@ -1901,7 +1900,9 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       railBeams: [],
       coinPopups: [],
       abilityBursts: [],
+      spawnFlash: 1200,
       recording: [],
+      recordTimer: 0,
       started: performance.now(),
       last: performance.now(),
       status: "playing",
@@ -1957,9 +1958,14 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     const g = game.current;
     const perks = getPetPerks(cosmetic);
     const echoCost = Math.max(8, ECHO_COST - (perks.echoDiscount || 0));
-    if (!g || g.recording.length < 8 || g.player.energy < echoCost) return;
+    if (g?.level.echoJammers?.some((j) => j.hp > 0 && dist(j, g.player) < 185)) {
+      if (settings.shake && !settings.reduced) g.shake = 6;
+      return;
+    }
+    if (!g || g.echoes.length >= MAX_ECHOES || g.recording.length < 8 || g.player.energy < echoCost) return;
     g.player.energy -= echoCost;
-    g.echoes.push({ frames: g.recording.slice(), age: 0, x: g.recording[0].x, y: g.recording[0].y, angle: 0, fired: 0 });
+    const frames = g.recording.slice();
+    g.echoes.push({ frames, age: 0, futureMs: 0, x: frames[0].x, y: frames[0].y, angle: 0, fired: 0 });
     if (settings.shake && !settings.reduced) g.shake = 8;
   }
 
@@ -1987,9 +1993,14 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       level.drones?.forEach((d) => {
         if (d.hp > 0 && pointToSegmentDistance({ x: d.x, y: d.y }, line, end) < 22 && hasLineOfSight(line, d, blockers)) d.hp -= damage;
       });
-      level.missileSentries?.forEach((m) => {
-        if (m.hp > 0 && pointToSegmentDistance({ x: m.x, y: m.y }, line, end) < 23 && hasLineOfSight(line, m, blockers)) m.hp -= damage;
-      });
+        level.missileSentries?.forEach((m) => {
+          if (m.hp > 0 && pointToSegmentDistance({ x: m.x, y: m.y }, line, end) < 23 && hasLineOfSight(line, m, blockers)) m.hp -= damage;
+        });
+        SPECIAL_HOSTILE_KEYS.forEach((key) => {
+          level[key]?.forEach((h) => {
+            if (h.hp > 0 && pointToSegmentDistance({ x: h.x, y: h.y }, line, end) < 24 && hasLineOfSight(line, h, blockers)) h.hp -= damage;
+          });
+        });
       if (level.core?.alive && pointToSegmentDistance(level.core, line, end) < 32 && hasLineOfSight(line, level.core, blockers)) {
         level.core.hp -= damage;
         if (level.core.hp <= 0) level.core.alive = false;
@@ -2072,12 +2083,30 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     if (g.player.ammo <= 0) startReload(now);
   }
 
-  function tryMove(entity, dx, dy, level) {
+  function tryMove(entity, dx, dy, level, canPushCargo = false) {
     const blocks = getSolidBlocks(level);
     entity.x += dx;
-    if (blocks.some((b) => rectsTouch(playerRect(entity), b))) entity.x -= dx;
+    const hitCrateX = canPushCargo ? level.crates.find((c) => rectsTouch(playerRect(entity), c)) : null;
+    if (hitCrateX) {
+      hitCrateX.x += dx;
+      const crateBlocked = [...level.walls, ...level.doors.filter((d) => !d.open), ...level.crates.filter((c) => c !== hitCrateX)]
+        .some((b) => rectsTouch(hitCrateX, b)) || hitCrateX.x < 58 || hitCrateX.x + hitCrateX.w > W - 58;
+      if (crateBlocked) {
+        hitCrateX.x -= dx;
+        entity.x -= dx;
+      }
+    } else if (blocks.some((b) => rectsTouch(playerRect(entity), b))) entity.x -= dx;
     entity.y += dy;
-    if (blocks.some((b) => rectsTouch(playerRect(entity), b))) entity.y -= dy;
+    const hitCrateY = canPushCargo ? level.crates.find((c) => rectsTouch(playerRect(entity), c)) : null;
+    if (hitCrateY) {
+      hitCrateY.y += dy;
+      const crateBlocked = [...level.walls, ...level.doors.filter((d) => !d.open), ...level.crates.filter((c) => c !== hitCrateY)]
+        .some((b) => rectsTouch(hitCrateY, b)) || hitCrateY.y < 58 || hitCrateY.y + hitCrateY.h > H - 58;
+      if (crateBlocked) {
+        hitCrateY.y -= dy;
+        entity.y -= dy;
+      }
+    } else if (blocks.some((b) => rectsTouch(playerRect(entity), b))) entity.y -= dy;
     entity.x = clamp(entity.x, 58, W - 58);
     entity.y = clamp(entity.y, 58, H - 58);
   }
@@ -2133,7 +2162,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         if (dashQueued.current && g.player.dash >= 100 && g.player.energy >= DASH_COST) {
           const dashAngle = Math.atan2(ny, nx);
           g.dashBursts.push({ x: g.player.x, y: g.player.y, angle: dashAngle, life: 260, maxLife: 260 });
-          tryMove(g.player, nx * 116, ny * 116, level);
+          tryMove(g.player, nx * 116, ny * 116, level, true);
           g.player.dash = 0;
           g.player.energy -= DASH_COST;
           g.player.dashTrail = 180;
@@ -2142,7 +2171,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         dashQueued.current = false;
         const overdriveBoost = now < (g.player.overdriveUntil || 0) ? 1.22 : 1;
         const dashBoost = g.player.dashTrail > 0 ? 1.35 : 1;
-        tryMove(g.player, nx * speed * dashBoost * overdriveBoost * dt / 1000, ny * speed * dashBoost * overdriveBoost * dt / 1000, level);
+        tryMove(g.player, nx * speed * dashBoost * overdriveBoost * dt / 1000, ny * speed * dashBoost * overdriveBoost * dt / 1000, level, true);
       } else if (dashQueued.current) {
         dashQueued.current = false;
       }
@@ -2164,7 +2193,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
 
       g.echoes.forEach((e) => {
         e.age += dt;
-        const frame = e.frames[Math.min(e.frames.length - 1, Math.floor(e.age / 50))];
+        const frame = e.frames[Math.floor(e.age / ECHO_FRAME_MS)];
         if (!frame) return;
         e.x = frame.x;
         e.y = frame.y;
@@ -2175,7 +2204,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
           shoot(e);
         }
       });
-      g.echoes = g.echoes.filter((e) => e.age < ECHO_MS);
+      g.echoes = g.echoes.filter((e) => e.age < e.frames.length * ECHO_FRAME_MS || e.futureMs < ECHO_FUTURE_MS);
 
       const bodies = [g.player, ...g.echoes, ...level.crates.map((c) => ({ x: c.x + c.w / 2, y: c.y + c.h / 2 }))];
       g.activeIds = new Set(level.switches.filter((s) => s.on).map((s) => s.id));
@@ -2240,6 +2269,57 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
           m.lockMs = Math.max(0, (m.lockMs || 0) - dt * 0.9);
         }
       });
+      level.gravityNodes?.forEach((h) => {
+        if (h.hp <= 0) return;
+        h.pulse = (h.pulse || 0) + dt;
+        const gap = dist(h, g.player);
+        if (gap < 175 && gap > 24) {
+          const a = Math.atan2(h.y - g.player.y, h.x - g.player.x);
+          tryMove(g.player, Math.cos(a) * 70 * dt / 1000, Math.sin(a) * 70 * dt / 1000, level, false);
+        }
+      });
+      level.laserSweepers?.forEach((h) => {
+        if (h.hp <= 0) return;
+        h.angle = (h.angle || 0) + (h.speed || 0.0012) * dt;
+        const a = h.angle;
+        const p1 = { x: h.x - Math.cos(a) * 230, y: h.y - Math.sin(a) * 230 };
+        const p2 = { x: h.x + Math.cos(a) * 230, y: h.y + Math.sin(a) * 230 };
+        if (pointToSegmentDistance(g.player, p1, p2) < 16 && hasLineOfSight(h, g.player, getSolidBlocks(level))) {
+          damagePlayer(g, dt * 0.04);
+        }
+      });
+      level.blinkHunters?.forEach((h) => {
+        if (h.hp <= 0) return;
+        h.cooldown -= dt;
+        h.blink -= dt;
+        const a = Math.atan2(g.player.y - h.y, g.player.x - h.x);
+        h.angle = a;
+        if (h.blink <= 0 && dist(h, g.player) > 130) {
+          h.x = clamp(g.player.x - Math.cos(a) * 120, 70, W - 70);
+          h.y = clamp(g.player.y - Math.sin(a) * 120, 70, H - 70);
+          h.blink = 2200;
+          if (settings.shake && !settings.reduced) g.shake = Math.max(g.shake, 4);
+        } else if (dist(h, g.player) > 42) {
+          h.x = clamp(h.x + Math.cos(a) * 95 * dt / 1000, 58, W - 58);
+          h.y = clamp(h.y + Math.sin(a) * 95 * dt / 1000, 58, H - 58);
+        }
+        if (dist(h, g.player) < 32) damagePlayer(g, dt * 0.05);
+      });
+      level.shieldDrones?.forEach((h) => {
+        if (h.hp <= 0) return;
+        h.pulse = (h.pulse || 0) + dt;
+      });
+      level.repairBots?.forEach((h) => {
+        if (h.hp <= 0) return;
+        h.cooldown -= dt;
+        if (h.cooldown <= 0) {
+          const repairables = [...level.turrets, ...(level.drones || []), ...(level.missileSentries || []), ...SPECIAL_HOSTILE_KEYS.flatMap((key) => level[key] || [])]
+            .filter((target) => target !== h && target.hp > 0 && target.maxHp && target.hp < target.maxHp && dist(h, target) < 165);
+          repairables.sort((a, b) => dist(h, a) - dist(h, b));
+          if (repairables[0]) repairables[0].hp = Math.min(repairables[0].maxHp, repairables[0].hp + 1);
+          h.cooldown = 1100;
+        }
+      });
 
       level.turrets.forEach((t) => {
         if (t.hp <= 0) return;
@@ -2263,20 +2343,35 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         b.life -= dt;
         if (b.traveled > (b.maxRange || 9999)) b.life = 0;
         if (getSolidBlocks(level).some((w) => rectsTouch({ x: b.x - 3, y: b.y - 3, w: 6, h: 6 }, w))) b.life = 0;
+        const shielded = (target) => level.shieldDrones?.some((s) => s.hp > 0 && dist(s, target) < 110 && dist(s, target) > 18);
         level.turrets.forEach((t) => {
           if (b.owner !== "enemy" && t.hp > 0 && dist(b, t) < 25) {
-            t.hp -= b.damage || 1;
+            t.hp -= shielded(t) ? 0 : b.damage || 1;
             b.life = 0;
           }
         });
         level.drones?.forEach((d) => {
           if (b.owner !== "enemy" && d.hp > 0 && dist(b, d) < 24) {
-            d.hp -= b.damage || 1;
+            d.hp -= shielded(d) ? 0 : b.damage || 1;
             b.life = 0;
             if (d.hp <= 0) {
               g.player.energy = clamp(g.player.energy + 12, 0, MAX_ENERGY);
             }
           }
+        });
+        level.missileSentries?.forEach((m) => {
+          if (b.owner !== "enemy" && m.hp > 0 && dist(b, m) < 25) {
+            m.hp -= shielded(m) ? 0 : b.damage || 1;
+            b.life = 0;
+          }
+        });
+        SPECIAL_HOSTILE_KEYS.forEach((key) => {
+          level[key]?.forEach((h) => {
+            if (b.owner !== "enemy" && h.hp > 0 && dist(b, h) < 25) {
+              h.hp -= b.damage || 1;
+              b.life = 0;
+            }
+          });
         });
         if (b.owner !== "enemy" && level.core?.alive && dist(b, level.core) < 32) {
           level.core.hp -= b.damage || 1;
@@ -2322,9 +2417,25 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       g.player.energy = clamp(g.player.energy + (perks.energyRegen || 0) * dt / 1000, 0, MAX_ENERGY);
       g.player.hp = clamp(g.player.hp + (perks.hullRegen || 0) * dt / 1000, 0, 100);
       if (g.player.maxShield > 0) g.player.shield = clamp((g.player.shield || 0) + (perks.shieldRegen || 0) * dt / 1000, 0, g.player.maxShield);
-      const didFire = mouse.current.down || keys.current.has(keybinds.shoot);
-      g.recording.push({ x: g.player.x, y: g.player.y, angle: g.player.angle, fire: didFire, interact: keys.current.has(keybinds.interact) });
-      while (g.recording.length > ECHO_MS / 50) g.recording.shift();
+      g.recordTimer += dt;
+      while (g.recordTimer >= ECHO_FRAME_MS) {
+        g.recordTimer -= ECHO_FRAME_MS;
+        const frame = {
+          x: g.player.x,
+          y: g.player.y,
+          angle: g.player.angle,
+          fire: wantsShoot,
+          interact: keys.current.has(keybinds.interact) || touch.current.interact
+        };
+        g.recording.push(frame);
+        while (g.recording.length > ECHO_MS / ECHO_FRAME_MS) g.recording.shift();
+        g.echoes.forEach((echo) => {
+          if (echo.futureMs < ECHO_FUTURE_MS) {
+            echo.frames.push({ ...frame });
+            echo.futureMs += ECHO_FRAME_MS;
+          }
+        });
+      }
       const overdriveRecharge = now < (g.player.overdriveUntil || 0) ? 1.3 : 1;
       g.player.dash = clamp(g.player.dash + dt * 0.055 * (perks.dashRegenMultiplier || 1) * overdriveRecharge, 0, 100);
       const activeWeapon = getWeaponById(g.player.weaponId || cosmetic.weapon);
@@ -2349,6 +2460,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         burst.life -= dt;
       });
       g.abilityBursts = g.abilityBursts.filter((burst) => burst.life > 0);
+      g.spawnFlash = Math.max(0, (g.spawnFlash || 0) - dt);
       g.shake = Math.max(0, g.shake - dt * 0.03);
 
       if (g.player.hp <= 0) {
@@ -2359,7 +2471,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         (!level.core || !level.core.alive || levelIndex < 4) &&
         level.turrets.every((t) => t.hp <= 0) &&
         (level.drones || []).every((d) => d.hp <= 0) &&
-        (level.missileSentries || []).every((m) => m.hp <= 0);
+        (level.missileSentries || []).every((m) => m.hp <= 0) &&
+        SPECIAL_HOSTILE_KEYS.every((key) => (level[key] || []).every((h) => h.hp <= 0));
       if (rectsTouch(playerRect(g.player), level.exit) && level.doors.every((d) => d.open) && roomSecured) {
         setSummary({ result: "Extracted", scrap: g.player.scrap, hull: Math.max(0, Math.round(g.player.hp)), time: Math.round((now - g.started) / 1000), room: level.name, levelIndex });
         setScreen("summary");
@@ -2486,20 +2599,20 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
         </div>
         <div className="hud-card objective-card">
           <strong>Objective</strong>
-          <span>Use the Echo plan, break the lock chain, and reach extraction.</span>
-          <small>Shift dashes and spends energy. Secure turrets/drones before extraction.</small>
+          <span>Use Echo timing, cargo weights, and switches to break the full lock chain.</span>
+          <small>Echo follows your recent route, then continues with the next recorded actions on delay.</small>
         </div>
         <div className="hud-cluster stat-grid">
           <div className="stat-tile"><Shield size={16} /><span>Scrap</span><strong>{g?.player.scrap ?? 0}</strong></div>
           <div className="stat-tile"><Sparkles size={16} /><span>Coins</span><strong>{g?.player.coinsEarned ?? 0}</strong></div>
-          <button className="stat-tile" onClick={spawnEcho}><Radio size={16} /><span>Echo</span><strong>{g?.echoes.length ?? 0}/3</strong></button>
+          <button className="stat-tile" onClick={spawnEcho}><Radio size={16} /><span>Echo</span><strong>{g?.echoes.length ?? 0}/{MAX_ECHOES}</strong></button>
           <div className="stat-tile"><Zap size={16} /><span>Dash</span><strong>{Math.round(g?.player.dash ?? 100)}%</strong></div>
           <div className="stat-tile"><Crosshair size={16} /><span>Ammo</span><strong>{g?.player.isReloading ? "..." : `${g?.player.ammo ?? 0}/${g?.player.ammoMax ?? 0}`}</strong></div>
           <div className="stat-tile"><Gauge size={16} /><span>Weapon</span><strong>{getWeaponById(g?.player.weaponId).label.split(" ")[0]}</strong></div>
           <div className="stat-tile"><Radio size={16} /><span>Ability</span><strong>{Math.max(0, Math.ceil(((g?.player.abilityReadyAt ?? 0) - performance.now()) / 1000)) || "READY"}</strong></div>
           <div className="hud-help">
             <button className="mode-chip" onClick={() => setControlMode(isMobile ? "pc" : "mobile")}>{isMobile ? "Mobile Mode" : "PC Mode"}</button>
-            <span>{isMobile ? "Twin-stick touch active." : `Keyboard recommended. Escape pauses. R restarts room. ${keyName(keybinds.reload)} reloads. ${keyName(keybinds.ability)} uses ability.`}</span>
+            <span>{isMobile ? "Twin-stick touch active." : `Push cargo onto plates. ${keyName(keybinds.echo)} spawns a delayed Echo. ${keyName(keybinds.reload)} reloads.`}</span>
           </div>
         </div>
       </div>
@@ -2549,11 +2662,11 @@ function MainMenu({ setScreen, setLevelIndex, user, onLogout }) {
             </button>
           </div>
           <h1 className="title">Echo Salvage</h1>
-          <p className="lead">Pilot a drone through locked station rooms. Move, shoot, dash, and interact, then deploy an Echo that repeats your last eight seconds.</p>
+          <p className="lead">Pilot a drone through locked station rooms. The Echo replays an eight-second action window, then continues with the next recorded actions you perform after deployment.</p>
           <div className="button-grid">
             <Button primary onClick={() => setScreen("briefing")}><Play size={22} /> Begin Training</Button>
             <Button onClick={() => setScreen("editor")}><Wand2 size={20} /> Level Creator</Button>
-            <Button onClick={() => setScreen("community")}><Globe2 size={20} /> Community Levels</Button>
+            <Button className="construction-tab" onClick={() => setScreen("community")}><Globe2 size={20} /> Community Levels <span>In Construction</span></Button>
             <Button onClick={() => setScreen("profile")}><UserRound size={20} /> Profile</Button>
             <Button onClick={() => setScreen("shop")}><Sparkles size={20} /> Shop</Button>
             <Button onClick={() => setScreen("settings")}><Settings size={20} /> Settings</Button>
@@ -2563,7 +2676,7 @@ function MainMenu({ setScreen, setLevelIndex, user, onLogout }) {
         </section>
         <section className="panel">
           <h2>Run Brief</h2>
-          <Brief icon={<Bot />} title="Tutorial" text="Room one teaches movement, cargo crates, coin caches, interacting, combat, and pressure plates before the Echo puzzles escalate." />
+          <Brief icon={<Bot />} title="Tutorial" text="Early rooms teach movement, plate cargo, coin caches, interacting, combat, and pressure plates before Echo timing escalates." />
           <div className="star-brief"><Sparkles size={18} /><span>{totalStars} stars recovered</span><small>Later decks unlock gently as you extract from earlier rooms.</small></div>
           <div className="rooms">
             {rooms.map((r, i) => {
@@ -2572,6 +2685,7 @@ function MainMenu({ setScreen, setLevelIndex, user, onLogout }) {
               return (
               <button className="room-card" data-locked={!unlocked} disabled={!unlocked} key={r} onClick={() => { if (!unlocked) return; setLevelIndex(i); setScreen("playing"); }}>
                 <span className="room-num">{i + 1}</span>
+                <span className="room-tier">{getRoomTier(i)}</span>
                 <span className="room-name">{r}</span>
                 <span className="room-stars">{unlocked ? `${"★".repeat(roomStars)}${"☆".repeat(3 - roomStars)}` : `${getRequiredStars(i)} ★`}</span>
               </button>
@@ -2591,15 +2705,15 @@ function Briefing({ setScreen }) {
         <section className="panel">
           <div className="panel-header"><span className="badge">First Boot</span><span className="status-pill">Echo Link Unstable</span></div>
           <h1 className="title" style={{ fontSize: "clamp(46px, 6vw, 70px)" }}>Your past self is the tool.</h1>
-          <p className="lead">Create an Echo after doing something useful. It repeats your last eight seconds while you handle the next job.</p>
+          <p className="lead">Create an Echo after doing something useful. It replays your recent action window, then follows the actions you record immediately afterward on a delay.</p>
           <div className="button-grid">
             <Button primary onClick={() => setScreen("playing")}><Play size={22} /> Start Run</Button>
             <Button onClick={() => setScreen("menu")}>Main Menu</Button>
           </div>
         </section>
         <section className="panel">
-          <Brief icon={<Boxes />} title="Read the labels" text="Pressure plates, relay switches, scanner beams, turrets, reactor cores, scrap, and exit gates all behave differently." />
-          <Brief icon={<Zap />} title="Record, then replay" text="Stand on plates, shoot targets, or press switches, then spawn an Echo with Q so it repeats the action." />
+          <Brief icon={<Boxes />} title="Read the labels" text="Plate cargo is pushable weight for pressure plates. Switches latch, plates need bodies or cargo, and gates require the whole lock chain." />
+          <Brief icon={<Zap />} title="Record, then replay" text="The Echo starts eight seconds in your past and keeps following the next actions you perform after release, delayed behind you." />
           <Brief icon={<Shield />} title="Clear the lock chain" text="Locked gates show how many requirements remain. Solve the room, survive the hazards, and extract." />
         </section>
       </div>
@@ -2860,12 +2974,6 @@ function ShopScreen({ user, setUser, setScreen }) {
     setMessage(`Unlocked ${label}.`);
   };
 
-  const demoCoinPack = (pack) => {
-    const session = updateUserEconomy(user, (current) => ({ ...current, coins: normalizeEconomy(current).coins + pack.coins }));
-    setUser(session);
-    setMessage(`${pack.label} added ${pack.coins} coins in demo mode. Real payments need Stripe checkout before launch.`);
-  };
-
   return (
     <div className="overlay">
       <section className="panel shop-panel">
@@ -2932,11 +3040,6 @@ function ShopScreen({ user, setUser, setScreen }) {
           <ShopSection title="Abilities">
             {ABILITIES.filter((ability) => ability.id !== ABILITY_DEFAULT).map((ability) => (
               <ShopItem key={ability.id} owned={economy.owned.abilities.includes(ability.id)} label={ability.label} detail={ability.perk} price={ability.price} onBuy={() => buy("abilities", ability.id, ability.price, ability.label)} />
-            ))}
-          </ShopSection>
-          <ShopSection title="Coin Packs Demo">
-            {COIN_PACKS.map((pack) => (
-              <ShopItem key={pack.id} label={`${pack.label} ${pack.price}`} price={`${pack.coins} coins`} onBuy={() => demoCoinPack(pack)} />
             ))}
           </ShopSection>
         </div>
@@ -3105,60 +3208,32 @@ function Summary({ summary, setScreen, next, user, setUser }) {
 }
 
 function CommunityLevels({ setScreen, playLevel }) {
-  const [levels, setLevels] = useState([]);
-  const [source, setSource] = useState("loading");
-  const [status, setStatus] = useState("Scanning public relay...");
-
-  const load = async () => {
-    setStatus("Scanning public relay...");
-    const result = await fetchCommunityLevels();
-    setLevels(result.levels);
-    setSource(result.source);
-    setStatus(result.source === "global" ? "Global relay online." : "Local fallback. Run the community server for real global publishing.");
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
-
   return (
     <div className="overlay">
       <section className="panel community-panel">
         <div className="drawer-head">
           <div>
-            <span className="badge">Community Relay</span>
-            <h2>Published Maps</h2>
-            <p className="small-copy">{status}</p>
+            <span className="badge construction-badge">In Construction</span>
+            <h2>Community Levels</h2>
+            <p className="small-copy">Global level publishing is paused while the main game is being built.</p>
           </div>
           <div className="community-actions">
-            <Button onClick={load}><RotateCcw /> Refresh</Button>
             <Button onClick={() => setScreen("menu")}>Menu</Button>
           </div>
         </div>
         <div className="community-list">
-          {levels.length === 0 && (
-            <div className="community-empty">
-              <Globe2 size={34} />
-              <p>No maps published yet. Build one in the Level Creator and publish it.</p>
-            </div>
-          )}
-          {levels.map((entry) => (
-            <article className="community-card" key={entry.id || `${entry.title}-${entry.createdAt}`}>
-              <div>
-                <h3>{entry.title}</h3>
-                <p>{entry.description || "No briefing attached."}</p>
-                <small>By {entry.author || "Unknown"} | {source === "global" ? "Global" : "Local"} | Code {entry.code ? entry.code.slice(0, 10) : "legacy"} | Plays {entry.plays || 0}</small>
-              </div>
-              <Button primary onClick={() => playLevel(entry.level || decodeLevelCode(entry.code))}><Play /> Play</Button>
-            </article>
-          ))}
+          <div className="community-empty construction-empty">
+            <Globe2 size={38} />
+            <h3>Community Relay Offline</h3>
+            <p>This tab is intentionally parked for now. The editor can still make/import level codes locally, but public publishing is not part of the current build.</p>
+          </div>
         </div>
       </section>
     </div>
   );
 }
 
-function Editor({ setScreen, setCustomLevel, user }) {
+function Editor({ setScreen, setCustomLevel, user, settings = defaultSettings }) {
   const canvas = useRef(null);
   const [tool, setTool] = useState("wall");
   const [level, setLevel] = useState(makeLevel(0));
@@ -3175,6 +3250,12 @@ function Editor({ setScreen, setCustomLevel, user }) {
     { id: "turret", label: "Turret", hint: "Shoots when it sees you" },
     { id: "drone", label: "Enemy Drone", hint: "Chases and attacks the player" },
     { id: "missileSentry", label: "Missile Sentry", hint: "Locks and fires a heavy homing missile" },
+    { id: "gravityNode", label: "Gravity Node", hint: "Pulls the player into danger" },
+    { id: "echoJammer", label: "Echo Jammer", hint: "Blocks Echo spawning nearby" },
+    { id: "laserSweeper", label: "Laser Sweeper", hint: "Rotating beam hazard" },
+    { id: "blinkHunter", label: "Blink Hunter", hint: "Teleports close then rushes" },
+    { id: "shieldDrone", label: "Shield Drone", hint: "Protects nearby hostiles" },
+    { id: "repairBot", label: "Repair Bot", hint: "Repairs damaged enemies" },
     { id: "scrap", label: "Scrap", hint: "Restores energy" },
     { id: "exit", label: "Exit Gate", hint: "Extraction target" },
     { id: "erase", label: "Erase", hint: "Remove editor pieces" }
@@ -3184,34 +3265,40 @@ function Editor({ setScreen, setCustomLevel, user }) {
   useEffect(() => {
     const ctx = canvas.current?.getContext("2d");
     if (ctx) drawLevel(ctx, level, { player: level.player, echoes: [], bullets: [], activeIds: new Set() }, 0, COSMETIC_DEFAULTS, settings.uiTheme);
-  }, [level]);
+  }, [level, settings.uiTheme]);
 
-  const place = (e) => {
-    const r = canvas.current.getBoundingClientRect();
-    const x = Math.floor(((e.clientX - r.left) / r.width) * W / CELL) * CELL;
-    const y = Math.floor(((e.clientY - r.top) / r.height) * H / CELL) * CELL;
+  const placeToolAt = (toolId, x, y) => {
     const next = structuredClone(level);
-    if (tool === "wall") next.walls.push({ x, y, w: CELL, h: CELL });
-    if (tool === "cargo") next.crates.push({ x: x + 1, y: y + 1, w: CELL - 2, h: CELL - 2 });
-    if (tool === "coinCache") {
+    LEVEL_ARRAY_KEYS.forEach((key) => {
+      next[key] = next[key] || [];
+    });
+    if (toolId === "wall") next.walls.push({ x, y, w: CELL, h: CELL });
+    if (toolId === "cargo") next.crates.push({ x: x + 1, y: y + 1, w: CELL - 2, h: CELL - 2 });
+    if (toolId === "coinCache") {
       next.coinCrates = next.coinCrates || [];
       next.coinCrates.push({ x: x + 3, y: y + 3, w: CELL - 6, h: CELL - 6, value: 12, taken: false });
     }
-    if (tool === "plate") next.plates.push({ x: x + 20, y: y + 20, r: 26, id: `P${next.plates.length + 1}` });
-    if (tool === "switch") next.switches.push({ x: x + 20, y: y + 20, r: 22, id: `S${next.switches.length + 1}`, on: false });
-    if (tool === "turret") next.turrets.push({ x: x + 20, y: y + 20, hp: 2, cooldown: 0 });
-    if (tool === "drone") {
+    if (toolId === "plate") next.plates.push({ x: x + 20, y: y + 20, r: 26, id: `P${next.plates.length + 1}` });
+    if (toolId === "switch") next.switches.push({ x: x + 20, y: y + 20, r: 22, id: `S${next.switches.length + 1}`, on: false });
+    if (toolId === "turret") next.turrets.push({ x: x + 20, y: y + 20, hp: 2, cooldown: 0 });
+    if (toolId === "drone") {
       next.drones = next.drones || [];
       next.drones.push({ x: x + 20, y: y + 20, hp: 2, cooldown: 450 });
     }
-    if (tool === "missileSentry") {
+    if (toolId === "missileSentry") {
       next.missileSentries = next.missileSentries || [];
       next.missileSentries.push({ x: x + 20, y: y + 20, hp: 3, cooldown: 2200, lockMs: 0 });
     }
-    if (tool === "scrap") next.scrap.push({ x: x + 20, y: y + 20, taken: false });
-    if (tool === "exit") next.exit = { x, y, w: 58, h: 114 };
-    if (tool === "erase") {
-      ["walls", "crates", "coinCrates", "plates", "switches", "turrets", "drones", "missileSentries", "scrap"].forEach((k) => {
+    if (toolId === "gravityNode") next.gravityNodes.push({ x: x + 20, y: y + 20, hp: 4, pulse: 0 });
+    if (toolId === "echoJammer") next.echoJammers.push({ x: x + 20, y: y + 20, hp: 5, pulse: 0 });
+    if (toolId === "laserSweeper") next.laserSweepers.push({ x: x + 20, y: y + 20, hp: 4, angle: 0, speed: 0.0012 });
+    if (toolId === "blinkHunter") next.blinkHunters.push({ x: x + 20, y: y + 20, hp: 3, cooldown: 1200, blink: 900 });
+    if (toolId === "shieldDrone") next.shieldDrones.push({ x: x + 20, y: y + 20, hp: 4, cooldown: 700 });
+    if (toolId === "repairBot") next.repairBots.push({ x: x + 20, y: y + 20, hp: 3, cooldown: 900 });
+    if (toolId === "scrap") next.scrap.push({ x: x + 20, y: y + 20, taken: false });
+    if (toolId === "exit") next.exit = { x, y, w: 58, h: 114 };
+    if (toolId === "erase") {
+      ["walls", "crates", "coinCrates", "plates", "switches", "turrets", "drones", "missileSentries", ...SPECIAL_HOSTILE_KEYS, "scrap"].forEach((k) => {
         next[k] = next[k] || [];
         next[k] = next[k].filter((o) => !rectsTouch({ x, y, w: CELL, h: CELL }, { x: (o.x ?? 0) - (o.r ?? 0), y: (o.y ?? 0) - (o.r ?? 0), w: o.w ?? (o.r ?? 22) * 2, h: o.h ?? (o.r ?? 22) * 2 }));
       });
@@ -3219,26 +3306,17 @@ function Editor({ setScreen, setCustomLevel, user }) {
     setLevel(next);
   };
 
+  const place = (e) => {
+    e.preventDefault();
+    const point = e.touches?.[0] || e.changedTouches?.[0] || e;
+    const r = canvas.current.getBoundingClientRect();
+    const x = Math.floor(((point.clientX - r.left) / r.width) * W / CELL) * CELL;
+    const y = Math.floor(((point.clientY - r.top) / r.height) * H / CELL) * CELL;
+    placeToolAt(tool, x, y);
+  };
+
   const publish = async () => {
-    const cleanName = publishName.trim();
-    if (cleanName.length < 3) {
-      setPublishStatus("Give the map a title first.");
-      return;
-    }
-    setPublishStatus("Publishing...");
-    const publishedLevel = { ...structuredClone(level), name: cleanName };
-    const levelCode = encodeLevelCode(publishedLevel);
-    const payload = {
-      title: cleanName,
-      description: publishNote.trim(),
-      author: user?.nickname || "Anonymous",
-      level: publishedLevel,
-      code: levelCode,
-      version: 1
-    };
-    const result = await publishCommunityLevel(payload);
-    setCode(levelCode);
-    setPublishStatus(result.source === "global" ? "Published as level code and saved to the relay." : "Saved as a level code in this browser.");
+    setPublishStatus("Publishing is in construction. Use Make Code for local testing.");
   };
 
   const exportCode = () => {
@@ -3269,7 +3347,7 @@ function Editor({ setScreen, setCustomLevel, user }) {
           <strong>{activeTool.label}</strong>
           <p>{activeTool.hint}</p>
         </div>
-        <div className="tools">{tools.map((t) => <button className="tool-btn" data-active={tool === t.id} key={t.id} onClick={() => setTool(t.id)}><span>{t.label}</span><small>{t.hint}</small></button>)}</div>
+        <div className="tools">{tools.map((t) => <button type="button" className="tool-btn" data-active={tool === t.id} key={t.id} onClick={() => setTool(t.id)}><span>{t.label}</span><small>{t.hint}</small></button>)}</div>
         <div className="editor-actions">
           <Button primary onClick={() => { setCustomLevel(level); setScreen("playing"); }}><Play /> Test</Button>
           <Button onClick={exportCode}>Make Code</Button>
@@ -3277,16 +3355,17 @@ function Editor({ setScreen, setCustomLevel, user }) {
           <Button onClick={() => setScreen("menu")}>Menu</Button>
         </div>
         <div className="publish-box">
+          <span className="badge construction-badge">In Construction</span>
           <label>Publish Title</label>
           <input value={publishName} onChange={(e) => setPublishName(e.target.value)} />
           <label>Description</label>
           <textarea rows="3" value={publishNote} onChange={(e) => setPublishNote(e.target.value)} placeholder="What makes this room interesting?" />
-          <Button primary onClick={publish}><UploadCloud /> Publish Map</Button>
+          <Button onClick={publish}><UploadCloud /> Publishing Paused</Button>
           {publishStatus && <p className="small-copy">{publishStatus}</p>}
         </div>
-        <div className="setting"><label>Level Code</label><textarea rows="8" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Published maps become a code here. Share or import this code." /></div>
+        <div className="setting"><label>Level Code</label><textarea rows="8" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Local level codes appear here. Share manually or import another code." /></div>
       </aside>
-      <main className="editor-canvas-wrap"><canvas ref={canvas} className="editor-canvas" width={W} height={H} onClick={place} /></main>
+      <main className="editor-canvas-wrap"><canvas ref={canvas} className="editor-canvas" width={W} height={H} onPointerDown={place} onTouchStart={place} /></main>
     </div>
   );
 }
@@ -3342,13 +3421,10 @@ function App() {
       {screen === "paused" && <PauseMenu setScreen={setScreen} retryLevel={retryLevel} />}
       {screen === "summary" && <Summary summary={summary} setScreen={setScreen} next={next} user={user} setUser={setUser} />}
       {screen === "community" && <CommunityLevels setScreen={setScreen} playLevel={playCommunityLevel} />}
-      {screen === "editor" && <Editor user={user} setScreen={setScreen} setCustomLevel={setCustomLevel} />}
+      {screen === "editor" && <Editor user={user} setScreen={setScreen} setCustomLevel={setCustomLevel} settings={settings} />}
     </div>
   );
 }
 
 createRoot(document.getElementById("root")).render(<App />);
-
-
-
 
