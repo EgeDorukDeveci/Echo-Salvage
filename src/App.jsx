@@ -36,6 +36,8 @@ const ECHO_FUTURE_MS = 8000;
 const ECHO_FRAME_MS = 50;
 const MAX_ECHOES = 3;
 const CELL = 40;
+const PLAYER_MARGIN = 80;
+const CARGO_MARGIN = 64;
 const MAX_ENERGY = 120;
 const ECHO_COST = 22;
 const DASH_COST = 10;
@@ -123,6 +125,27 @@ const WEAPON_DEFAULT = "pulse";
 const COSMETIC_DEFAULTS = { body: "#dfe9e8", accent: "#ffd52d", trail: "#00f0d2", frame: "arrow", cockpit: "slit", engine: "twin", decal: "none", armor: "clean", pet: "none", dashStyle: "streak", weapon: WEAPON_DEFAULT, ability: ABILITY_DEFAULT };
 const BODY_COLORS = ["#dfe9e8", "#ffd52d", "#00f0d2", "#58e07a", "#ff4e41", "#ffb000", "#b78cff", "#8aa0ff"];
 const TRAIL_COLORS = ["#00f0d2", "#ffd52d", "#58e07a", "#ff4e41", "#e7f0ef", "#ff8a00", "#b78cff", "#8aa0ff"];
+const UNIVERSAL_COLORS = [...new Set([
+  COSMETIC_DEFAULTS.body,
+  COSMETIC_DEFAULTS.accent,
+  COSMETIC_DEFAULTS.trail,
+  ...BODY_COLORS,
+  ...TRAIL_COLORS,
+  "#ff6ec7",
+  "#9df6a3",
+  "#7ef9ff",
+  "#f5f7ff",
+  "#ff9f7f",
+  "#c9ff45",
+  "#4de0ff",
+  "#f4dd74",
+  "#f77d9d",
+  "#8cffda",
+  "#7a91ff",
+  "#f0a6ff",
+  "#7ef0b6",
+  "#ffcf6b"
+])];
 const DRONE_FRAMES = [
   { id: "arrow", label: "Arrow" },
   { id: "split", label: "Split Wing" },
@@ -200,6 +223,7 @@ const ABILITIES = [
   { id: "overdrive", label: "Overdrive", price: 195, energyCost: 32, cooldownMs: 10000, perk: "Short burst of speed and weapon tempo." }
 ];
 const DEFAULT_OWNED = {
+  colors: [COSMETIC_DEFAULTS.body, COSMETIC_DEFAULTS.accent, COSMETIC_DEFAULTS.trail],
   bodies: ["#dfe9e8"],
   trails: ["#00f0d2"],
   frames: ["arrow"],
@@ -214,6 +238,7 @@ const DEFAULT_OWNED = {
 };
 const BODY_PRICES = { "#ffd52d": 35, "#00f0d2": 45, "#58e07a": 55, "#ff4e41": 70, "#ffb000": 100, "#ff8a00": 80, "#b78cff": 120, "#8aa0ff": 125, "#ff6ec7": 130, "#9df6a3": 110, "#7ef9ff": 115, "#f5f7ff": 135, "#ff9f7f": 90, "#c9ff45": 105, "#4de0ff": 95, "#f4dd74": 98, "#f77d9d": 112, "#8cffda": 118, "#7a91ff": 128, "#f0a6ff": 138, "#7ef0b6": 108, "#ffcf6b": 102, "#e3ffe7": 116, "#fbe7ff": 124, "#9fb8ff": 132 };
 const TRAIL_PRICES = { "#ffd52d": 35, "#58e07a": 50, "#ff4e41": 65, "#e7f0ef": 80, "#ff8a00": 95, "#b78cff": 110, "#8aa0ff": 115, "#ff6ec7": 120, "#9df6a3": 90, "#7ef9ff": 100, "#f5f7ff": 125, "#f77d9d": 105, "#c9ff45": 92, "#4de0ff": 96, "#ffcf6b": 99, "#f0a6ff": 130, "#8cffda": 108 };
+const COLOR_PRICES = Object.fromEntries(UNIVERSAL_COLORS.map((color, index) => [color, BODY_PRICES[color] || TRAIL_PRICES[color] || 55 + index * 4]));
 const FRAME_PRICES = { split: 80, needle: 120 };
 
 function normalizeEconomy(data = {}) {
@@ -221,6 +246,7 @@ function normalizeEconomy(data = {}) {
   return {
     coins: devMode ? DEV_COINS : Number.isFinite(data.coins) ? data.coins : 25,
     owned: {
+      colors: [...new Set([...(data.owned?.colors || []), ...(data.owned?.bodies || []), ...(data.owned?.trails || []), ...DEFAULT_OWNED.colors])],
       bodies: [...new Set([...(data.owned?.bodies || []), ...DEFAULT_OWNED.bodies])],
       trails: [...new Set([...(data.owned?.trails || []), ...DEFAULT_OWNED.trails])],
       frames: [...new Set([...(data.owned?.frames || []), ...DEFAULT_OWNED.frames])],
@@ -905,6 +931,7 @@ function AuthScreen({ onAuth }) {
         cosmetic: existing?.cosmetic || COSMETIC_DEFAULTS,
         coins: DEV_COINS,
         owned: {
+          colors: UNIVERSAL_COLORS,
           bodies: BODY_COLORS,
           trails: TRAIL_COLORS,
           frames: DRONE_FRAMES.map((frame) => frame.id),
@@ -1340,6 +1367,7 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
     ctx.restore();
   });
   game.echoes.forEach((e) => drawDrone(ctx, e, true, cosmetic));
+  drawCargoTether(ctx, level, game, performance.now());
   if (game.spawnFlash > 0) {
     const flash = clamp(game.spawnFlash / 1200, 0, 1);
     ctx.save();
@@ -1795,6 +1823,33 @@ function drawPet(ctx, player, cosmetic = COSMETIC_DEFAULTS, now = 0) {
   ctx.restore();
 }
 
+function drawCargoTether(ctx, level, game, now = 0) {
+  const tether = game.cargoTether;
+  if (!tether) return;
+  const crate = level.crates[tether.index];
+  if (!crate) return;
+  const cx = crate.x + crate.w / 2;
+  const cy = crate.y + crate.h / 2;
+  const pulse = 0.55 + Math.sin(now / 140) * 0.2;
+  ctx.save();
+  ctx.strokeStyle = `rgba(0, 240, 210, ${0.22 + pulse * 0.18})`;
+  ctx.shadowColor = "#00f0d2";
+  ctx.shadowBlur = 16;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([10, 9]);
+  ctx.beginPath();
+  ctx.moveTo(game.player.x, game.player.y);
+  ctx.lineTo(cx, cy);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = "rgba(255, 213, 45, 0.72)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(cx, cy, Math.max(crate.w, crate.h) / 2 + 8 + pulse * 3, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function getPetPerks(cosmetic = COSMETIC_DEFAULTS) {
   switch (cosmetic.pet) {
     case "spark":
@@ -1838,6 +1893,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
   const aim = useRef({ x: W / 2, y: H / 2 });
   const dashQueued = useRef(false);
   const abilityQueued = useRef(false);
+  const interactQueued = useRef(false);
   const touch = useRef({ up: false, down: false, left: false, right: false, shoot: false, interact: false });
   const mobileMove = useRef({ x: 0, y: 0 });
   const mobileAim = useRef({ x: 0, y: 0, active: false, shooting: false });
@@ -1898,6 +1954,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       missiles: [],
       dashBursts: [],
       railBeams: [],
+      cargoTether: null,
       coinPopups: [],
       abilityBursts: [],
       spawnFlash: 1200,
@@ -1913,22 +1970,40 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
   useEffect(reset, [levelIndex, customLevel]);
 
   useEffect(() => {
+    const clearInputState = () => {
+      keys.current.clear();
+      mouse.current.down = false;
+      dashQueued.current = false;
+      abilityQueued.current = false;
+      interactQueued.current = false;
+      touch.current = { up: false, down: false, left: false, right: false, shoot: false, interact: false };
+      mobileMove.current = { x: 0, y: 0 };
+      mobileAim.current = { x: 0, y: 0, active: false, shooting: false };
+    };
     const down = (e) => {
       const boundCodes = new Set([...Object.values(keybinds), "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
       if (boundCodes.has(e.code)) e.preventDefault();
       if (e.code === keybinds.dash && !keys.current.has(e.code)) dashQueued.current = true;
       if (e.code === keybinds.ability && !keys.current.has(e.code)) abilityQueued.current = true;
+      if (e.code === keybinds.interact && !keys.current.has(e.code)) interactQueued.current = true;
       keys.current.add(e.code);
       if (e.code === keybinds.echo) spawnEcho();
       if (e.code === "Escape" && game.current?.status === "playing") setScreen("paused");
       if (e.code === "KeyR") reset();
     };
     const up = (e) => keys.current.delete(e.code);
+    const visibility = () => {
+      if (document.hidden) clearInputState();
+    };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
+    window.addEventListener("blur", clearInputState);
+    document.addEventListener("visibilitychange", visibility);
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", clearInputState);
+      document.removeEventListener("visibilitychange", visibility);
     };
   }, [keybinds]);
 
@@ -1945,12 +2020,29 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       mouse.current.x = aim.current.x;
       mouse.current.y = aim.current.y;
     };
+    const mouseDown = (e) => {
+      if (e.button !== 0) {
+        e.preventDefault();
+        return;
+      }
+      mouse.current.down = true;
+    };
+    const mouseUp = (e) => {
+      if (e.button === 0) mouse.current.down = false;
+    };
+    const contextMenu = (e) => {
+      e.preventDefault();
+      mouse.current.down = false;
+    };
     c.addEventListener("mousemove", move);
-    c.addEventListener("mousedown", () => (mouse.current.down = true));
-    window.addEventListener("mouseup", () => (mouse.current.down = false));
+    c.addEventListener("mousedown", mouseDown);
+    c.addEventListener("contextmenu", contextMenu);
+    window.addEventListener("mouseup", mouseUp);
     return () => {
       c.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", () => (mouse.current.down = false));
+      c.removeEventListener("mousedown", mouseDown);
+      c.removeEventListener("contextmenu", contextMenu);
+      window.removeEventListener("mouseup", mouseUp);
     };
   }, [settings.mouseSensitivity]);
 
@@ -2083,39 +2175,95 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     if (g.player.ammo <= 0) startReload(now);
   }
 
-  function tryMove(entity, dx, dy, level, canPushCargo = false) {
-    const blocks = getSolidBlocks(level);
-    entity.x += dx;
-    const hitCrateX = canPushCargo ? level.crates.find((c) => rectsTouch(playerRect(entity), c)) : null;
-    if (hitCrateX) {
-      hitCrateX.x += dx;
-      const crateBlocked = [...level.walls, ...level.doors.filter((d) => !d.open), ...level.crates.filter((c) => c !== hitCrateX)]
-        .some((b) => rectsTouch(hitCrateX, b)) || hitCrateX.x < 58 || hitCrateX.x + hitCrateX.w > W - 58;
-      if (crateBlocked) {
-        hitCrateX.x -= dx;
-        entity.x -= dx;
-      }
-    } else if (blocks.some((b) => rectsTouch(playerRect(entity), b))) entity.x -= dx;
-    entity.y += dy;
-    const hitCrateY = canPushCargo ? level.crates.find((c) => rectsTouch(playerRect(entity), c)) : null;
-    if (hitCrateY) {
-      hitCrateY.y += dy;
-      const crateBlocked = [...level.walls, ...level.doors.filter((d) => !d.open), ...level.crates.filter((c) => c !== hitCrateY)]
-        .some((b) => rectsTouch(hitCrateY, b)) || hitCrateY.y < 58 || hitCrateY.y + hitCrateY.h > H - 58;
-      if (crateBlocked) {
-        hitCrateY.y -= dy;
-        entity.y -= dy;
-      }
-    } else if (blocks.some((b) => rectsTouch(playerRect(entity), b))) entity.y -= dy;
-    entity.x = clamp(entity.x, 58, W - 58);
-    entity.y = clamp(entity.y, 58, H - 58);
+  function crateBlocked(crate, level, ignoreCrate = null) {
+    const blockers = [...level.walls, ...level.doors.filter((d) => !d.open), ...level.crates.filter((c) => c !== crate && c !== ignoreCrate)];
+    return crate.x < CARGO_MARGIN || crate.y < CARGO_MARGIN || crate.x + crate.w > W - CARGO_MARGIN || crate.y + crate.h > H - CARGO_MARGIN || blockers.some((b) => rectsTouch(crate, b));
   }
 
-  function interact(actor) {
+  function moveCrate(crate, dx, dy, level) {
+    const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 7));
+    const stepX = dx / steps;
+    const stepY = dy / steps;
+    for (let i = 0; i < steps; i += 1) {
+      crate.x += stepX;
+      if (crateBlocked(crate, level)) crate.x -= stepX;
+      crate.y += stepY;
+      if (crateBlocked(crate, level)) crate.y -= stepY;
+    }
+  }
+
+  function tryMove(entity, dx, dy, level, canPushCargo = false) {
+    const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 7));
+    const stepX = dx / steps;
+    const stepY = dy / steps;
+    const staticBlocks = () => [...level.walls, ...level.doors.filter((d) => !d.open)];
+    const moveAxis = (axis, amount) => {
+      if (!amount) return;
+      entity[axis] += amount;
+      const rect = playerRect(entity);
+      if (staticBlocks().some((b) => rectsTouch(rect, b))) {
+        entity[axis] -= amount;
+        return;
+      }
+      const hitCrate = canPushCargo ? level.crates.find((c) => rectsTouch(rect, c)) : null;
+      if (!hitCrate) {
+        if (level.crates.some((c) => rectsTouch(rect, c))) entity[axis] -= amount;
+        return;
+      }
+      hitCrate[axis] += amount;
+      if (crateBlocked(hitCrate, level)) {
+        hitCrate[axis] -= amount;
+        entity[axis] -= amount;
+      }
+    };
+
+    for (let i = 0; i < steps; i += 1) {
+      moveAxis("x", stepX);
+      moveAxis("y", stepY);
+    }
+    entity.x = clamp(entity.x, PLAYER_MARGIN, W - PLAYER_MARGIN);
+    entity.y = clamp(entity.y, PLAYER_MARGIN, H - PLAYER_MARGIN);
+  }
+
+  function updateCargoTether(g, dt) {
+    const tether = g.cargoTether;
+    if (!tether) return;
+    const crate = g.level.crates[tether.index];
+    if (!crate) {
+      g.cargoTether = null;
+      return;
+    }
+    tether.pulse = (tether.pulse || 0) + dt;
+    const desiredDistance = 66;
+    const target = {
+      x: g.player.x - Math.cos(g.player.angle) * desiredDistance,
+      y: g.player.y - Math.sin(g.player.angle) * desiredDistance
+    };
+    const center = { x: crate.x + crate.w / 2, y: crate.y + crate.h / 2 };
+    const gap = dist(center, target);
+    if (gap > 8) {
+      const pull = Math.min(gap, 150 * dt / 1000);
+      moveCrate(crate, ((target.x - center.x) / gap) * pull, ((target.y - center.y) / gap) * pull, g.level);
+    }
+    const currentCenter = { x: crate.x + crate.w / 2, y: crate.y + crate.h / 2 };
+    if (dist(currentCenter, g.player) > 155) g.cargoTether = null;
+  }
+
+  function interact(actor, options = {}) {
     const g = game.current;
     g.level.switches.forEach((s) => {
       if (dist(actor, s) < 54) s.on = true;
     });
+    if (!options.toggleCargo) return;
+    const nearest = g.level.crates
+      .map((crate, index) => ({ crate, index, gap: dist(actor, { x: crate.x + crate.w / 2, y: crate.y + crate.h / 2 }) }))
+      .filter((item) => item.gap < 82)
+      .sort((a, b) => a.gap - b.gap)[0];
+    if (!nearest || g.cargoTether?.index === nearest.index) {
+      g.cargoTether = null;
+    } else {
+      g.cargoTether = { index: nearest.index, pulse: 0 };
+    }
   }
 
   function damagePlayer(g, amount) {
@@ -2189,7 +2337,9 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       if (wantsShoot && (g.player.weaponId === "storm" || g.player.weaponId === "pulse" || g.player.weaponId === "needle")) firePlayerWeapon(now);
       g.player.triggerHeld = wantsShoot;
       if (keys.current.has(keybinds.reload)) startReload(now);
-      if (keys.current.has(keybinds.interact) || touch.current.interact) interact(g.player);
+      const wantsInteract = keys.current.has(keybinds.interact) || touch.current.interact;
+      if (wantsInteract || interactQueued.current) interact(g.player, { toggleCargo: interactQueued.current });
+      interactQueued.current = false;
 
       g.echoes.forEach((e) => {
         e.age += dt;
@@ -2205,6 +2355,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         }
       });
       g.echoes = g.echoes.filter((e) => e.age < e.frames.length * ECHO_FRAME_MS || e.futureMs < ECHO_FUTURE_MS);
+      updateCargoTether(g, dt);
 
       const bodies = [g.player, ...g.echoes, ...level.crates.map((c) => ({ x: c.x + c.w / 2, y: c.y + c.h / 2 }))];
       g.activeIds = new Set(level.switches.filter((s) => s.on).map((s) => s.id));
@@ -2588,7 +2739,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
     <div className={`game-shell ${isMobile ? "mobile-layout" : ""}`}>
       <canvas ref={canvas} className="game-canvas" width={W} height={H} />
       <div className="hud">
-        <div className="hud-cluster">
+        <div className="hud-cluster vitals-card">
           <div className="hud-title">
             <span>{g?.level.name ?? "Training Bay"}</span>
             <strong>Deck {levelIndex + 1}/{rooms.length}</strong>
@@ -2599,8 +2750,8 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
         </div>
         <div className="hud-card objective-card">
           <strong>Objective</strong>
-          <span>Use Echo timing, cargo weights, and switches to break the full lock chain.</span>
-          <small>Echo follows your recent route, then continues with the next recorded actions on delay.</small>
+          <span>Break the lock chain and extract.</span>
+          <small>Use Echo timing, cargo, switches, and cover.</small>
         </div>
         <div className="hud-cluster stat-grid">
           <div className="stat-tile"><Shield size={16} /><span>Scrap</span><strong>{g?.player.scrap ?? 0}</strong></div>
@@ -2612,7 +2763,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
           <div className="stat-tile"><Radio size={16} /><span>Ability</span><strong>{Math.max(0, Math.ceil(((g?.player.abilityReadyAt ?? 0) - performance.now()) / 1000)) || "READY"}</strong></div>
           <div className="hud-help">
             <button className="mode-chip" onClick={() => setControlMode(isMobile ? "pc" : "mobile")}>{isMobile ? "Mobile Mode" : "PC Mode"}</button>
-            <span>{isMobile ? "Twin-stick touch active." : `Push cargo onto plates. ${keyName(keybinds.echo)} spawns a delayed Echo. ${keyName(keybinds.reload)} reloads.`}</span>
+            <span>{isMobile ? "Twin-stick touch active." : `${keyName(keybinds.interact)} toggles nearby cargo tether. ${keyName(keybinds.echo)} spawns Echo. ${keyName(keybinds.reload)} reloads.`}</span>
           </div>
         </div>
       </div>
@@ -2667,8 +2818,7 @@ function MainMenu({ setScreen, setLevelIndex, user, onLogout }) {
             <Button primary onClick={() => setScreen("briefing")}><Play size={22} /> Begin Training</Button>
             <Button onClick={() => setScreen("editor")}><Wand2 size={20} /> Level Creator</Button>
             <Button className="construction-tab" onClick={() => setScreen("community")}><Globe2 size={20} /> Community Levels <span>In Construction</span></Button>
-            <Button onClick={() => setScreen("profile")}><UserRound size={20} /> Profile</Button>
-            <Button onClick={() => setScreen("shop")}><Sparkles size={20} /> Shop</Button>
+            <Button onClick={() => setScreen("profile")}><UserRound size={20} /> Customization Bay</Button>
             <Button onClick={() => setScreen("settings")}><Settings size={20} /> Settings</Button>
             <Button onClick={() => setScreen("controls")}><Gamepad2 size={20} /> Controls</Button>
             <Button danger onClick={onLogout}><LogOut size={20} /> Logout</Button>
@@ -2729,8 +2879,42 @@ function ProfileScreen({ user, setUser, setScreen }) {
   const [avatar, setAvatar] = useState(user?.avatar || "yellow");
   const [cosmetic, setCosmetic] = useState({ ...COSMETIC_DEFAULTS, ...(user?.cosmetic || {}) });
   const [message, setMessage] = useState("");
-  const owned = normalizeEconomy(user).owned;
+  const economy = normalizeEconomy(user);
+  const owned = economy.owned;
+  const ownedColors = owned.colors || [];
   const previewRef = useRef(null);
+
+  const buy = (bucket, id, price, label) => {
+    if (owned[bucket]?.includes(id)) {
+      setMessage(`${label} is already unlocked.`);
+      return;
+    }
+    if (economy.coins < price) {
+      setMessage(`Need ${price - economy.coins} more coins for ${label}.`);
+      return;
+    }
+    const session = updateUserEconomy(user, (current) => {
+      const normalized = normalizeEconomy(current);
+      return {
+        ...current,
+        coins: normalized.coins - price,
+        owned: {
+          ...normalized.owned,
+          [bucket]: [...(normalized.owned[bucket] || []), id]
+        }
+      };
+    });
+    setUser(session);
+    setMessage(`Unlocked ${label}.`);
+  };
+
+  const chooseColor = (slot, color) => {
+    if (!ownedColors.includes(color)) {
+      setMessage("Unlock this color once, then use it anywhere.");
+      return;
+    }
+    setCosmetic({ ...cosmetic, [slot]: color });
+  };
 
   useEffect(() => {
     const canvas = previewRef.current;
@@ -2820,9 +3004,9 @@ function ProfileScreen({ user, setUser, setScreen }) {
     }
     const nextCosmetic = {
       ...cosmetic,
-      body: owned.bodies.includes(cosmetic.body) ? cosmetic.body : COSMETIC_DEFAULTS.body,
-      trail: owned.trails.includes(cosmetic.trail) ? cosmetic.trail : COSMETIC_DEFAULTS.trail,
-      accent: owned.trails.includes(cosmetic.accent) ? cosmetic.accent : COSMETIC_DEFAULTS.accent,
+      body: ownedColors.includes(cosmetic.body) ? cosmetic.body : COSMETIC_DEFAULTS.body,
+      trail: ownedColors.includes(cosmetic.trail) ? cosmetic.trail : COSMETIC_DEFAULTS.trail,
+      accent: ownedColors.includes(cosmetic.accent) ? cosmetic.accent : COSMETIC_DEFAULTS.accent,
       frame: owned.frames.includes(cosmetic.frame) ? cosmetic.frame : COSMETIC_DEFAULTS.frame,
       cockpit: owned.cockpits.includes(cosmetic.cockpit) ? cosmetic.cockpit : COSMETIC_DEFAULTS.cockpit,
       engine: owned.engines.includes(cosmetic.engine) ? cosmetic.engine : COSMETIC_DEFAULTS.engine,
@@ -2836,7 +3020,7 @@ function ProfileScreen({ user, setUser, setScreen }) {
     };
     const session = updateStoredUserProfile({ ...current, avatar, cosmetic: nextCosmetic });
     setUser(session);
-    setMessage("Profile picture updated.");
+    setMessage("Customization saved.");
   };
 
   return (
@@ -2844,20 +3028,21 @@ function ProfileScreen({ user, setUser, setScreen }) {
       <section className="panel profile-panel">
         <div className="drawer-head">
           <div>
-            <span className="badge">Pilot Profile</span>
-            <h2>{user?.nickname}</h2>
-            <p className="small-copy">{user?.email || "No email attached"}</p>
+            <span className="badge">Customization Bay</span>
+            <h2>{user?.nickname} | {economy.coins} Coins</h2>
+            <p className="small-copy">Buy parts and colors here, then equip them immediately in the same bay.</p>
           </div>
           <div className="profile-head-actions">
             <AvatarBadge avatar={avatar} size="lg" />
             <Button onClick={() => setScreen("menu")} aria-label="Close profile"><X /></Button>
           </div>
         </div>
+        {message && <p className="auth-message">{message}</p>}
         <div className="profile-preview">
-          <canvas width="220" height="126" ref={previewRef} />
+          <canvas width="360" height="206" ref={previewRef} />
           <div className="profile-preview-copy">
             <strong>Live Preview</strong>
-            <span>Hull, cockpit, armor, engines, decals, dash, pet, weapon, and ability update here as you switch cosmetics.</span>
+            <span>Colors are universal. Buy one color and apply it to paint, glow, trail, and engine-style effects.</span>
           </div>
         </div>
         <div className="profile-scroll">
@@ -2871,15 +3056,21 @@ function ProfileScreen({ user, setUser, setScreen }) {
           </div>
           <div className="customizer-grid">
             <div>
-              <label>Paint</label>
+              <label>Body Paint</label>
               <div className="swatch-row">
-                {BODY_COLORS.map((color) => <button key={color} className="swatch" data-active={cosmetic.body === color} data-locked={!owned.bodies.includes(color)} style={{ background: color }} onClick={() => owned.bodies.includes(color) ? setCosmetic({ ...cosmetic, body: color }) : setMessage("Unlock this paint in the shop first.")} />)}
+                {UNIVERSAL_COLORS.map((color) => <button key={color} className="swatch" data-active={cosmetic.body === color} data-locked={!ownedColors.includes(color)} style={{ background: color }} onClick={() => chooseColor("body", color)} />)}
               </div>
             </div>
             <div>
-              <label>Trail Color</label>
+              <label>Glow Accent</label>
               <div className="swatch-row">
-                {TRAIL_COLORS.map((color) => <button key={color} className="swatch" data-active={cosmetic.trail === color} data-locked={!owned.trails.includes(color)} style={{ background: color }} onClick={() => owned.trails.includes(color) ? setCosmetic({ ...cosmetic, trail: color, accent: color }) : setMessage("Unlock this trail color in the shop first.")} />)}
+                {UNIVERSAL_COLORS.map((color) => <button key={color} className="swatch" data-active={cosmetic.accent === color} data-locked={!ownedColors.includes(color)} style={{ background: color }} onClick={() => chooseColor("accent", color)} />)}
+              </div>
+            </div>
+            <div>
+              <label>Dash / Trail Color</label>
+              <div className="swatch-row">
+                {UNIVERSAL_COLORS.map((color) => <button key={color} className="swatch" data-active={cosmetic.trail === color} data-locked={!ownedColors.includes(color)} style={{ background: color }} onClick={() => chooseColor("trail", color)} />)}
               </div>
             </div>
             <div>
@@ -2937,11 +3128,68 @@ function ProfileScreen({ user, setUser, setScreen }) {
               </div>
             </div>
           </div>
+          <div className="bay-shop">
+            <div className="bay-shop-head">
+              <div>
+                <span className="badge">Shop</span>
+                <h3>Unlock More Parts</h3>
+              </div>
+              <p className="small-copy">Colors are bought once and can be used on every cosmetic slot that supports color.</p>
+            </div>
+            <ShopSection title="Universal Colors">
+              {UNIVERSAL_COLORS.map((color) => (
+                <ShopItem key={color} owned={ownedColors.includes(color)} label={color.toUpperCase()} price={COLOR_PRICES[color] || 60} color={color} onBuy={() => buy("colors", color, COLOR_PRICES[color] || 60, "color")} />
+              ))}
+            </ShopSection>
+            <ShopSection title="Drone Frames">
+              {DRONE_FRAMES.filter((f) => f.id !== COSMETIC_DEFAULTS.frame).map((frame) => (
+                <ShopItem key={frame.id} owned={owned.frames.includes(frame.id)} label={frame.label} price={FRAME_PRICES[frame.id] || 80} onBuy={() => buy("frames", frame.id, FRAME_PRICES[frame.id] || 80, frame.label)} />
+              ))}
+            </ShopSection>
+            <ShopSection title="Cockpits">
+              {COCKPITS.filter((cockpit) => cockpit.id !== COSMETIC_DEFAULTS.cockpit).map((cockpit) => (
+                <ShopItem key={cockpit.id} owned={owned.cockpits.includes(cockpit.id)} label={cockpit.label} price={cockpit.price} onBuy={() => buy("cockpits", cockpit.id, cockpit.price, cockpit.label)} />
+              ))}
+            </ShopSection>
+            <ShopSection title="Engines">
+              {ENGINES.filter((engine) => engine.id !== COSMETIC_DEFAULTS.engine).map((engine) => (
+                <ShopItem key={engine.id} owned={owned.engines.includes(engine.id)} label={engine.label} price={engine.price} onBuy={() => buy("engines", engine.id, engine.price, engine.label)} />
+              ))}
+            </ShopSection>
+            <ShopSection title="Armor Kits">
+              {ARMORS.filter((armor) => armor.id !== COSMETIC_DEFAULTS.armor).map((armor) => (
+                <ShopItem key={armor.id} owned={owned.armors.includes(armor.id)} label={armor.label} price={armor.price} onBuy={() => buy("armors", armor.id, armor.price, armor.label)} />
+              ))}
+            </ShopSection>
+            <ShopSection title="Decals">
+              {DECALS.filter((decal) => decal.id !== COSMETIC_DEFAULTS.decal).map((decal) => (
+                <ShopItem key={decal.id} owned={owned.decals.includes(decal.id)} label={decal.label} price={decal.price} onBuy={() => buy("decals", decal.id, decal.price, decal.label)} />
+              ))}
+            </ShopSection>
+            <ShopSection title="Dash Animations">
+              {DASH_STYLES.filter((dash) => dash.id !== COSMETIC_DEFAULTS.dashStyle).map((dash) => (
+                <ShopItem key={dash.id} owned={owned.dashes.includes(dash.id)} label={dash.label} price={dash.price} onBuy={() => buy("dashes", dash.id, dash.price, dash.label)} />
+              ))}
+            </ShopSection>
+            <ShopSection title="Pets">
+              {PETS.filter((pet) => pet.id !== "none").map((pet) => (
+                <ShopItem key={pet.id} owned={owned.pets.includes(pet.id)} label={pet.label} detail={pet.perk} price={pet.price} color={pet.color} onBuy={() => buy("pets", pet.id, pet.price, pet.label)} />
+              ))}
+            </ShopSection>
+            <ShopSection title="Weapon Styles">
+              {WEAPONS.filter((weapon) => weapon.id !== WEAPON_DEFAULT).map((weapon) => (
+                <ShopItem key={weapon.id} owned={owned.weapons.includes(weapon.id)} label={weapon.label} detail={weapon.perk} price={weapon.price} onBuy={() => buy("weapons", weapon.id, weapon.price, weapon.label)} />
+              ))}
+            </ShopSection>
+            <ShopSection title="Abilities">
+              {ABILITIES.filter((ability) => ability.id !== ABILITY_DEFAULT).map((ability) => (
+                <ShopItem key={ability.id} owned={owned.abilities.includes(ability.id)} label={ability.label} detail={ability.perk} price={ability.price} onBuy={() => buy("abilities", ability.id, ability.price, ability.label)} />
+              ))}
+            </ShopSection>
+          </div>
         </div>
         <div className="profile-actions">
-          {message && <p className="auth-message">{message}</p>}
           <Button primary onClick={save}><UserRound /> Save Character</Button>
-          <Button onClick={() => setScreen("shop")}><Sparkles /> Open Shop</Button>
           <Button onClick={() => setScreen("menu")}>Back To Menu</Button>
         </div>
       </section>
@@ -2950,102 +3198,7 @@ function ProfileScreen({ user, setUser, setScreen }) {
 }
 
 function ShopScreen({ user, setUser, setScreen }) {
-  const [message, setMessage] = useState("");
-  const economy = normalizeEconomy(user);
-
-  const buy = (bucket, id, price, label) => {
-    if (economy.owned[bucket].includes(id)) {
-      setMessage(`${label} is already unlocked.`);
-      return;
-    }
-    if (economy.coins < price) {
-      setMessage(`Need ${price - economy.coins} more coins for ${label}.`);
-      return;
-    }
-    const session = updateUserEconomy(user, (current) => ({
-      ...current,
-      coins: normalizeEconomy(current).coins - price,
-      owned: {
-        ...normalizeEconomy(current).owned,
-        [bucket]: [...normalizeEconomy(current).owned[bucket], id]
-      }
-    }));
-    setUser(session);
-    setMessage(`Unlocked ${label}.`);
-  };
-
-  return (
-    <div className="overlay">
-      <section className="panel shop-panel">
-        <div className="drawer-head">
-          <div>
-            <span className="badge">Salvage Shop</span>
-            <h2>{economy.coins} Coins</h2>
-            <p className="small-copy">{user?.devMode ? "Developer wallet active for testing." : "Earn coins from orange crates in rooms, then unlock skins, dash effects, pets, weapons, and abilities."}</p>
-          </div>
-          <Button onClick={() => setScreen("profile")}>Profile</Button>
-        </div>
-        {message && <p className="auth-message">{message}</p>}
-        <div className="shop-sections">
-          <ShopSection title="Paint Jobs">
-            {BODY_COLORS.filter((c) => c !== COSMETIC_DEFAULTS.body).map((color) => (
-              <ShopItem key={color} owned={economy.owned.bodies.includes(color)} label={color.toUpperCase()} price={BODY_PRICES[color] || 50} color={color} onBuy={() => buy("bodies", color, BODY_PRICES[color] || 50, "paint job")} />
-            ))}
-          </ShopSection>
-          <ShopSection title="Dash Trails">
-            {TRAIL_COLORS.filter((c) => c !== COSMETIC_DEFAULTS.trail).map((color) => (
-              <ShopItem key={color} owned={economy.owned.trails.includes(color)} label={color.toUpperCase()} price={TRAIL_PRICES[color] || 50} color={color} onBuy={() => buy("trails", color, TRAIL_PRICES[color] || 50, "trail color")} />
-            ))}
-          </ShopSection>
-          <ShopSection title="Frames">
-            {DRONE_FRAMES.filter((f) => f.id !== "arrow").map((frame) => (
-              <ShopItem key={frame.id} owned={economy.owned.frames.includes(frame.id)} label={frame.label} price={FRAME_PRICES[frame.id] || 80} onBuy={() => buy("frames", frame.id, FRAME_PRICES[frame.id] || 80, frame.label)} />
-            ))}
-          </ShopSection>
-          <ShopSection title="Cockpits">
-            {COCKPITS.filter((cockpit) => cockpit.id !== "slit").map((cockpit) => (
-              <ShopItem key={cockpit.id} owned={economy.owned.cockpits.includes(cockpit.id)} label={cockpit.label} price={cockpit.price} onBuy={() => buy("cockpits", cockpit.id, cockpit.price, cockpit.label)} />
-            ))}
-          </ShopSection>
-          <ShopSection title="Engines">
-            {ENGINES.filter((engine) => engine.id !== "twin").map((engine) => (
-              <ShopItem key={engine.id} owned={economy.owned.engines.includes(engine.id)} label={engine.label} price={engine.price} onBuy={() => buy("engines", engine.id, engine.price, engine.label)} />
-            ))}
-          </ShopSection>
-          <ShopSection title="Armor Kits">
-            {ARMORS.filter((armor) => armor.id !== "clean").map((armor) => (
-              <ShopItem key={armor.id} owned={economy.owned.armors.includes(armor.id)} label={armor.label} price={armor.price} onBuy={() => buy("armors", armor.id, armor.price, armor.label)} />
-            ))}
-          </ShopSection>
-          <ShopSection title="Decals">
-            {DECALS.filter((decal) => decal.id !== "none").map((decal) => (
-              <ShopItem key={decal.id} owned={economy.owned.decals.includes(decal.id)} label={decal.label} price={decal.price} onBuy={() => buy("decals", decal.id, decal.price, decal.label)} />
-            ))}
-          </ShopSection>
-          <ShopSection title="Dash Animations">
-            {DASH_STYLES.filter((d) => d.id !== "streak").map((dash) => (
-              <ShopItem key={dash.id} owned={economy.owned.dashes.includes(dash.id)} label={dash.label} price={dash.price} onBuy={() => buy("dashes", dash.id, dash.price, dash.label)} />
-            ))}
-          </ShopSection>
-          <ShopSection title="Pets">
-            {PETS.filter((p) => p.id !== "none").map((pet) => (
-              <ShopItem key={pet.id} owned={economy.owned.pets.includes(pet.id)} label={pet.label} detail={pet.perk} price={pet.price} color={pet.color} onBuy={() => buy("pets", pet.id, pet.price, pet.label)} />
-            ))}
-          </ShopSection>
-          <ShopSection title="Weapon Styles">
-            {WEAPONS.filter((weapon) => weapon.id !== WEAPON_DEFAULT).map((weapon) => (
-              <ShopItem key={weapon.id} owned={economy.owned.weapons.includes(weapon.id)} label={weapon.label} detail={weapon.perk} price={weapon.price} onBuy={() => buy("weapons", weapon.id, weapon.price, weapon.label)} />
-            ))}
-          </ShopSection>
-          <ShopSection title="Abilities">
-            {ABILITIES.filter((ability) => ability.id !== ABILITY_DEFAULT).map((ability) => (
-              <ShopItem key={ability.id} owned={economy.owned.abilities.includes(ability.id)} label={ability.label} detail={ability.perk} price={ability.price} onBuy={() => buy("abilities", ability.id, ability.price, ability.label)} />
-            ))}
-          </ShopSection>
-        </div>
-      </section>
-    </div>
-  );
+  return <ProfileScreen user={user} setUser={setUser} setScreen={setScreen} />;
 }
 
 function ShopSection({ title, children }) {
@@ -3235,12 +3388,15 @@ function CommunityLevels({ setScreen, playLevel }) {
 
 function Editor({ setScreen, setCustomLevel, user, settings = defaultSettings }) {
   const canvas = useRef(null);
+  const [mode, setMode] = useState("build");
   const [tool, setTool] = useState("wall");
   const [level, setLevel] = useState(makeLevel(0));
   const [code, setCode] = useState("");
   const [publishName, setPublishName] = useState("Untitled Echo Map");
   const [publishNote, setPublishNote] = useState("");
   const [publishStatus, setPublishStatus] = useState("");
+  const [selected, setSelected] = useState(null);
+  const editorKeys = ["walls", "crates", "coinCrates", "plates", "switches", "turrets", "drones", "missileSentries", ...SPECIAL_HOSTILE_KEYS, "scrap"];
   const tools = [
     { id: "wall", label: "Wall", hint: "Solid station structure" },
     { id: "cargo", label: "Cargo", hint: "Push/block puzzle crate" },
@@ -3258,14 +3414,59 @@ function Editor({ setScreen, setCustomLevel, user, settings = defaultSettings })
     { id: "repairBot", label: "Repair Bot", hint: "Repairs damaged enemies" },
     { id: "scrap", label: "Scrap", hint: "Restores energy" },
     { id: "exit", label: "Exit Gate", hint: "Extraction target" },
-    { id: "erase", label: "Erase", hint: "Remove editor pieces" }
   ];
   const activeTool = tools.find((item) => item.id === tool) || tools[0];
+  const selectedObject = selected?.key === "exit" ? level.exit : selected ? level[selected.key]?.[selected.index] : null;
+
+  const getObjectRect = (obj, key) => {
+    if (!obj) return null;
+    if (key === "exit") return { x: obj.x, y: obj.y, w: obj.w, h: obj.h };
+    if (obj.w || obj.h) return { x: obj.x, y: obj.y, w: obj.w || CELL, h: obj.h || CELL };
+    const r = obj.r || 24;
+    return { x: obj.x - r, y: obj.y - r, w: r * 2, h: r * 2 };
+  };
+
+  const pointFromEvent = (e) => {
+    const point = e.touches?.[0] || e.changedTouches?.[0] || e;
+    const r = canvas.current.getBoundingClientRect();
+    const rawX = ((point.clientX - r.left) / r.width) * W;
+    const rawY = ((point.clientY - r.top) / r.height) * H;
+    return {
+      rawX,
+      rawY,
+      x: Math.floor(rawX / CELL) * CELL,
+      y: Math.floor(rawY / CELL) * CELL
+    };
+  };
+
+  const findObjectAt = (rawX, rawY, source = level) => {
+    const cursor = { x: rawX - 3, y: rawY - 3, w: 6, h: 6 };
+    for (const key of [...editorKeys].reverse()) {
+      const list = source[key] || [];
+      for (let index = list.length - 1; index >= 0; index -= 1) {
+        if (rectsTouch(cursor, getObjectRect(list[index], key))) return { key, index };
+      }
+    }
+    if (source.exit && rectsTouch(cursor, getObjectRect(source.exit, "exit"))) return { key: "exit", index: 0 };
+    return null;
+  };
 
   useEffect(() => {
     const ctx = canvas.current?.getContext("2d");
-    if (ctx) drawLevel(ctx, level, { player: level.player, echoes: [], bullets: [], activeIds: new Set() }, 0, COSMETIC_DEFAULTS, settings.uiTheme);
-  }, [level, settings.uiTheme]);
+    if (!ctx) return;
+    drawLevel(ctx, level, { player: level.player, echoes: [], bullets: [], activeIds: new Set() }, 0, COSMETIC_DEFAULTS, settings.uiTheme);
+    if (selectedObject) {
+      const rect = getObjectRect(selectedObject, selected.key);
+      ctx.save();
+      ctx.strokeStyle = "#ffd52d";
+      ctx.shadowColor = "#ffd52d";
+      ctx.shadowBlur = 12;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 6]);
+      ctx.strokeRect(rect.x - 5, rect.y - 5, rect.w + 10, rect.h + 10);
+      ctx.restore();
+    }
+  }, [level, settings.uiTheme, selectedObject, selected]);
 
   const placeToolAt = (toolId, x, y) => {
     const next = structuredClone(level);
@@ -3297,22 +3498,65 @@ function Editor({ setScreen, setCustomLevel, user, settings = defaultSettings })
     if (toolId === "repairBot") next.repairBots.push({ x: x + 20, y: y + 20, hp: 3, cooldown: 900 });
     if (toolId === "scrap") next.scrap.push({ x: x + 20, y: y + 20, taken: false });
     if (toolId === "exit") next.exit = { x, y, w: 58, h: 114 };
-    if (toolId === "erase") {
-      ["walls", "crates", "coinCrates", "plates", "switches", "turrets", "drones", "missileSentries", ...SPECIAL_HOSTILE_KEYS, "scrap"].forEach((k) => {
-        next[k] = next[k] || [];
-        next[k] = next[k].filter((o) => !rectsTouch({ x, y, w: CELL, h: CELL }, { x: (o.x ?? 0) - (o.r ?? 0), y: (o.y ?? 0) - (o.r ?? 0), w: o.w ?? (o.r ?? 22) * 2, h: o.h ?? (o.r ?? 22) * 2 }));
-      });
-    }
     setLevel(next);
   };
 
-  const place = (e) => {
+  const removeSelection = (target = selected) => {
+    if (!target) return;
+    if (target.key === "exit") return;
+    setLevel((current) => {
+      const next = structuredClone(current);
+      next[target.key] = (next[target.key] || []).filter((_, index) => index !== target.index);
+      return next;
+    });
+    setSelected(null);
+  };
+
+  const editSelection = (patcher) => {
+    if (!selected) return;
+    setLevel((current) => {
+      const next = structuredClone(current);
+      const obj = selected.key === "exit" ? next.exit : next[selected.key]?.[selected.index];
+      if (!obj) return current;
+      patcher(obj);
+      return next;
+    });
+  };
+
+  const nudgeSelection = (dx, dy) => editSelection((obj) => {
+    obj.x = clamp((obj.x || 0) + dx, 40, W - 40);
+    obj.y = clamp((obj.y || 0) + dy, 40, H - 40);
+  });
+
+  const resizeSelection = (dw, dh) => editSelection((obj) => {
+    if (!("w" in obj) && !("h" in obj)) return;
+    obj.w = clamp((obj.w || CELL) + dw, 20, 420);
+    obj.h = clamp((obj.h || CELL) + dh, 20, 420);
+  });
+
+  const handleCanvasPointer = (e) => {
     e.preventDefault();
-    const point = e.touches?.[0] || e.changedTouches?.[0] || e;
-    const r = canvas.current.getBoundingClientRect();
-    const x = Math.floor(((point.clientX - r.left) / r.width) * W / CELL) * CELL;
-    const y = Math.floor(((point.clientY - r.top) / r.height) * H / CELL) * CELL;
-    placeToolAt(tool, x, y);
+    if (e.button === 2) return;
+    const point = pointFromEvent(e);
+    const hit = findObjectAt(point.rawX, point.rawY);
+    if (mode === "delete") {
+      if (hit) removeSelection(hit);
+      return;
+    }
+    if (mode === "edit") {
+      setSelected(hit);
+      return;
+    }
+    placeToolAt(tool, point.x, point.y);
+    setSelected(null);
+  };
+
+  const handleCanvasContext = (e) => {
+    e.preventDefault();
+    const point = pointFromEvent(e);
+    const hit = findObjectAt(point.rawX, point.rawY);
+    setSelected(hit);
+    setMode("edit");
   };
 
   const publish = async () => {
@@ -3340,32 +3584,72 @@ function Editor({ setScreen, setCustomLevel, user, settings = defaultSettings })
 
   return (
     <div className="editor">
-      <aside className="editor-side">
-        <div className="drawer-head"><div><h2>Level Creator</h2><p className="small-copy">Paint station pieces, export a room, or test it instantly.</p></div></div>
-        <div className="editor-tool-status">
-          <span>Active Tool</span>
-          <strong>{activeTool.label}</strong>
-          <p>{activeTool.hint}</p>
+      <main className="editor-canvas-wrap">
+        <canvas ref={canvas} className="editor-canvas" width={W} height={H} onPointerDown={handleCanvasPointer} onContextMenu={handleCanvasContext} onTouchStart={handleCanvasPointer} />
+      </main>
+      <aside className="editor-topbar">
+        <div>
+          <h2>Level Creator</h2>
+          <p>Build, edit, or delete. Right-click an object to inspect it.</p>
         </div>
-        <div className="tools">{tools.map((t) => <button type="button" className="tool-btn" data-active={tool === t.id} key={t.id} onClick={() => setTool(t.id)}><span>{t.label}</span><small>{t.hint}</small></button>)}</div>
         <div className="editor-actions">
           <Button primary onClick={() => { setCustomLevel(level); setScreen("playing"); }}><Play /> Test</Button>
           <Button onClick={exportCode}>Make Code</Button>
-          <Button onClick={importCode}>Import Code</Button>
+          <Button onClick={importCode}>Import</Button>
           <Button onClick={() => setScreen("menu")}>Menu</Button>
         </div>
-        <div className="publish-box">
-          <span className="badge construction-badge">In Construction</span>
-          <label>Publish Title</label>
-          <input value={publishName} onChange={(e) => setPublishName(e.target.value)} />
-          <label>Description</label>
-          <textarea rows="3" value={publishNote} onChange={(e) => setPublishNote(e.target.value)} placeholder="What makes this room interesting?" />
-          <Button onClick={publish}><UploadCloud /> Publishing Paused</Button>
-          {publishStatus && <p className="small-copy">{publishStatus}</p>}
-        </div>
-        <div className="setting"><label>Level Code</label><textarea rows="8" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Local level codes appear here. Share manually or import another code." /></div>
       </aside>
-      <main className="editor-canvas-wrap"><canvas ref={canvas} className="editor-canvas" width={W} height={H} onPointerDown={place} onTouchStart={place} /></main>
+      <aside className="editor-inspector" data-open={Boolean(selectedObject)}>
+        {selectedObject ? (
+          <>
+            <span>Selected</span>
+            <strong>{selected.key === "exit" ? "Exit Gate" : selected.key.replace(/([A-Z])/g, " $1")}</strong>
+            <div className="editor-move-pad">
+              <button onClick={() => nudgeSelection(0, -CELL)}>Up</button>
+              <button onClick={() => nudgeSelection(-CELL, 0)}>Left</button>
+              <button onClick={() => nudgeSelection(CELL, 0)}>Right</button>
+              <button onClick={() => nudgeSelection(0, CELL)}>Down</button>
+            </div>
+            <div className="editor-size-row">
+              <button onClick={() => resizeSelection(CELL, 0)}>W+</button>
+              <button onClick={() => resizeSelection(-CELL, 0)}>W-</button>
+              <button onClick={() => resizeSelection(0, CELL)}>H+</button>
+              <button onClick={() => resizeSelection(0, -CELL)}>H-</button>
+            </div>
+            <Button danger onClick={() => removeSelection()}>Delete Object</Button>
+          </>
+        ) : (
+          <>
+            <span>Right Click</span>
+            <strong>Edit Object</strong>
+            <p>Select a wall, cargo, plate, hostile, scrap, or gate.</p>
+          </>
+        )}
+      </aside>
+      <aside className="editor-bottombar">
+        <div className="editor-tool-status">
+          <small>{mode}</small>
+          <strong>{mode === "build" ? activeTool.label : mode === "edit" ? "Object Inspector" : "Delete Tool"}</strong>
+          <p>{mode === "build" ? activeTool.hint : mode === "edit" ? "Left-click or right-click an object, then use the inspector." : "Click an object to remove it."}</p>
+        </div>
+        <div className="editor-mode-tabs">
+          {["build", "edit", "delete"].map((item) => <button key={item} data-active={mode === item} onClick={() => setMode(item)}>{item}</button>)}
+        </div>
+        <div className="tools">{tools.map((t) => <button type="button" className="tool-btn" data-active={mode === "build" && tool === t.id} key={t.id} onClick={() => { setMode("build"); setTool(t.id); }}><span>{t.label}</span><small>{t.hint}</small></button>)}</div>
+        <details className="publish-box">
+          <summary><span className="badge construction-badge">In Construction</span> Codes and Publish</summary>
+          <div className="publish-grid">
+            <label>Publish Title</label>
+            <input value={publishName} onChange={(e) => setPublishName(e.target.value)} />
+            <label>Description</label>
+            <textarea rows="2" value={publishNote} onChange={(e) => setPublishNote(e.target.value)} placeholder="What makes this room interesting?" />
+            <Button onClick={publish}><UploadCloud /> Publishing Paused</Button>
+            <label>Level Code</label>
+            <textarea rows="4" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Local level codes appear here." />
+            {publishStatus && <p className="small-copy">{publishStatus}</p>}
+          </div>
+        </details>
+      </aside>
     </div>
   );
 }
@@ -3427,4 +3711,3 @@ function App() {
 }
 
 createRoot(document.getElementById("root")).render(<App />);
-
