@@ -39,6 +39,7 @@ body,
 body {
   overflow: hidden;
   color: var(--text);
+  font-size: 14px;
   font-family: Rajdhani, "Bahnschrift", "Segoe UI", sans-serif;
 }
 
@@ -411,7 +412,7 @@ textarea {
   inset: 0;
   display: grid;
   place-items: center;
-  padding: clamp(16px, 4vw, 48px);
+  padding: clamp(12px, 3vw, 38px);
   background: rgba(3, 9, 11, 0.42);
 }
 
@@ -428,7 +429,7 @@ textarea {
   border: 1px solid var(--line);
   background: linear-gradient(145deg, rgba(13, 24, 28, 0.96), rgba(6, 15, 18, 0.96));
   box-shadow: 0 18px 55px rgba(0, 0, 0, 0.4);
-  padding: clamp(22px, 3vw, 32px);
+  padding: clamp(18px, 2.4vw, 26px);
   overflow: hidden;
 }
 
@@ -460,8 +461,8 @@ textarea {
   border: 1px solid rgba(255, 213, 45, 0.35);
   background: var(--yellow);
   color: #091115;
-  padding: 2px 11px;
-  font-size: 12px;
+  padding: 2px 9px;
+  font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -754,6 +755,7 @@ textarea {
 .shop-item {
   display: grid;
   min-height: 84px;
+  grid-template-rows: auto auto auto;
   align-content: center;
   justify-items: center;
   gap: 6px;
@@ -769,6 +771,19 @@ textarea {
   color: #cfffe0;
 }
 
+.shop-item[data-color-card="true"] {
+  min-height: 98px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
+    rgba(8, 17, 20, 0.82);
+}
+
+.shop-item[data-color-card="true"][data-owned="true"] {
+  border-color: rgba(255, 213, 45, 0.66);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px rgba(255, 213, 45, 0.12);
+}
+
 .shop-item strong {
   font-size: 13px;
   text-transform: uppercase;
@@ -780,16 +795,29 @@ textarea {
   line-height: 1.15;
 }
 
-.shop-item span {
+.shop-price {
   color: var(--muted);
   font-size: 13px;
   font-weight: 900;
 }
 
+.shop-item[data-owned="true"] .shop-price {
+  color: #9df6a3;
+}
+
+.shop-item[data-color-card="true"][data-owned="true"] .shop-price {
+  color: var(--yellow);
+}
+
 .shop-swatch {
-  width: 24px;
-  height: 24px;
+  display: block;
+  width: 32px;
+  height: 32px;
   border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 6px;
+  box-shadow:
+    inset 0 0 0 4px rgba(5, 13, 16, 0.36),
+    0 0 16px rgba(0, 0, 0, 0.24);
 }
 
 @media (max-width: 920px) {
@@ -826,7 +854,7 @@ textarea {
   margin: 0;
   max-width: 470px;
   color: #eaf3f2;
-  font-size: clamp(54px, 8.2vw, 92px);
+  font-size: clamp(46px, 6.8vw, 78px);
   line-height: 0.92;
   font-weight: 900;
   letter-spacing: 0.035em;
@@ -836,7 +864,7 @@ textarea {
 .lead {
   max-width: 540px;
   color: var(--muted);
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.35;
 }
 
@@ -844,7 +872,7 @@ textarea {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  margin-top: 58px;
+  margin-top: 42px;
 }
 
 .construction-tab {
@@ -877,14 +905,15 @@ textarea {
 
 .btn {
   display: inline-flex;
-  min-height: 46px;
+  min-height: 38px;
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  gap: 7px;
   border: 1px solid var(--line);
   background: rgba(7, 15, 18, 0.88);
   color: var(--text);
-  padding: 10px 14px;
+  padding: 8px 11px;
+  font-size: 13px;
   font-weight: 800;
   text-transform: uppercase;
   transition: border-color .16s ease, transform .16s ease, background .16s ease, color .16s ease;
@@ -1274,15 +1303,15 @@ textarea {
 }
 
 .editor-topbar {
-  top: 12px;
-  left: 12px;
-  right: 12px;
-  min-height: 62px;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 7px 9px;
 }
 
 .editor-topbar h2,
@@ -1292,33 +1321,33 @@ textarea {
 
 .editor-topbar h2 {
   color: var(--text);
-  font-size: 24px;
+  font-size: 19px;
   text-transform: uppercase;
 }
 
 .editor-topbar p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .editor-bottombar {
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
   display: grid;
-  grid-template-columns: 220px 210px 1fr minmax(220px, 300px);
-  gap: 10px;
+  grid-template-columns: 176px 168px 1fr minmax(176px, 240px);
+  gap: 8px;
   align-items: stretch;
-  padding: 10px;
+  padding: 8px;
 }
 
 .editor-inspector {
-  top: 88px;
-  right: 12px;
-  width: 250px;
+  top: 68px;
+  right: 10px;
+  width: 200px;
   display: grid;
-  gap: 8px;
-  padding: 12px;
+  gap: 6px;
+  padding: 9px;
 }
 
 .editor-inspector[data-open="false"] {
@@ -1329,22 +1358,22 @@ textarea {
 .editor-inspector p {
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .editor-inspector strong {
   color: var(--yellow);
-  font-size: 17px;
+  font-size: 14px;
   text-transform: uppercase;
 }
 
 .editor-tool-status {
   display: grid;
-  gap: 4px;
+  gap: 3px;
   border: 1px solid rgba(120, 171, 181, 0.25);
   border-radius: 6px;
   background: rgba(8, 17, 20, 0.46);
-  padding: 9px 10px;
+  padding: 7px 8px;
   min-width: 0;
 }
 
@@ -1353,7 +1382,7 @@ textarea {
 .editor-tool-status small {
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .editor-tool-status small {
@@ -1364,14 +1393,14 @@ textarea {
 
 .editor-tool-status strong {
   color: var(--yellow);
-  font-size: 16px;
+  font-size: 13px;
   text-transform: uppercase;
 }
 
 .editor-mode-tabs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
+  gap: 5px;
 }
 
 .editor-mode-tabs button,
@@ -1381,6 +1410,7 @@ textarea {
   border-radius: 6px;
   background: rgba(8, 17, 20, 0.62);
   color: var(--text);
+  font-size: 11px;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -1395,28 +1425,30 @@ textarea {
 .editor-size-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
+  gap: 5px;
 }
 
 .editor-move-pad button,
 .editor-size-row button {
-  min-height: 34px;
+  min-height: 28px;
+  font-size: 11px;
 }
 
 .tools {
   display: grid;
-  grid-template-columns: repeat(8, minmax(92px, 1fr));
-  gap: 7px;
+  grid-template-columns: repeat(8, minmax(74px, 1fr));
+  gap: 5px;
   overflow: auto hidden;
   padding-bottom: 2px;
 }
 
 .tool-btn {
   display: grid;
-  min-width: 92px;
-  min-height: 48px;
+  min-width: 74px;
+  min-height: 38px;
   color: var(--text);
-  padding: 7px 8px;
+  padding: 5px 6px;
+  font-size: 11px;
   text-align: left;
   text-transform: uppercase;
   font-weight: 800;
@@ -1424,7 +1456,7 @@ textarea {
 
 .tool-btn small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   text-transform: none;
   white-space: nowrap;
@@ -1440,13 +1472,14 @@ textarea {
 .editor-actions {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, auto));
-  gap: 8px;
+  gap: 6px;
   margin-top: 0;
 }
 
 .editor-actions .btn {
-  min-height: 40px;
-  padding-inline: 12px;
+  min-height: 32px;
+  padding-inline: 9px;
+  font-size: 11px;
 }
 
 .editor-canvas-wrap {
@@ -1476,18 +1509,18 @@ textarea {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 42px;
-  padding: 8px 10px;
+  min-height: 34px;
+  padding: 6px 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 900;
   cursor: pointer;
 }
 
 .publish-grid {
   display: grid;
-  gap: 8px;
-  padding: 0 10px 10px;
+  gap: 6px;
+  padding: 0 8px 8px;
 }
 
 .construction-badge {
@@ -1500,7 +1533,7 @@ textarea {
 
 .publish-box label {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -1511,7 +1544,8 @@ textarea {
   border: 1px solid var(--line);
   background: rgba(5, 13, 16, 0.94);
   color: var(--text);
-  padding: 10px 12px;
+  padding: 7px 9px;
+  font-size: 11px;
 }
 
 .community-panel {

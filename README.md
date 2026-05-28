@@ -11,12 +11,22 @@ The Echo records an eight-second window of movement, shooting, dashing, and inte
 - Echo replay puzzles with plates, switches, doors, lasers, cargo, and timing
 - Hostiles: turrets, chase drones, missile sentries, gravity nodes, echo jammers, laser sweepers, shield drones, repair bots, and blink hunters
 - Dash, abilities, weapons, ammo, reloads, health, shield, energy, scrap, and coins
-- Coin crates and a coin-based shop for cosmetics, pets, weapons, abilities, and dash effects
-- Character customization with live previews
+- Coin crates and a coin-based Customization Bay for skins, parts, pets, weapons, abilities, dash effects, and universal colors
+- Character customization with a larger live preview and buy/equip flow on one screen
+- Universal color unlocks: buy a color once, then use it across drone paint, glow, trail, and engine-style effects
 - Local sign up/login with nickname, password, and optional email
 - Customizable controls, mouse sensitivity, visual themes, and mobile/PC control options
-- Level creator with import/export and testing
+- Difficulty settings that affect run pressure without changing room shapes
+- Level creator with a compact Geometry Dash-inspired editor, right-click object editing, import/export, and instant testing
 - Procedural ambient background music generated in the browser
+
+## Difficulty
+
+Difficulty does **not** reshape levels or move puzzle objects. The campaign rooms stay the same so puzzles remain learnable and fair.
+
+- **Easy** gives more max energy, reduces incoming damage, slows hostiles, lengthens enemy cooldowns, and weakens missiles/lasers.
+- **Standard** uses the intended baseline balance.
+- **Hard** lowers max energy, increases incoming damage, speeds up hostiles, shortens enemy cooldowns, strengthens missiles/lasers, and gives hostiles a small hull boost.
 
 ## Campaign Rooms
 
@@ -57,6 +67,17 @@ The campaign is listed from easiest to hardest:
 - Retry room: `R` or Pause menu > Retry Level
 
 Controls can be changed in the in-game Controls/Settings screens.
+
+## Customization Bay
+
+The old separate Profile and Shop screens have been merged into the **Customization Bay**. This is where players:
+
+- Choose their avatar/profile icon
+- Preview the drone, dash trail, weapon style, ability, and pet
+- Buy and equip drone frames, cockpits, engines, armor kits, decals, pets, weapons, abilities, and dash animations
+- Unlock universal colors once and reuse them across multiple cosmetic slots
+
+Coins are earned from orange coin crates during rooms. Real-money purchases are currently removed/paused.
 
 ## Run Locally
 

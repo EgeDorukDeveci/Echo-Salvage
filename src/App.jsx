@@ -42,6 +42,35 @@ const MAX_ENERGY = 120;
 const ECHO_COST = 22;
 const DASH_COST = 10;
 const ABILITY_DEFAULT = "emp";
+const DIFFICULTY_TUNING = {
+  Easy: {
+    maxEnergy: 150,
+    damageTaken: 0.75,
+    hostileCooldown: 1.22,
+    hostileSpeed: 0.9,
+    laserDamage: 0.78,
+    missileDamage: 40,
+    hostileHpBonus: 0
+  },
+  Standard: {
+    maxEnergy: 120,
+    damageTaken: 1,
+    hostileCooldown: 1,
+    hostileSpeed: 1,
+    laserDamage: 1,
+    missileDamage: 50,
+    hostileHpBonus: 0
+  },
+  Hard: {
+    maxEnergy: 95,
+    damageTaken: 1.22,
+    hostileCooldown: 0.78,
+    hostileSpeed: 1.13,
+    laserDamage: 1.18,
+    missileDamage: 60,
+    hostileHpBonus: 1
+  }
+};
 
 const defaultSettings = {
   volume: 0.7,
@@ -1885,6 +1914,10 @@ function getAbilityById(id) {
   return ABILITIES.find((ability) => ability.id === id) || ABILITIES[0];
 }
 
+function getDifficultyTuning(difficulty = "Standard") {
+  return DIFFICULTY_TUNING[difficulty] || DIFFICULTY_TUNING.Standard;
+}
+
 function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, cosmetic, awardCoins, keybinds }) {
   const canvas = useRef(null);
   const game = useRef(null);
@@ -1903,23 +1936,30 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     const perks = getPetPerks(cosmetic);
     const weapon = getWeaponById(cosmetic.weapon);
     const ability = getAbilityById(cosmetic.ability);
+    const tuning = getDifficultyTuning(settings.difficulty);
     const maxShield = perks.maxShield || 0;
+    const hostileHpBonus = tuning.hostileHpBonus || 0;
+    const tuneHostileHp = (h, fallback = 2) => {
+      h.baseHp = h.baseHp || h.maxHp || h.hp || fallback;
+      h.maxHp = h.baseHp + hostileHpBonus;
+      h.hp = Math.min(h.maxHp, (h.hp || h.baseHp) + hostileHpBonus);
+    };
     level.coinCrates = level.coinCrates || [];
     level.turrets.forEach((t) => {
-      t.maxHp = t.maxHp || t.hp || 2;
+      tuneHostileHp(t, 2);
     });
     level.drones?.forEach((d) => {
-      d.maxHp = d.maxHp || d.hp || 2;
+      tuneHostileHp(d, 2);
     });
     level.missileSentries?.forEach((m) => {
-      m.maxHp = m.maxHp || m.hp || 3;
+      tuneHostileHp(m, 3);
       m.cooldown = m.cooldown ?? 2400;
       m.lockMs = m.lockMs || 0;
     });
     SPECIAL_HOSTILE_KEYS.forEach((key) => {
       level[key] = level[key] || [];
       level[key].forEach((h) => {
-        h.maxHp = h.maxHp || h.hp || 3;
+        tuneHostileHp(h, 3);
         h.cooldown = h.cooldown ?? 900;
       });
     });
@@ -1931,7 +1971,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         y: level.player.y,
         angle: 0,
         hp: 100,
-        energy: MAX_ENERGY,
+        energy: tuning.maxEnergy,
+        maxEnergy: tuning.maxEnergy,
         shield: maxShield,
         maxShield,
         dash: 100,
@@ -1963,11 +2004,12 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       started: performance.now(),
       last: performance.now(),
       status: "playing",
-      shake: 0
+      shake: 0,
+      tuning
     };
   };
 
-  useEffect(reset, [levelIndex, customLevel]);
+  useEffect(reset, [levelIndex, customLevel, settings.difficulty]);
 
   useEffect(() => {
     const clearInputState = () => {
@@ -2225,6 +2267,11 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     entity.y = clamp(entity.y, PLAYER_MARGIN, H - PLAYER_MARGIN);
   }
 
+  function phaseMove(entity, dx, dy) {
+    entity.x = clamp(entity.x + dx, PLAYER_MARGIN, W - PLAYER_MARGIN);
+    entity.y = clamp(entity.y + dy, PLAYER_MARGIN, H - PLAYER_MARGIN);
+  }
+
   function updateCargoTether(g, dt) {
     const tether = g.cargoTether;
     if (!tether) return;
@@ -2268,9 +2315,10 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
 
   function damagePlayer(g, amount) {
     if (amount <= 0 || performance.now() < (g.player.phaseUntil || 0)) return;
-    const blocked = Math.min(g.player.shield || 0, amount);
+    const tunedAmount = amount * (g.tuning?.damageTaken || 1);
+    const blocked = Math.min(g.player.shield || 0, tunedAmount);
     g.player.shield = Math.max(0, (g.player.shield || 0) - blocked);
-    g.player.hp -= amount - blocked;
+    g.player.hp -= tunedAmount - blocked;
   }
 
   useEffect(() => {
@@ -2285,6 +2333,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       g.last = now;
       const level = g.level;
       const perks = getPetPerks(cosmetic);
+      const tuning = g.tuning || getDifficultyTuning(settings.difficulty);
+      const hostileSpeed = tuning.hostileSpeed || 1;
       const maxShield = perks.maxShield || 0;
       g.player.maxShield = maxShield;
       g.player.shield = clamp(g.player.shield || 0, 0, maxShield);
@@ -2310,7 +2360,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         if (dashQueued.current && g.player.dash >= 100 && g.player.energy >= DASH_COST) {
           const dashAngle = Math.atan2(ny, nx);
           g.dashBursts.push({ x: g.player.x, y: g.player.y, angle: dashAngle, life: 260, maxLife: 260 });
-          tryMove(g.player, nx * 116, ny * 116, level, true);
+          phaseMove(g.player, nx * 116, ny * 116);
           g.player.dash = 0;
           g.player.energy -= DASH_COST;
           g.player.dashTrail = 180;
@@ -2319,7 +2369,13 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         dashQueued.current = false;
         const overdriveBoost = now < (g.player.overdriveUntil || 0) ? 1.22 : 1;
         const dashBoost = g.player.dashTrail > 0 ? 1.35 : 1;
-        tryMove(g.player, nx * speed * dashBoost * overdriveBoost * dt / 1000, ny * speed * dashBoost * overdriveBoost * dt / 1000, level, true);
+        const moveX = nx * speed * dashBoost * overdriveBoost * dt / 1000;
+        const moveY = ny * speed * dashBoost * overdriveBoost * dt / 1000;
+        if (g.player.dashTrail > 0) {
+          phaseMove(g.player, moveX, moveY);
+        } else {
+          tryMove(g.player, moveX, moveY, level, true);
+        }
       } else if (dashQueued.current) {
         dashQueued.current = false;
       }
@@ -2370,7 +2426,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         if (!s.taken && dist(g.player, s) < 28) {
           s.taken = true;
           g.player.scrap += 1;
-          g.player.energy = clamp(g.player.energy + 24, 0, MAX_ENERGY);
+          g.player.energy = clamp(g.player.energy + 24, 0, g.player.maxEnergy || MAX_ENERGY);
         }
       });
 
@@ -2390,8 +2446,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         d.angle = a;
         const gap = dist(d, g.player);
         if (gap > 155) {
-          d.x = clamp(d.x + Math.cos(a) * 115 * dt / 1000, 58, W - 58);
-          d.y = clamp(d.y + Math.sin(a) * 115 * dt / 1000, 58, H - 58);
+          d.x = clamp(d.x + Math.cos(a) * 115 * hostileSpeed * dt / 1000, 58, W - 58);
+          d.y = clamp(d.y + Math.sin(a) * 115 * hostileSpeed * dt / 1000, 58, H - 58);
         }
         if (gap < 34) {
           damagePlayer(g, dt * 0.035);
@@ -2399,8 +2455,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         }
         d.cooldown -= dt;
         if (d.cooldown <= 0 && gap < 520) {
-          g.bullets.push({ x: d.x + Math.cos(a) * 20, y: d.y + Math.sin(a) * 20, vx: Math.cos(a) * 360, vy: Math.sin(a) * 360, life: 1500, owner: "enemy" });
-          d.cooldown = settings.difficulty === "Hard" ? 760 : 1050;
+          g.bullets.push({ x: d.x + Math.cos(a) * 20, y: d.y + Math.sin(a) * 20, vx: Math.cos(a) * 360 * hostileSpeed, vy: Math.sin(a) * 360 * hostileSpeed, life: 1500, owner: "enemy" });
+          d.cooldown = 1050 * (tuning.hostileCooldown || 1);
         }
       });
       level.missileSentries?.forEach((m) => {
@@ -2412,8 +2468,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         if (seesPlayer) {
           m.lockMs = Math.min(1600, (m.lockMs || 0) + dt);
           if (m.lockMs >= 1400 && m.cooldown <= 0) {
-            g.missiles.push({ x: m.x, y: m.y, vx: 0, vy: 0, speed: 245, turn: 0.09, life: 3600 });
-            m.cooldown = settings.difficulty === "Hard" ? 2100 : 2800;
+            g.missiles.push({ x: m.x, y: m.y, vx: 0, vy: 0, speed: 245 * hostileSpeed, turn: 0.09 * hostileSpeed, life: 3600 });
+            m.cooldown = 2800 * (tuning.hostileCooldown || 1);
             m.lockMs = 0;
           }
         } else {
@@ -2426,7 +2482,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         const gap = dist(h, g.player);
         if (gap < 175 && gap > 24) {
           const a = Math.atan2(h.y - g.player.y, h.x - g.player.x);
-          tryMove(g.player, Math.cos(a) * 70 * dt / 1000, Math.sin(a) * 70 * dt / 1000, level, false);
+          tryMove(g.player, Math.cos(a) * 70 * hostileSpeed * dt / 1000, Math.sin(a) * 70 * hostileSpeed * dt / 1000, level, false);
         }
       });
       level.laserSweepers?.forEach((h) => {
@@ -2448,11 +2504,11 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         if (h.blink <= 0 && dist(h, g.player) > 130) {
           h.x = clamp(g.player.x - Math.cos(a) * 120, 70, W - 70);
           h.y = clamp(g.player.y - Math.sin(a) * 120, 70, H - 70);
-          h.blink = 2200;
+          h.blink = 2200 * (tuning.hostileCooldown || 1);
           if (settings.shake && !settings.reduced) g.shake = Math.max(g.shake, 4);
         } else if (dist(h, g.player) > 42) {
-          h.x = clamp(h.x + Math.cos(a) * 95 * dt / 1000, 58, W - 58);
-          h.y = clamp(h.y + Math.sin(a) * 95 * dt / 1000, 58, H - 58);
+          h.x = clamp(h.x + Math.cos(a) * 95 * hostileSpeed * dt / 1000, 58, W - 58);
+          h.y = clamp(h.y + Math.sin(a) * 95 * hostileSpeed * dt / 1000, 58, H - 58);
         }
         if (dist(h, g.player) < 32) damagePlayer(g, dt * 0.05);
       });
@@ -2480,8 +2536,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         t.seesPlayer = seesPlayer;
         if (t.cooldown <= 0 && seesPlayer) {
           const a = Math.atan2(g.player.y - t.y, g.player.x - t.x);
-          g.bullets.push({ x: t.x, y: t.y, vx: Math.cos(a) * 310, vy: Math.sin(a) * 310, life: 1800, owner: "enemy" });
-          t.cooldown = settings.difficulty === "Hard" ? 900 : 1350;
+          g.bullets.push({ x: t.x, y: t.y, vx: Math.cos(a) * 310 * hostileSpeed, vy: Math.sin(a) * 310 * hostileSpeed, life: 1800, owner: "enemy" });
+          t.cooldown = 1350 * (tuning.hostileCooldown || 1);
         }
       });
 
@@ -2506,7 +2562,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
             d.hp -= shielded(d) ? 0 : b.damage || 1;
             b.life = 0;
             if (d.hp <= 0) {
-              g.player.energy = clamp(g.player.energy + 12, 0, MAX_ENERGY);
+              g.player.energy = clamp(g.player.energy + 12, 0, g.player.maxEnergy || MAX_ENERGY);
             }
           }
         });
@@ -2530,7 +2586,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
           if (level.core.hp <= 0) level.core.alive = false;
         }
         if (b.owner === "enemy" && dist(b, g.player) < 18) {
-          damagePlayer(g, settings.difficulty === "Easy" ? 7 : 11);
+          damagePlayer(g, 10);
           b.life = 0;
           if (settings.shake && !settings.reduced) g.shake = 7;
         }
@@ -2551,7 +2607,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         if (getSolidBlocks(level).some((w) => rectsTouch({ x: missile.x - 5, y: missile.y - 5, w: 10, h: 10 }, w))) missile.life = 0;
         if (dist(missile, g.player) < 20) {
           const dashed = g.player.dashTrail > 0;
-          if (!dashed) damagePlayer(g, 50);
+          if (!dashed) damagePlayer(g, tuning.missileDamage || 50);
           missile.life = 0;
           if (settings.shake && !settings.reduced) g.shake = 10;
         }
@@ -2562,10 +2618,10 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         if (g.activeIds.has(l.disabledBy)) return;
         const vertical = Math.abs(l.x1 - l.x2) < 2;
         const near = vertical ? Math.abs(g.player.x - l.x1) < 14 && g.player.y > Math.min(l.y1, l.y2) && g.player.y < Math.max(l.y1, l.y2) : Math.abs(g.player.y - l.y1) < 14 && g.player.x > Math.min(l.x1, l.x2) && g.player.x < Math.max(l.x1, l.x2);
-        if (near) damagePlayer(g, dt * 0.018 * (perks.laserResist || 1));
+        if (near) damagePlayer(g, dt * 0.018 * (perks.laserResist || 1) * (tuning.laserDamage || 1));
       });
 
-      g.player.energy = clamp(g.player.energy + (perks.energyRegen || 0) * dt / 1000, 0, MAX_ENERGY);
+      g.player.energy = clamp(g.player.energy + (perks.energyRegen || 0) * dt / 1000, 0, g.player.maxEnergy || MAX_ENERGY);
       g.player.hp = clamp(g.player.hp + (perks.hullRegen || 0) * dt / 1000, 0, 100);
       if (g.player.maxShield > 0) g.player.shield = clamp((g.player.shield || 0) + (perks.shieldRegen || 0) * dt / 1000, 0, g.player.maxShield);
       g.recordTimer += dt;
@@ -2745,7 +2801,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
             <strong>Deck {levelIndex + 1}/{rooms.length}</strong>
           </div>
           <Meter label="Hull" value={g?.player.hp ?? 100} color="#ffd52d" />
-          <Meter label="Energy" value={g?.player.energy ?? MAX_ENERGY} max={MAX_ENERGY} color="#ffd52d" />
+          <Meter label="Energy" value={g?.player.energy ?? MAX_ENERGY} max={g?.player.maxEnergy ?? MAX_ENERGY} color="#ffd52d" />
           {(g?.player.maxShield ?? 0) > 0 && <Meter label="Shield" value={g?.player.shield ?? 0} max={g?.player.maxShield ?? 1} color="#00f0d2" />}
         </div>
         <div className="hud-card objective-card">
@@ -3138,7 +3194,7 @@ function ProfileScreen({ user, setUser, setScreen }) {
             </div>
             <ShopSection title="Universal Colors">
               {UNIVERSAL_COLORS.map((color) => (
-                <ShopItem key={color} owned={ownedColors.includes(color)} label={color.toUpperCase()} price={COLOR_PRICES[color] || 60} color={color} onBuy={() => buy("colors", color, COLOR_PRICES[color] || 60, "color")} />
+                <ShopItem key={color} colorCard owned={ownedColors.includes(color)} label={color.toUpperCase()} price={COLOR_PRICES[color] || 60} color={color} onBuy={() => buy("colors", color, COLOR_PRICES[color] || 60, "color")} />
               ))}
             </ShopSection>
             <ShopSection title="Drone Frames">
@@ -3205,13 +3261,13 @@ function ShopSection({ title, children }) {
   return <div className="shop-section"><h3>{title}</h3><div className="shop-grid">{children}</div></div>;
 }
 
-function ShopItem({ label, detail, price, owned, color, onBuy }) {
+function ShopItem({ label, detail, price, owned, color, colorCard = false, onBuy }) {
   return (
-    <button className="shop-item" data-owned={owned} onClick={onBuy}>
+    <button className="shop-item" data-owned={owned} data-color-card={colorCard} type="button" onClick={onBuy}>
       {color && <span className="shop-swatch" style={{ background: color }} />}
       <strong>{label}</strong>
       {detail && <small>{detail}</small>}
-      <span>{owned ? "Owned" : price}</span>
+      <span className="shop-price">{owned ? "Unlocked" : `${price} coins`}</span>
     </button>
   );
 }
@@ -3240,7 +3296,15 @@ function SettingsDrawer({ settings, setSettings, setScreen }) {
           <option value="midnight">Midnight</option>
         </select>
       </div>
-      <div className="setting"><label>Difficulty</label><select value={settings.difficulty} onChange={(e) => setSettings({ ...settings, difficulty: e.target.value })}><option>Easy</option><option>Standard</option><option>Hard</option></select></div>
+      <div className="setting">
+        <label>Difficulty</label>
+        <select value={settings.difficulty} onChange={(e) => setSettings({ ...settings, difficulty: e.target.value })}>
+          <option>Easy</option>
+          <option>Standard</option>
+          <option>Hard</option>
+        </select>
+        <p className="small-copy">Changes energy capacity and hostile pressure. Room layouts stay the same.</p>
+      </div>
     </div>
   );
 }
