@@ -133,7 +133,22 @@ const rooms = [
   "Sweeper Repair Bay",
   "Shield Drone Gauntlet",
   "Blink Hunter Furnace",
-  "Echo Core Finale"
+  "Echo Core Finale",
+  "Cargo Jammer Vestibule",
+  "Shield Turret Atrium",
+  "Gravity Cargo Carousel",
+  "Repair Bot Dock",
+  "Blink Switch Arcade",
+  "Missile Cargo Runway",
+  "Sweeper Plate Loom",
+  "Drone Shield Orchard",
+  "Jammer Drone Canal",
+  "Gravity Missile Gallery",
+  "Repair Sweeper Foundry",
+  "Blink Jammer Chapel",
+  "Shielded Reactor Relay",
+  "Shield Repair Lockchain",
+  "Salvage Singularity Core"
 ];
 
 const AUTH_USERS_KEY = "echo-salvage-users";
@@ -713,6 +728,224 @@ function makeLevel(index = 0) {
       lasers: [{ x1: 700, y1: 95, x2: 700, y2: 625, id: "L1", disabledBy: "E" }],
       core: { x: 1045, y: 360, hp: 8, alive: true },
       scrap: scrap([350, 185], [535, 360], [1030, 535])
+    },
+    {
+      name: "Cargo Jammer Vestibule",
+      player: { x: 155, y: 360 },
+      walls: [wall(305, 105, 42, 220), wall(305, 395, 42, 220), wall(560, 145, 42, 160), wall(560, 415, 42, 160), wall(835, 100, 42, 235), wall(835, 385, 42, 235)],
+      crates: [crate(430, 170), crate(430, 508)],
+      coinCrates: [coin(470, 350, 44), coin(970, 185, 36)],
+      plates: [plate("A", 225, 180), plate("B", 225, 540), plate("C", 690, 360)],
+      switches: [sw("D", 1015, 360)],
+      doors: gate("A", "B", "C", "D"),
+      echoJammers: [{ x: 650, y: 205, hp: 5, pulse: 0 }],
+      turrets: [{ x: 940, y: 520, hp: 2, cooldown: 900 }],
+      lasers: [{ x1: 760, y1: 95, x2: 760, y2: 625, id: "L1", disabledBy: "C" }],
+      scrap: scrap([430, 360], [690, 540], [1015, 205])
+    },
+    {
+      name: "Shield Turret Atrium",
+      player: { x: 150, y: 360 },
+      walls: [wall(290, 120, 42, 480), wall(500, 105, 42, 200), wall(500, 415, 42, 200), wall(900, 145, 42, 430)],
+      crates: [crate(390, 520)],
+      coinCrates: [coin(390, 175, 46), coin(1000, 540, 38)],
+      plates: [plate("A", 220, 185), plate("B", 220, 535)],
+      switches: [sw("C", 650, 360), sw("D", 1015, 360)],
+      doors: gate("A", "B", "C", "D"),
+      turrets: [{ x: 765, y: 305, hp: 3, cooldown: 720 }, { x: 930, y: 420, hp: 2, cooldown: 880 }],
+      shieldDrones: [{ x: 845, y: 360, hp: 4, cooldown: 700 }],
+      scrap: scrap([390, 360], [650, 535], [1015, 185])
+    },
+    {
+      name: "Gravity Cargo Carousel",
+      player: { x: 150, y: 360 },
+      walls: [wall(330, 95, 42, 235), wall(330, 390, 42, 235), wall(610, 135, 42, 170), wall(610, 415, 42, 170), wall(900, 100, 42, 520)],
+      crates: [crate(455, 185), crate(455, 500)],
+      coinCrates: [coin(545, 360, 48), coin(985, 205, 40)],
+      plates: [plate("A", 230, 205), plate("B", 230, 515), plate("C", 735, 540)],
+      switches: [sw("D", 1015, 360)],
+      doors: gate("A", "B", "C", "D"),
+      gravityNodes: [{ x: 720, y: 250, hp: 4, pulse: 0 }],
+      drones: [{ x: 995, y: 520, hp: 2, cooldown: 1050 }],
+      lasers: [{ x1: 790, y1: 95, x2: 790, y2: 625, id: "L1", disabledBy: "C" }],
+      scrap: scrap([455, 360], [735, 185], [1015, 535])
+    },
+    {
+      name: "Repair Bot Dock",
+      player: { x: 150, y: 360 },
+      walls: [wall(310, 120, 42, 480), wall(560, 90, 300, 42), wall(560, 588, 300, 42), wall(930, 150, 42, 420)],
+      crates: [crate(435, 515)],
+      coinCrates: [coin(455, 205, 50), coin(895, 360, 42)],
+      plates: [plate("A", 225, 360), plate("B", 695, 535)],
+      switches: [sw("C", 695, 185), sw("D", 1015, 360)],
+      doors: gate("A", "B", "C", "D"),
+      turrets: [{ x: 665, y: 360, hp: 3, cooldown: 650 }, { x: 990, y: 205, hp: 2, cooldown: 850 }],
+      drones: [{ x: 990, y: 530, hp: 2, cooldown: 900 }],
+      repairBots: [{ x: 820, y: 360, hp: 3, cooldown: 800 }],
+      scrap: scrap([435, 185], [695, 360], [1015, 535])
+    },
+    {
+      name: "Blink Switch Arcade",
+      player: { x: 150, y: 360 },
+      walls: [wall(285, 105, 42, 210), wall(285, 405, 42, 210), wall(560, 220, 260, 42), wall(560, 460, 260, 42), wall(965, 105, 42, 510)],
+      crates: [crate(420, 520)],
+      coinCrates: [coin(425, 185, 52), coin(1010, 525, 44)],
+      plates: [plate("A", 220, 185), plate("B", 220, 535), plate("C", 690, 360)],
+      switches: [sw("D", 1010, 185), sw("E", 1010, 535)],
+      doors: gate("A", "B", "C", "D", "E"),
+      blinkHunters: [{ x: 800, y: 360, hp: 4, cooldown: 900, blink: 900 }],
+      turrets: [{ x: 660, y: 535, hp: 2, cooldown: 850 }],
+      scrap: scrap([420, 360], [690, 185], [1010, 360])
+    },
+    {
+      name: "Missile Cargo Runway",
+      player: { x: 150, y: 360 },
+      walls: [wall(320, 105, 42, 510), wall(550, 175, 280, 42), wall(550, 503, 280, 42), wall(950, 105, 42, 510)],
+      crates: [crate(440, 515), crate(720, 335)],
+      coinCrates: [coin(440, 185, 54), coin(1000, 360, 46)],
+      plates: [plate("A", 230, 360), plate("B", 680, 185), plate("C", 680, 535)],
+      switches: [sw("D", 1015, 185), sw("E", 1015, 535)],
+      doors: gate("A", "B", "C", "D", "E"),
+      missileSentries: [{ x: 865, y: 360, hp: 3, cooldown: 2700, lockMs: 0 }],
+      turrets: [{ x: 700, y: 360, hp: 2, cooldown: 900 }],
+      scrap: scrap([440, 360], [680, 360], [1015, 360])
+    },
+    {
+      name: "Sweeper Plate Loom",
+      player: { x: 150, y: 360 },
+      walls: [wall(300, 115, 42, 490), wall(540, 135, 42, 180), wall(540, 405, 42, 180), wall(915, 115, 42, 490)],
+      crates: [crate(420, 510)],
+      coinCrates: [coin(420, 190, 56), coin(985, 530, 48)],
+      plates: [plate("A", 225, 185), plate("B", 225, 535), plate("C", 710, 360)],
+      switches: [sw("D", 1015, 360)],
+      doors: gate("A", "B", "C", "D"),
+      laserSweepers: [{ x: 665, y: 360, hp: 4, angle: 0.6, speed: 0.0011 }],
+      drones: [{ x: 990, y: 185, hp: 2, cooldown: 1000 }],
+      lasers: [{ x1: 800, y1: 95, x2: 800, y2: 625, id: "L1", disabledBy: "C" }],
+      scrap: scrap([420, 360], [710, 535], [1015, 185])
+    },
+    {
+      name: "Drone Shield Orchard",
+      player: { x: 150, y: 360 },
+      walls: [wall(280, 120, 42, 480), wall(500, 100, 42, 230), wall(500, 390, 42, 230), wall(760, 245, 220, 42), wall(760, 435, 220, 42)],
+      crates: [crate(385, 520), crate(630, 185)],
+      coinCrates: [coin(385, 185, 58), coin(1005, 520, 50)],
+      plates: [plate("A", 215, 185), plate("B", 215, 535), plate("C", 660, 360)],
+      switches: [sw("D", 1015, 360)],
+      doors: gate("A", "B", "C", "D"),
+      drones: [{ x: 760, y: 185, hp: 2, cooldown: 850 }, { x: 975, y: 500, hp: 3, cooldown: 980 }],
+      shieldDrones: [{ x: 940, y: 455, hp: 4, cooldown: 700 }],
+      turrets: [{ x: 995, y: 410, hp: 2, cooldown: 900 }],
+      scrap: scrap([385, 360], [660, 535], [1015, 250])
+    },
+    {
+      name: "Jammer Drone Canal",
+      player: { x: 150, y: 360 },
+      walls: [wall(315, 95, 42, 245), wall(315, 380, 42, 245), wall(605, 135, 42, 450), wall(915, 95, 42, 245), wall(915, 380, 42, 245)],
+      crates: [crate(460, 515)],
+      coinCrates: [coin(460, 190, 60), coin(1015, 540, 52)],
+      plates: [plate("A", 230, 205), plate("B", 230, 520), plate("C", 755, 360)],
+      switches: [sw("D", 1015, 360)],
+      doors: gate("A", "B", "C", "D"),
+      echoJammers: [{ x: 745, y: 210, hp: 5, pulse: 0 }],
+      drones: [{ x: 830, y: 520, hp: 2, cooldown: 900 }, { x: 1010, y: 205, hp: 2, cooldown: 1000 }],
+      lasers: [{ x1: 500, y1: 95, x2: 500, y2: 625, id: "L1", disabledBy: "A" }, { x1: 850, y1: 95, x2: 850, y2: 625, id: "L2", disabledBy: "C" }],
+      scrap: scrap([460, 360], [755, 540], [1015, 205])
+    },
+    {
+      name: "Gravity Missile Gallery",
+      player: { x: 150, y: 360 },
+      walls: [wall(300, 105, 42, 510), wall(520, 210, 250, 42), wall(520, 468, 250, 42), wall(940, 105, 42, 510)],
+      crates: [crate(430, 515)],
+      coinCrates: [coin(430, 185, 62), coin(1000, 360, 54)],
+      plates: [plate("A", 225, 360), plate("B", 650, 185), plate("C", 650, 535)],
+      switches: [sw("D", 1015, 185), sw("E", 1015, 535)],
+      doors: gate("A", "B", "C", "D", "E"),
+      gravityNodes: [{ x: 650, y: 360, hp: 4, pulse: 0 }],
+      missileSentries: [{ x: 865, y: 360, hp: 3, cooldown: 2500, lockMs: 0 }],
+      turrets: [{ x: 1000, y: 360, hp: 2, cooldown: 850 }],
+      scrap: scrap([430, 360], [650, 260], [1015, 360])
+    },
+    {
+      name: "Repair Sweeper Foundry",
+      player: { x: 150, y: 360 },
+      walls: [wall(300, 100, 42, 520), wall(520, 160, 290, 42), wall(520, 520, 290, 42), wall(950, 100, 42, 520)],
+      crates: [crate(430, 520), crate(710, 330)],
+      coinCrates: [coin(430, 190, 64), coin(1000, 535, 56)],
+      plates: [plate("A", 225, 185), plate("B", 225, 535), plate("C", 700, 360)],
+      switches: [sw("D", 1015, 360)],
+      doors: gate("A", "B", "C", "D"),
+      laserSweepers: [{ x: 650, y: 360, hp: 4, angle: 1.1, speed: 0.0013 }],
+      repairBots: [{ x: 830, y: 360, hp: 3, cooldown: 780 }],
+      turrets: [{ x: 900, y: 270, hp: 2, cooldown: 760 }, { x: 900, y: 450, hp: 2, cooldown: 900 }],
+      scrap: scrap([430, 360], [700, 535], [1015, 185])
+    },
+    {
+      name: "Blink Jammer Chapel",
+      player: { x: 150, y: 360 },
+      walls: [wall(275, 125, 42, 470), wall(500, 220, 300, 42), wall(500, 458, 300, 42), wall(935, 125, 42, 470)],
+      crates: [crate(395, 520)],
+      coinCrates: [coin(395, 185, 66), coin(1015, 535, 58)],
+      plates: [plate("A", 210, 185), plate("B", 210, 535), plate("C", 650, 360)],
+      switches: [sw("D", 1015, 185), sw("E", 1015, 535)],
+      doors: gate("A", "B", "C", "D", "E"),
+      blinkHunters: [{ x: 790, y: 360, hp: 4, cooldown: 900, blink: 800 }],
+      echoJammers: [{ x: 650, y: 185, hp: 5, pulse: 0 }],
+      drones: [{ x: 1000, y: 360, hp: 2, cooldown: 950 }],
+      scrap: scrap([395, 360], [650, 535], [1015, 360])
+    },
+    {
+      name: "Shielded Reactor Relay",
+      player: { x: 150, y: 360 },
+      walls: [wall(260, 120, 42, 480), wall(440, 120, 42, 180), wall(440, 420, 42, 180), wall(655, 120, 42, 480), wall(890, 120, 42, 480)],
+      crates: [crate(350, 525), crate(555, 185)],
+      coinCrates: [coin(350, 185, 68), coin(1010, 535, 60)],
+      plates: [plate("A", 205, 185), plate("B", 555, 535), plate("C", 800, 185)],
+      switches: [sw("D", 800, 535), sw("E", 1015, 360)],
+      doors: gate("A", "B", "C", "D", "E"),
+      turrets: [{ x: 560, y: 360, hp: 3, cooldown: 650 }, { x: 1000, y: 185, hp: 2, cooldown: 820 }],
+      shieldDrones: [{ x: 950, y: 255, hp: 4, cooldown: 700 }],
+      repairBots: [{ x: 940, y: 320, hp: 3, cooldown: 850 }],
+      core: { x: 1015, y: 360, hp: 7, alive: true },
+      scrap: scrap([350, 360], [555, 360], [1015, 220])
+    },
+    {
+      name: "Shield Repair Lockchain",
+      player: { x: 150, y: 360 },
+      walls: [wall(250, 120, 42, 480), wall(420, 120, 42, 180), wall(420, 420, 42, 180), wall(610, 120, 42, 480), wall(800, 120, 42, 180), wall(800, 420, 42, 180), wall(970, 120, 42, 480)],
+      crates: [crate(340, 525), crate(700, 185)],
+      coinCrates: [coin(340, 185, 72), coin(1025, 535, 62)],
+      plates: [plate("A", 205, 185), plate("B", 525, 535), plate("C", 890, 185), plate("D", 890, 535)],
+      switches: [sw("E", 525, 185), sw("F", 1030, 360)],
+      doors: gate("A", "B", "C", "D", "E", "F"),
+      turrets: [{ x: 350, y: 360, hp: 3, cooldown: 700 }, { x: 880, y: 360, hp: 3, cooldown: 760 }],
+      drones: [{ x: 1000, y: 535, hp: 2, cooldown: 900 }],
+      laserSweepers: [{ x: 525, y: 360, hp: 4, angle: 0.4, speed: 0.001 }],
+      shieldDrones: [{ x: 930, y: 315, hp: 4, cooldown: 700 }],
+      repairBots: [{ x: 980, y: 455, hp: 3, cooldown: 900 }],
+      lasers: [{ x1: 700, y1: 95, x2: 700, y2: 625, id: "L1", disabledBy: "E" }],
+      scrap: scrap([350, 185], [525, 360], [890, 360], [1030, 185])
+    },
+    {
+      name: "Salvage Singularity Core",
+      player: { x: 150, y: 360 },
+      walls: [wall(235, 110, 42, 500), wall(400, 110, 42, 180), wall(400, 430, 42, 180), wall(575, 110, 42, 500), wall(760, 110, 42, 180), wall(760, 430, 42, 180), wall(945, 110, 42, 500)],
+      crates: [crate(325, 525), crate(675, 185), crate(675, 525)],
+      coinCrates: [coin(325, 185, 80), coin(1025, 535, 70)],
+      plates: [plate("A", 195, 185), plate("B", 500, 535), plate("C", 850, 185), plate("D", 850, 535)],
+      switches: [sw("E", 500, 185), sw("F", 1030, 360)],
+      doors: gate("A", "B", "C", "D", "E", "F"),
+      turrets: [{ x: 325, y: 360, hp: 3, cooldown: 650 }, { x: 875, y: 360, hp: 3, cooldown: 720 }],
+      drones: [{ x: 1030, y: 185, hp: 2, cooldown: 800 }, { x: 1030, y: 535, hp: 2, cooldown: 980 }],
+      missileSentries: [{ x: 900, y: 250, hp: 3, cooldown: 2700, lockMs: 0 }],
+      gravityNodes: [{ x: 650, y: 360, hp: 4, pulse: 0 }],
+      echoJammers: [{ x: 690, y: 185, hp: 5, pulse: 0 }],
+      blinkHunters: [{ x: 815, y: 535, hp: 4, cooldown: 950, blink: 900 }],
+      shieldDrones: [{ x: 965, y: 315, hp: 4, cooldown: 700 }],
+      repairBots: [{ x: 985, y: 420, hp: 3, cooldown: 850 }],
+      lasers: [{ x1: 710, y1: 95, x2: 710, y2: 625, id: "L1", disabledBy: "E" }],
+      core: { x: 1035, y: 360, hp: 10, alive: true },
+      scrap: scrap([325, 185], [500, 360], [850, 360], [1030, 250], [1030, 470])
     }
   ];
 
@@ -2940,16 +3173,22 @@ function ProfileScreen({ user, setUser, setScreen }) {
   const ownedColors = owned.colors || [];
   const previewRef = useRef(null);
 
-  const buy = (bucket, id, price, label) => {
-    if (owned[bucket]?.includes(id)) {
+  const equipCosmetic = (slot, value) => {
+    setCosmetic((current) => ({ ...current, [slot]: value }));
+  };
+
+  const buy = (bucket, id, price, label, afterUnlock) => {
+    const latestUser = getStoredUsers().find((u) => u.id === user?.id) || user;
+    const latestEconomy = normalizeEconomy(latestUser);
+    if (latestEconomy.owned[bucket]?.includes(id)) {
       setMessage(`${label} is already unlocked.`);
       return;
     }
-    if (economy.coins < price) {
-      setMessage(`Need ${price - economy.coins} more coins for ${label}.`);
+    if (latestEconomy.coins < price) {
+      setMessage(`Need ${price - latestEconomy.coins} more coins for ${label}.`);
       return;
     }
-    const session = updateUserEconomy(user, (current) => {
+    const session = updateUserEconomy(latestUser, (current) => {
       const normalized = normalizeEconomy(current);
       return {
         ...current,
@@ -2961,6 +3200,7 @@ function ProfileScreen({ user, setUser, setScreen }) {
       };
     });
     setUser(session);
+    afterUnlock?.();
     setMessage(`Unlocked ${label}.`);
   };
 
@@ -2969,7 +3209,7 @@ function ProfileScreen({ user, setUser, setScreen }) {
       setMessage("Unlock this color once, then use it anywhere.");
       return;
     }
-    setCosmetic({ ...cosmetic, [slot]: color });
+    equipCosmetic(slot, color);
   };
 
   useEffect(() => {
@@ -3058,21 +3298,23 @@ function ProfileScreen({ user, setUser, setScreen }) {
       setMessage("Profile not found. Log in again.");
       return;
     }
+    const currentOwned = normalizeEconomy(current).owned;
+    const currentColors = currentOwned.colors || [];
     const nextCosmetic = {
       ...cosmetic,
-      body: ownedColors.includes(cosmetic.body) ? cosmetic.body : COSMETIC_DEFAULTS.body,
-      trail: ownedColors.includes(cosmetic.trail) ? cosmetic.trail : COSMETIC_DEFAULTS.trail,
-      accent: ownedColors.includes(cosmetic.accent) ? cosmetic.accent : COSMETIC_DEFAULTS.accent,
-      frame: owned.frames.includes(cosmetic.frame) ? cosmetic.frame : COSMETIC_DEFAULTS.frame,
-      cockpit: owned.cockpits.includes(cosmetic.cockpit) ? cosmetic.cockpit : COSMETIC_DEFAULTS.cockpit,
-      engine: owned.engines.includes(cosmetic.engine) ? cosmetic.engine : COSMETIC_DEFAULTS.engine,
-      decal: owned.decals.includes(cosmetic.decal) ? cosmetic.decal : COSMETIC_DEFAULTS.decal,
-      armor: owned.armors.includes(cosmetic.armor) ? cosmetic.armor : COSMETIC_DEFAULTS.armor,
-      pet: owned.pets.includes(cosmetic.pet) ? cosmetic.pet : "none",
-      dashStyle: owned.dashes.includes(cosmetic.dashStyle) ? cosmetic.dashStyle : "streak"
+      body: currentColors.includes(cosmetic.body) ? cosmetic.body : COSMETIC_DEFAULTS.body,
+      trail: currentColors.includes(cosmetic.trail) ? cosmetic.trail : COSMETIC_DEFAULTS.trail,
+      accent: currentColors.includes(cosmetic.accent) ? cosmetic.accent : COSMETIC_DEFAULTS.accent,
+      frame: currentOwned.frames.includes(cosmetic.frame) ? cosmetic.frame : COSMETIC_DEFAULTS.frame,
+      cockpit: currentOwned.cockpits.includes(cosmetic.cockpit) ? cosmetic.cockpit : COSMETIC_DEFAULTS.cockpit,
+      engine: currentOwned.engines.includes(cosmetic.engine) ? cosmetic.engine : COSMETIC_DEFAULTS.engine,
+      decal: currentOwned.decals.includes(cosmetic.decal) ? cosmetic.decal : COSMETIC_DEFAULTS.decal,
+      armor: currentOwned.armors.includes(cosmetic.armor) ? cosmetic.armor : COSMETIC_DEFAULTS.armor,
+      pet: currentOwned.pets.includes(cosmetic.pet) ? cosmetic.pet : "none",
+      dashStyle: currentOwned.dashes.includes(cosmetic.dashStyle) ? cosmetic.dashStyle : "streak"
       ,
-      weapon: owned.weapons.includes(cosmetic.weapon) ? cosmetic.weapon : WEAPON_DEFAULT,
-      ability: owned.abilities.includes(cosmetic.ability) ? cosmetic.ability : ABILITY_DEFAULT
+      weapon: currentOwned.weapons.includes(cosmetic.weapon) ? cosmetic.weapon : WEAPON_DEFAULT,
+      ability: currentOwned.abilities.includes(cosmetic.ability) ? cosmetic.ability : ABILITY_DEFAULT
     };
     const session = updateStoredUserProfile({ ...current, avatar, cosmetic: nextCosmetic });
     setUser(session);
@@ -3093,7 +3335,7 @@ function ProfileScreen({ user, setUser, setScreen }) {
             <Button onClick={() => setScreen("menu")} aria-label="Close profile"><X /></Button>
           </div>
         </div>
-        {message && <p className="auth-message">{message}</p>}
+        <p className="auth-message profile-message" data-visible={Boolean(message)} aria-live="polite">{message || "Customization ready."}</p>
         <div className="profile-preview">
           <canvas width="360" height="206" ref={previewRef} />
           <div className="profile-preview-copy">
@@ -3194,52 +3436,52 @@ function ProfileScreen({ user, setUser, setScreen }) {
             </div>
             <ShopSection title="Universal Colors">
               {UNIVERSAL_COLORS.map((color) => (
-                <ShopItem key={color} colorCard owned={ownedColors.includes(color)} label={color.toUpperCase()} price={COLOR_PRICES[color] || 60} color={color} onBuy={() => buy("colors", color, COLOR_PRICES[color] || 60, "color")} />
+                <ShopItem key={color} colorCard owned={ownedColors.includes(color)} label={color.toUpperCase()} price={COLOR_PRICES[color] || 60} color={color} onBuy={() => buy("colors", color, COLOR_PRICES[color] || 60, "color", () => equipCosmetic("body", color))} />
               ))}
             </ShopSection>
             <ShopSection title="Drone Frames">
               {DRONE_FRAMES.filter((f) => f.id !== COSMETIC_DEFAULTS.frame).map((frame) => (
-                <ShopItem key={frame.id} owned={owned.frames.includes(frame.id)} label={frame.label} price={FRAME_PRICES[frame.id] || 80} onBuy={() => buy("frames", frame.id, FRAME_PRICES[frame.id] || 80, frame.label)} />
+                <ShopItem key={frame.id} owned={owned.frames.includes(frame.id)} label={frame.label} price={FRAME_PRICES[frame.id] || 80} onBuy={() => buy("frames", frame.id, FRAME_PRICES[frame.id] || 80, frame.label, () => equipCosmetic("frame", frame.id))} />
               ))}
             </ShopSection>
             <ShopSection title="Cockpits">
               {COCKPITS.filter((cockpit) => cockpit.id !== COSMETIC_DEFAULTS.cockpit).map((cockpit) => (
-                <ShopItem key={cockpit.id} owned={owned.cockpits.includes(cockpit.id)} label={cockpit.label} price={cockpit.price} onBuy={() => buy("cockpits", cockpit.id, cockpit.price, cockpit.label)} />
+                <ShopItem key={cockpit.id} owned={owned.cockpits.includes(cockpit.id)} label={cockpit.label} price={cockpit.price} onBuy={() => buy("cockpits", cockpit.id, cockpit.price, cockpit.label, () => equipCosmetic("cockpit", cockpit.id))} />
               ))}
             </ShopSection>
             <ShopSection title="Engines">
               {ENGINES.filter((engine) => engine.id !== COSMETIC_DEFAULTS.engine).map((engine) => (
-                <ShopItem key={engine.id} owned={owned.engines.includes(engine.id)} label={engine.label} price={engine.price} onBuy={() => buy("engines", engine.id, engine.price, engine.label)} />
+                <ShopItem key={engine.id} owned={owned.engines.includes(engine.id)} label={engine.label} price={engine.price} onBuy={() => buy("engines", engine.id, engine.price, engine.label, () => equipCosmetic("engine", engine.id))} />
               ))}
             </ShopSection>
             <ShopSection title="Armor Kits">
               {ARMORS.filter((armor) => armor.id !== COSMETIC_DEFAULTS.armor).map((armor) => (
-                <ShopItem key={armor.id} owned={owned.armors.includes(armor.id)} label={armor.label} price={armor.price} onBuy={() => buy("armors", armor.id, armor.price, armor.label)} />
+                <ShopItem key={armor.id} owned={owned.armors.includes(armor.id)} label={armor.label} price={armor.price} onBuy={() => buy("armors", armor.id, armor.price, armor.label, () => equipCosmetic("armor", armor.id))} />
               ))}
             </ShopSection>
             <ShopSection title="Decals">
               {DECALS.filter((decal) => decal.id !== COSMETIC_DEFAULTS.decal).map((decal) => (
-                <ShopItem key={decal.id} owned={owned.decals.includes(decal.id)} label={decal.label} price={decal.price} onBuy={() => buy("decals", decal.id, decal.price, decal.label)} />
+                <ShopItem key={decal.id} owned={owned.decals.includes(decal.id)} label={decal.label} price={decal.price} onBuy={() => buy("decals", decal.id, decal.price, decal.label, () => equipCosmetic("decal", decal.id))} />
               ))}
             </ShopSection>
             <ShopSection title="Dash Animations">
               {DASH_STYLES.filter((dash) => dash.id !== COSMETIC_DEFAULTS.dashStyle).map((dash) => (
-                <ShopItem key={dash.id} owned={owned.dashes.includes(dash.id)} label={dash.label} price={dash.price} onBuy={() => buy("dashes", dash.id, dash.price, dash.label)} />
+                <ShopItem key={dash.id} owned={owned.dashes.includes(dash.id)} label={dash.label} price={dash.price} onBuy={() => buy("dashes", dash.id, dash.price, dash.label, () => equipCosmetic("dashStyle", dash.id))} />
               ))}
             </ShopSection>
             <ShopSection title="Pets">
               {PETS.filter((pet) => pet.id !== "none").map((pet) => (
-                <ShopItem key={pet.id} owned={owned.pets.includes(pet.id)} label={pet.label} detail={pet.perk} price={pet.price} color={pet.color} onBuy={() => buy("pets", pet.id, pet.price, pet.label)} />
+                <ShopItem key={pet.id} owned={owned.pets.includes(pet.id)} label={pet.label} detail={pet.perk} price={pet.price} color={pet.color} onBuy={() => buy("pets", pet.id, pet.price, pet.label, () => equipCosmetic("pet", pet.id))} />
               ))}
             </ShopSection>
             <ShopSection title="Weapon Styles">
               {WEAPONS.filter((weapon) => weapon.id !== WEAPON_DEFAULT).map((weapon) => (
-                <ShopItem key={weapon.id} owned={owned.weapons.includes(weapon.id)} label={weapon.label} detail={weapon.perk} price={weapon.price} onBuy={() => buy("weapons", weapon.id, weapon.price, weapon.label)} />
+                <ShopItem key={weapon.id} owned={owned.weapons.includes(weapon.id)} label={weapon.label} detail={weapon.perk} price={weapon.price} onBuy={() => buy("weapons", weapon.id, weapon.price, weapon.label, () => equipCosmetic("weapon", weapon.id))} />
               ))}
             </ShopSection>
             <ShopSection title="Abilities">
               {ABILITIES.filter((ability) => ability.id !== ABILITY_DEFAULT).map((ability) => (
-                <ShopItem key={ability.id} owned={owned.abilities.includes(ability.id)} label={ability.label} detail={ability.perk} price={ability.price} onBuy={() => buy("abilities", ability.id, ability.price, ability.label)} />
+                <ShopItem key={ability.id} owned={owned.abilities.includes(ability.id)} label={ability.label} detail={ability.perk} price={ability.price} onBuy={() => buy("abilities", ability.id, ability.price, ability.label, () => equipCosmetic("ability", ability.id))} />
               ))}
             </ShopSection>
           </div>
@@ -3262,8 +3504,13 @@ function ShopSection({ title, children }) {
 }
 
 function ShopItem({ label, detail, price, owned, color, colorCard = false, onBuy }) {
+  const handleClick = () => {
+    if (owned) return;
+    onBuy?.();
+  };
+
   return (
-    <button className="shop-item" data-owned={owned} data-color-card={colorCard} type="button" onClick={onBuy}>
+    <button className="shop-item" data-owned={owned} data-color-card={colorCard} type="button" aria-disabled={owned} onClick={handleClick}>
       {color && <span className="shop-swatch" style={{ background: color }} />}
       <strong>{label}</strong>
       {detail && <small>{detail}</small>}

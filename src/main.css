@@ -436,6 +436,7 @@ textarea {
 .panel::after {
   content: "";
   position: absolute;
+  z-index: 0;
   width: 220px;
   height: 220px;
   right: -90px;
@@ -444,6 +445,11 @@ textarea {
   border: 1px solid rgba(255, 213, 45, 0.15);
   background: rgba(255, 213, 45, 0.045);
   pointer-events: none;
+}
+
+.panel > * {
+  position: relative;
+  z-index: 1;
 }
 
 .panel-header {
@@ -532,6 +538,19 @@ textarea {
   margin-bottom: 12px;
 }
 
+.profile-message {
+  min-height: 34px;
+  margin-bottom: 10px;
+  border-color: rgba(0, 240, 210, 0.32);
+  background: rgba(0, 240, 210, 0.08);
+  color: #cce9e8;
+  transition: opacity .16s ease, border-color .16s ease, background .16s ease;
+}
+
+.profile-message[data-visible="false"] {
+  opacity: 0;
+}
+
 .profile-head-actions {
   display: flex;
   align-items: center;
@@ -539,6 +558,8 @@ textarea {
 }
 
 .profile-scroll {
+  position: relative;
+  z-index: 1;
   min-height: 0;
   overflow: auto;
   padding-right: 8px;
@@ -570,6 +591,9 @@ textarea {
 }
 
 .profile-preview {
+  position: relative;
+  z-index: 3;
+  isolation: isolate;
   display: grid;
   grid-template-columns: minmax(280px, 390px) minmax(0, 1fr);
   align-items: center;
@@ -620,6 +644,9 @@ textarea {
 }
 
 .profile-preview canvas {
+  position: relative;
+  z-index: 2;
+  display: block;
   width: min(100%, 360px);
   height: 206px;
   border: 1px solid rgba(75, 116, 128, 0.38);
@@ -764,6 +791,10 @@ textarea {
   color: var(--text);
   padding: 10px;
   text-align: center;
+}
+
+.shop-item[aria-disabled="true"] {
+  cursor: default;
 }
 
 .shop-item[data-owned="true"] {

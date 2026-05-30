@@ -7,7 +7,7 @@ The Echo records an eight-second window of movement, shooting, dashing, and inte
 ## Current Features
 
 - Canvas-based 2D station gameplay
-- Handmade 21-room campaign ordered by difficulty
+- Handmade 36-room campaign ordered by difficulty
 - Echo replay puzzles with plates, switches, doors, lasers, cargo, and timing
 - Hostiles: turrets, chase drones, missile sentries, gravity nodes, echo jammers, laser sweepers, shield drones, repair bots, and blink hunters
 - Dash, abilities, weapons, ammo, reloads, health, shield, energy, scrap, and coins
@@ -53,6 +53,23 @@ The campaign is listed from easiest to hardest:
 19. Shield Drone Gauntlet
 20. Blink Hunter Furnace
 21. Echo Core Finale
+22. Cargo Jammer Vestibule
+23. Shield Turret Atrium
+24. Gravity Cargo Carousel
+25. Repair Bot Dock
+26. Blink Switch Arcade
+27. Missile Cargo Runway
+28. Sweeper Plate Loom
+29. Drone Shield Orchard
+30. Jammer Drone Canal
+31. Gravity Missile Gallery
+32. Repair Sweeper Foundry
+33. Blink Jammer Chapel
+34. Shielded Reactor Relay
+35. Shield Repair Lockchain
+36. Salvage Singularity Core
+
+Rooms 22-36 are hand-authored late-game rooms. They spread the hostile types across the set instead of putting every enemy into every room; shield drones and repair bots are placed close to other hostiles so they function as support units.
 
 ## Controls
 
