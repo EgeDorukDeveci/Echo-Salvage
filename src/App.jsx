@@ -773,6 +773,7 @@ function makeLevel(index = 0) {
       player: { x: 160, y: 540 },
       exit: { x: 610, y: 80, w: 112, h: 58 },
       walls: [wall(310, 155, 250, 42), wall(310, 525, 250, 42), wall(700, 100, 42, 220), wall(700, 400, 42, 220), wall(940, 220, 42, 280)],
+      coinCrates: [coin(455, 360, 18), coin(1010, 525, 14)],
       plates: [plate("A", 230, 360)],
       switches: [sw("B", 590, 180), sw("C", 590, 540), sw("D", 1015, 360)],
       doors: [{ x: 605, y: 142, w: 122, h: 32, requires: [], open: false }],
@@ -805,6 +806,7 @@ function makeLevel(index = 0) {
     {
       name: "Twin Echo Nursery",
       walls: [wall(340, 100, 42, 230), wall(340, 390, 42, 230), wall(675, 160, 42, 400), wall(920, 245, 42, 230)],
+      coinCrates: [coin(520, 205, 22), coin(1005, 515, 18)],
       plates: [plate("A", 230, 205), plate("B", 230, 515), plate("C", 805, 360)],
       switches: [sw("D", 1015, 360)],
       doors: gate("A", "B", "C", "D"),
@@ -840,6 +842,7 @@ function makeLevel(index = 0) {
     {
       name: "Dual Drone Relay",
       walls: [wall(360, 90, 42, 245), wall(360, 385, 42, 245), wall(760, 90, 42, 245), wall(760, 385, 42, 245)],
+      coinCrates: [coin(585, 360, 24), coin(1015, 205, 18)],
       plates: [plate("A", 235, 205), plate("B", 235, 520)],
       switches: [sw("C", 585, 205), sw("D", 940, 520)],
       doors: gate("A", "B", "C", "D"),
@@ -3514,7 +3517,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       g.shake = Math.max(0, g.shake - dt * 0.03);
 
       if (g.player.hp <= 0) {
-        setSummary({ result: "Signal Lost", scrap: g.player.scrap, hull: Math.max(0, Math.round(g.player.hp)), time: Math.round((now - g.started) / 1000), room: level.name, levelIndex });
+        setSummary({ result: "Signal Lost", scrap: g.player.scrap, hull: Math.max(0, Math.round(g.player.hp)), time: Math.round((now - g.started) / 1000), room: level.name, levelIndex, isCustom: Boolean(customLevel) });
         setScreen("summary");
       }
       const roomSecured =
@@ -3524,7 +3527,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         (level.missileSentries || []).every((m) => m.hp <= 0) &&
         SPECIAL_HOSTILE_KEYS.every((key) => (level[key] || []).every((h) => h.hp <= 0));
       if (rectsTouch(playerRect(g.player), level.exit) && level.doors.every((d) => d.open) && roomSecured) {
-        setSummary({ result: "Extracted", scrap: g.player.scrap, hull: Math.max(0, Math.round(g.player.hp)), time: Math.round((now - g.started) / 1000), room: level.name, levelIndex });
+        setSummary({ result: "Extracted", scrap: g.player.scrap, hull: Math.max(0, Math.round(g.player.hp)), time: Math.round((now - g.started) / 1000), room: level.name, levelIndex, isCustom: Boolean(customLevel) });
         setScreen("summary");
       }
 
@@ -4284,9 +4287,10 @@ function PauseMenu({ setScreen, retryLevel }) {
 
 function Summary({ summary, setScreen, next, user, setUser }) {
   const earnedStars = getStarsForRoom(summary.levelIndex, summary);
-  const atFinalRoom = summary.levelIndex >= rooms.length - 1;
+  const isCustomRun = Boolean(summary.isCustom);
+  const atFinalRoom = isCustomRun || summary.levelIndex >= rooms.length - 1;
   useEffect(() => {
-    if (summary.result !== "Extracted" || user?.devMode) return;
+    if (summary.result !== "Extracted" || user?.devMode || isCustomRun) return;
     const current = getStoredUsers().find((u) => u.id === user?.id) || user;
     const progress = { ...(current.progress || {}) };
     const previous = progress[summary.levelIndex] || 0;
@@ -4294,7 +4298,7 @@ function Summary({ summary, setScreen, next, user, setUser }) {
       progress[summary.levelIndex] = earnedStars;
       setUser(updateStoredUserProfile({ ...current, progress }));
     }
-  }, [summary.result, summary.levelIndex]);
+  }, [summary.result, summary.levelIndex, isCustomRun]);
   return (
     <div className="overlay">
       <section className="panel modal">
@@ -4303,7 +4307,7 @@ function Summary({ summary, setScreen, next, user, setUser }) {
         <p className="lead">{summary.room} | {Math.round(summary.time)}s | Scrap recovered: {Math.round(summary.scrap)} | Hull {Math.round(summary.hull ?? 0)}%</p>
         <div className="summary-stars">{"★".repeat(earnedStars)}{"☆".repeat(3 - earnedStars)}</div>
         <div className="button-grid">
-          <Button primary onClick={next}><DoorOpen /> {atFinalRoom ? "Return To Menu" : "Next Room"}</Button>
+          <Button primary onClick={next}><DoorOpen /> {isCustomRun ? "Return To Menu" : atFinalRoom ? "Return To Menu" : "Next Room"}</Button>
           <Button onClick={() => setScreen("menu")}><BookOpen /> Main Menu</Button>
         </div>
       </section>
@@ -4613,13 +4617,18 @@ function App() {
   const [customLevel, setCustomLevel] = useState(null);
   const [settings, setSettings] = useState(defaultSettings);
   const [keybinds, setKeybinds] = useState(() => getStoredKeybinds());
-  const [summary, setSummary] = useState({ result: "Extracted", scrap: 0, hull: 100, time: 0, room: rooms[0], levelIndex: 0 });
+  const [summary, setSummary] = useState({ result: "Extracted", scrap: 0, hull: 100, time: 0, room: rooms[0], levelIndex: 0, isCustom: false });
   const activeCosmetic = useMemo(() => ({ ...COSMETIC_DEFAULTS, ...(user?.cosmetic || {}) }), [user?.cosmetic]);
   const deckTheme = customLevel ? settings.uiTheme : getCampaignTheme(levelIndex);
   const menuTheme = getCampaignSection(Math.max(0, getHighestClearedRoom(user?.progress) + 1)).theme;
   const appTheme = screen === "playing" || screen === "paused" || screen === "summary" ? deckTheme : menuTheme;
   useAmbient(settings);
   const next = () => {
+    if (summary.isCustom) {
+      setCustomLevel(null);
+      setScreen("menu");
+      return;
+    }
     if (levelIndex >= rooms.length - 1) {
       setScreen("menu");
       return;
