@@ -3701,7 +3701,7 @@ function Meter({ label, value, max = 100, color }) {
   );
 }
 
-function MainMenu({ setScreen, setLevelIndex, user, onLogout }) {
+function MainMenu({ setScreen, setLevelIndex, user, onLogout, openSettings, openControls }) {
   const totalStars = getTotalStars(user?.progress);
   const currentSection = CAMPAIGN_SECTIONS[getCurrentSectionIndex(user)];
   return (
@@ -3727,8 +3727,8 @@ function MainMenu({ setScreen, setLevelIndex, user, onLogout }) {
             <Button onClick={() => setScreen("editor")}><Wand2 size={20} /> Level Creator</Button>
             <Button className="construction-tab" onClick={() => setScreen("community")}><Globe2 size={20} /> Community Levels <span>In Construction</span></Button>
             <Button onClick={() => setScreen("profile")}><UserRound size={20} /> Customization Bay</Button>
-            <Button onClick={() => setScreen("settings")}><Settings size={20} /> Settings</Button>
-            <Button onClick={() => setScreen("controls")}><Gamepad2 size={20} /> Controls</Button>
+            <Button onClick={openSettings}><Settings size={20} /> Settings</Button>
+            <Button onClick={openControls}><Gamepad2 size={20} /> Controls</Button>
             <Button danger onClick={onLogout}><LogOut size={20} /> Logout</Button>
           </div>
         </section>
@@ -4160,12 +4160,12 @@ function ShopItem({ label, detail, price, owned, color, colorCard = false, onBuy
   );
 }
 
-function SettingsDrawer({ settings, setSettings, setScreen }) {
+function SettingsDrawer({ settings, setSettings, setScreen, returnScreen = "menu" }) {
   return (
     <div className="drawer">
       <div className="drawer-head">
         <div><h2>Station Settings</h2><p className="small-copy">Adjust run feel and accessibility preferences.</p></div>
-        <button className="btn" onClick={() => setScreen("menu")} aria-label="Close settings"><X /></button>
+        <button className="btn" onClick={() => setScreen(returnScreen)} aria-label="Close settings"><X /></button>
       </div>
       <div className="setting"><label>Volume {Math.round(settings.volume * 100)}%</label><input type="range" min="0" max="1" step="0.01" value={settings.volume} onChange={(e) => setSettings({ ...settings, volume: Number(e.target.value) })} /></div>
       <Toggle title="Cosy Background Song" text="Original procedural ambient loop generated in-browser." value={settings.music} onChange={(music) => setSettings({ ...settings, music })} />
@@ -4202,7 +4202,7 @@ function Toggle({ title, text, value, onChange }) {
   return <div className="setting switch"><div><label>{title}</label><p className="small-copy">{text}</p></div><button className="toggle" data-on={value} onClick={() => onChange(!value)}><span /></button></div>;
 }
 
-function Controls({ setScreen, keybinds, setKeybinds }) {
+function Controls({ setScreen, keybinds, setKeybinds, returnScreen = "menu" }) {
   const [listening, setListening] = useState(null);
   const setBind = (action, code) => {
     const next = { ...keybinds, [action]: code };
@@ -4241,7 +4241,7 @@ function Controls({ setScreen, keybinds, setKeybinds }) {
       <section className="panel modal">
         <div className="drawer-head">
           <div><h2>Controls</h2><p className="small-copy">{listening ? "Press a key to bind it. Escape cancels." : "Click an action, then press the key you want."}</p></div>
-          <Button onClick={() => setScreen("menu")}><X /></Button>
+          <Button onClick={() => setScreen(returnScreen)}><X /></Button>
         </div>
         <div className="controls-grid">
           {keybindActions.map((action) => (
@@ -4261,14 +4261,14 @@ function Controls({ setScreen, keybinds, setKeybinds }) {
         </div>
         <div className="profile-actions controls-actions">
           <Button onClick={resetBinds}><RotateCcw /> Reset Defaults</Button>
-          <Button primary onClick={() => setScreen("menu")}>Back To Menu</Button>
+          <Button primary onClick={() => setScreen(returnScreen)}>{returnScreen === "paused" ? "Back To Pause" : "Back To Menu"}</Button>
         </div>
       </section>
     </div>
   );
 }
 
-function PauseMenu({ setScreen, retryLevel }) {
+function PauseMenu({ setScreen, retryLevel, openSettings, openControls }) {
   return (
     <div className="overlay">
       <section className="panel modal">
@@ -4276,8 +4276,8 @@ function PauseMenu({ setScreen, retryLevel }) {
         <div className="button-grid">
           <Button primary onClick={() => setScreen("playing")}><Play /> Resume</Button>
           <Button onClick={retryLevel}><RotateCcw /> Retry Level</Button>
-          <Button onClick={() => setScreen("settings")}><Settings /> Settings</Button>
-          <Button onClick={() => setScreen("controls")}><Gamepad2 /> Controls</Button>
+          <Button onClick={openSettings}><Settings /> Settings</Button>
+          <Button onClick={openControls}><Gamepad2 /> Controls</Button>
           <Button danger onClick={() => setScreen("menu")}>Abandon Run</Button>
         </div>
       </section>
@@ -4617,6 +4617,7 @@ function App() {
   const [customLevel, setCustomLevel] = useState(null);
   const [settings, setSettings] = useState(defaultSettings);
   const [keybinds, setKeybinds] = useState(() => getStoredKeybinds());
+  const [overlayReturnScreen, setOverlayReturnScreen] = useState("menu");
   const [summary, setSummary] = useState({ result: "Extracted", scrap: 0, hull: 100, time: 0, room: rooms[0], levelIndex: 0, isCustom: false });
   const activeCosmetic = useMemo(() => ({ ...COSMETIC_DEFAULTS, ...(user?.cosmetic || {}) }), [user?.cosmetic]);
   const deckTheme = customLevel ? settings.uiTheme : getCampaignTheme(levelIndex);
@@ -4651,6 +4652,14 @@ function App() {
     setUser(null);
     setScreen("auth");
   };
+  const openSettingsFrom = (origin) => {
+    setOverlayReturnScreen(origin);
+    setScreen("settings");
+  };
+  const openControlsFrom = (origin) => {
+    setOverlayReturnScreen(origin);
+    setScreen("controls");
+  };
   return (
     <div className="app" data-theme={appTheme}>
       <div className="frame" />
@@ -4660,13 +4669,13 @@ function App() {
         setUser(session);
       }} />}
       {screen === "auth" && <AuthScreen onAuth={(session) => { setUser(session); setScreen("menu"); }} />}
-      {screen === "menu" && <MainMenu user={user} onLogout={logout} setScreen={setScreen} setLevelIndex={(i) => { setCustomLevel(null); setLevelIndex(i); }} />}
+      {screen === "menu" && <MainMenu user={user} onLogout={logout} setScreen={setScreen} setLevelIndex={(i) => { setCustomLevel(null); setLevelIndex(i); }} openSettings={() => openSettingsFrom("menu")} openControls={() => openControlsFrom("menu")} />}
       {screen === "profile" && <ProfileScreen user={user} setUser={setUser} setScreen={setScreen} />}
       {screen === "shop" && <ShopScreen user={user} setUser={setUser} setScreen={setScreen} />}
       {screen === "briefing" && <Briefing setScreen={setScreen} />}
-      {screen === "settings" && <SettingsDrawer settings={settings} setSettings={setSettings} setScreen={setScreen} />}
-      {screen === "controls" && <Controls setScreen={setScreen} keybinds={keybinds} setKeybinds={setKeybinds} />}
-      {screen === "paused" && <PauseMenu setScreen={setScreen} retryLevel={retryLevel} />}
+      {screen === "settings" && <SettingsDrawer settings={settings} setSettings={setSettings} setScreen={setScreen} returnScreen={overlayReturnScreen} />}
+      {screen === "controls" && <Controls setScreen={setScreen} keybinds={keybinds} setKeybinds={setKeybinds} returnScreen={overlayReturnScreen} />}
+      {screen === "paused" && <PauseMenu setScreen={setScreen} retryLevel={retryLevel} openSettings={() => openSettingsFrom("paused")} openControls={() => openControlsFrom("paused")} />}
       {screen === "summary" && <Summary summary={summary} setScreen={setScreen} next={next} user={user} setUser={setUser} />}
       {screen === "community" && <CommunityLevels setScreen={setScreen} playLevel={playCommunityLevel} />}
       {screen === "editor" && <Editor user={user} setScreen={setScreen} setCustomLevel={setCustomLevel} settings={settings} />}
