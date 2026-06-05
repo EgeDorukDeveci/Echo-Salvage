@@ -39,7 +39,9 @@ const CELL = 40;
 const PLAYER_MARGIN = 80;
 const CARGO_MARGIN = 64;
 const MAX_ENERGY = 120;
-const ECHO_COST = 22;
+const ECHO_COST = 14;
+const ECHO_COLORS = ["#00f0d2", "#ffd52d", "#b78cff"];
+const ECHO_FILLS = ["rgba(0,240,210,.28)", "rgba(255,213,45,.24)", "rgba(183,140,255,.25)"];
 const DASH_COST = 10;
 const ABILITY_DEFAULT = "emp";
 const DIFFICULTY_TUNING = {
@@ -148,13 +150,74 @@ const rooms = [
   "Blink Jammer Chapel",
   "Shielded Reactor Relay",
   "Shield Repair Lockchain",
-  "Salvage Singularity Core"
+  "Salvage Singularity Core",
+  "Cargo Switch Observatory",
+  "Turret Crossfire Library",
+  "Drone Fork Hangar",
+  "Missile Dash Parabola",
+  "Gravity Plate Crucible",
+  "Jammer Timing Cloister",
+  "Sweeper Cargo Weave",
+  "Shield Drone Bastion",
+  "Repair Turret Depot",
+  "Blink Hunter Labyrinth",
+  "Gravity Missile Canal",
+  "Echo Jammer Switchyard",
+  "Sweeper Shield Gallery",
+  "Repair Drone Orchard",
+  "Core Cargo Furnace",
+  "Blink Missile Reliquary",
+  "Gravity Shield Foundry",
+  "Jammer Repair Cathedral",
+  "Singularity Lock Garden",
+  "Crown Reactor Gauntlet"
+];
+
+const CAMPAIGN_SECTIONS = [
+  {
+    id: "training-deck",
+    label: "Training Deck",
+    shortLabel: "Training",
+    range: [0, 13],
+    theme: "station",
+    accent: "#00f0d2",
+    blurb: "Movement, pressure plates, cargo discipline, and first-contact combat."
+  },
+  {
+    id: "breach-deck",
+    label: "Breach Deck",
+    shortLabel: "Breach",
+    range: [14, 27],
+    theme: "hazard",
+    accent: "#ffd52d",
+    blurb: "Missiles, gravity pulls, and denser lock chains start testing timing."
+  },
+  {
+    id: "reactor-deck",
+    label: "Reactor Deck",
+    shortLabel: "Reactor",
+    range: [28, 41],
+    theme: "reactor",
+    accent: "#58e07a",
+    blurb: "Support enemies, split routes, and harsher pressure management."
+  },
+  {
+    id: "singularity-deck",
+    label: "Singularity Deck",
+    shortLabel: "Singularity",
+    range: [42, 55],
+    theme: "midnight",
+    accent: "#b78cff",
+    blurb: "Late-game hostile combinations and longer Echo coordination chains."
+  }
 ];
 
 const AUTH_USERS_KEY = "echo-salvage-users";
 const AUTH_SESSION_KEY = "echo-salvage-session";
 const COMMUNITY_LEVELS_KEY = "echo-salvage-community-levels";
 const LEVEL_API_URL = import.meta.env.VITE_LEVEL_API_URL || "http://localhost:8787";
+const AUTH_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+const PASSWORD_HASH_ITERATIONS = 120000;
 const DEV_LOGIN = { nickname: "developer", password: "developer" };
 const DEV_COINS = 999999;
 const AVATARS = [
@@ -284,6 +347,138 @@ const BODY_PRICES = { "#ffd52d": 35, "#00f0d2": 45, "#58e07a": 55, "#ff4e41": 70
 const TRAIL_PRICES = { "#ffd52d": 35, "#58e07a": 50, "#ff4e41": 65, "#e7f0ef": 80, "#ff8a00": 95, "#b78cff": 110, "#8aa0ff": 115, "#ff6ec7": 120, "#9df6a3": 90, "#7ef9ff": 100, "#f5f7ff": 125, "#f77d9d": 105, "#c9ff45": 92, "#4de0ff": 96, "#ffcf6b": 99, "#f0a6ff": 130, "#8cffda": 108 };
 const COLOR_PRICES = Object.fromEntries(UNIVERSAL_COLORS.map((color, index) => [color, BODY_PRICES[color] || TRAIL_PRICES[color] || 55 + index * 4]));
 const FRAME_PRICES = { split: 80, needle: 120 };
+const textEncoder = new TextEncoder();
+
+function clamp01(value) {
+  return clamp(value, 0, 1);
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function getCampaignSection(index = 0) {
+  return CAMPAIGN_SECTIONS.find((section) => index >= section.range[0] && index <= section.range[1]) || CAMPAIGN_SECTIONS[0];
+}
+
+function getCampaignSectionProgress(index = 0) {
+  const section = getCampaignSection(index);
+  const [start, end] = section.range;
+  return start === end ? 1 : clamp01((index - start) / (end - start));
+}
+
+function getCampaignTheme(index = 0) {
+  return getCampaignSection(index).theme;
+}
+
+function getCampaignTuning(index = 0) {
+  const section = getCampaignSection(index);
+  const t = getCampaignSectionProgress(index);
+  if (section.id === "training-deck") {
+    return {
+      maxEnergy: Math.round(lerp(150, 126, t)),
+      damageTaken: lerp(0.74, 0.98, t),
+      hostileCooldown: lerp(1.28, 1.02, t),
+      hostileSpeed: lerp(0.88, 1.02, t),
+      laserDamage: lerp(0.78, 0.98, t),
+      missileDamage: lerp(38, 48, t),
+      hostileHpBonus: 0
+    };
+  }
+  if (section.id === "breach-deck") {
+    return {
+      maxEnergy: Math.round(lerp(124, 110, t)),
+      damageTaken: lerp(1, 1.08, t),
+      hostileCooldown: lerp(1, 0.92, t),
+      hostileSpeed: lerp(1.02, 1.08, t),
+      laserDamage: lerp(1, 1.08, t),
+      missileDamage: lerp(50, 56, t),
+      hostileHpBonus: 0
+    };
+  }
+  if (section.id === "reactor-deck") {
+    return {
+      maxEnergy: Math.round(lerp(108, 96, t)),
+      damageTaken: lerp(1.08, 1.18, t),
+      hostileCooldown: lerp(0.9, 0.82, t),
+      hostileSpeed: lerp(1.08, 1.16, t),
+      laserDamage: lerp(1.08, 1.18, t),
+      missileDamage: lerp(56, 62, t),
+      hostileHpBonus: t > 0.45 ? 1 : 0
+    };
+  }
+  return {
+    maxEnergy: Math.round(lerp(95, 84, t)),
+    damageTaken: lerp(1.18, 1.3, t),
+    hostileCooldown: lerp(0.82, 0.72, t),
+    hostileSpeed: lerp(1.16, 1.24, t),
+    laserDamage: lerp(1.18, 1.32, t),
+    missileDamage: lerp(62, 70, t),
+    hostileHpBonus: 1
+  };
+}
+
+function getRoomTier(index) {
+  return getCampaignSection(index).shortLabel;
+}
+
+function getHighestClearedRoom(progress = {}) {
+  let highest = -1;
+  Object.entries(progress || {}).forEach(([rawIndex, stars]) => {
+    const index = Number(rawIndex);
+    if ((Number(stars) || 0) > 0 && index > highest) highest = index;
+  });
+  return highest;
+}
+
+function isRoomUnlocked(index, user) {
+  if (user?.devMode) return true;
+  return index <= getHighestClearedRoom(user?.progress) + 1;
+}
+
+function getCurrentSectionIndex(user) {
+  return Math.min(CAMPAIGN_SECTIONS.length - 1, Math.floor((getHighestClearedRoom(user?.progress) + 1) / 14));
+}
+
+function bytesToHex(bytes) {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function hexToBytes(hex = "") {
+  const safe = `${hex}`.trim();
+  if (!safe || safe.length % 2) return new Uint8Array();
+  return new Uint8Array(safe.match(/.{1,2}/g).map((part) => parseInt(part, 16)));
+}
+
+function makeRandomHex(length = 16) {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return bytesToHex(bytes);
+}
+
+async function derivePasswordHash(password, saltHex, iterations = PASSWORD_HASH_ITERATIONS) {
+  const salt = hexToBytes(saltHex);
+  const key = await crypto.subtle.importKey("raw", textEncoder.encode(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations, hash: "SHA-256" }, key, 256);
+  return bytesToHex(new Uint8Array(bits));
+}
+
+async function createPasswordRecord(password) {
+  const salt = makeRandomHex(16);
+  return {
+    passwordSalt: salt,
+    passwordIterations: PASSWORD_HASH_ITERATIONS,
+    passwordHash: await derivePasswordHash(password, salt, PASSWORD_HASH_ITERATIONS)
+  };
+}
+
+async function verifyStoredPassword(user, password) {
+  if (user?.passwordHash && user?.passwordSalt) {
+    const hash = await derivePasswordHash(password, user.passwordSalt, user.passwordIterations || PASSWORD_HASH_ITERATIONS);
+    return hash === user.passwordHash;
+  }
+  return user?.password === password;
+}
 
 function normalizeEconomy(data = {}) {
   const devMode = data.devMode || data.nickname?.toLowerCase() === DEV_LOGIN.nickname;
@@ -309,7 +504,17 @@ function normalizeEconomy(data = {}) {
 
 function makeSession(user) {
   const economy = normalizeEconomy(user);
-  return { id: user.id, nickname: user.nickname, email: user.email, avatar: user.avatar || "yellow", devMode: Boolean(user.devMode), progress: user.progress || {}, ...economy };
+  return {
+    id: user.id,
+    nickname: user.nickname,
+    email: user.email,
+    avatar: user.avatar || "yellow",
+    devMode: Boolean(user.devMode),
+    progress: user.progress || {},
+    sessionNonce: user.sessionNonce,
+    sessionExpiresAt: user.sessionExpiresAt,
+    ...economy
+  };
 }
 
 function getStarsForRoom(index, summary) {
@@ -320,27 +525,8 @@ function getStarsForRoom(index, summary) {
   return stars;
 }
 
-function getRequiredStars(index) {
-  if (index < 5) return 0;
-  return Math.max(0, Math.floor((index - 4) / 2));
-}
-
-function getRoomTier(index) {
-  if (index < 3) return "Training";
-  if (index < 7) return "Basic";
-  if (index < 12) return "Combat";
-  if (index < 17) return "Advanced";
-  if (index < 20) return "Expert";
-  return "Finale";
-}
-
 function getTotalStars(progress = {}) {
   return Object.values(progress).reduce((sum, value) => sum + (Number(value) || 0), 0);
-}
-
-function isRoomUnlocked(index, user) {
-  if (user?.devMode) return true;
-  return getTotalStars(user?.progress) >= getRequiredStars(index);
 }
 
 function getStoredKeybinds() {
@@ -387,7 +573,15 @@ function saveStoredUsers(users) {
 function getStoredSession() {
   try {
     const session = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || "null");
-    return session ? makeSession(session) : null;
+    if (!session || !session.id) return null;
+    if (session.sessionExpiresAt && session.sessionExpiresAt < Date.now()) {
+      localStorage.removeItem(AUTH_SESSION_KEY);
+      return null;
+    }
+    const user = getStoredUsers().find((entry) => entry.id === session.id);
+    if (!user) return null;
+    if (user.sessionNonce && session.sessionNonce !== user.sessionNonce) return null;
+    return makeSession({ ...user, ...session });
   } catch {
     return null;
   }
@@ -709,7 +903,7 @@ function makeLevel(index = 0) {
       plates: [plate("A", 220, 185), plate("B", 220, 535), plate("C", 650, 360)],
       switches: [sw("D", 1015, 360)],
       doors: gate("A", "B", "C", "D"),
-      shieldDrones: [{ x: 820, y: 360, hp: 4, cooldown: 700 }],
+      shieldDrones: [{ x: 930, y: 500, hp: 4, cooldown: 700 }],
       turrets: [{ x: 720, y: 185, hp: 2, cooldown: 650 }, { x: 1000, y: 540, hp: 2, cooldown: 800 }],
       drones: [{ x: 1015, y: 185, hp: 2, cooldown: 900 }],
       scrap: scrap([390, 185], [650, 535], [1015, 250])
@@ -977,6 +1171,311 @@ function makeLevel(index = 0) {
       lasers: [{ x1: 710, y1: 95, x2: 710, y2: 625, id: "L1", disabledBy: "E" }],
       core: { x: 1035, y: 360, hp: 10, alive: true },
       scrap: scrap([325, 185], [500, 360], [850, 360], [1030, 250], [1030, 470])
+    },
+    {
+      name: "Cargo Switch Observatory",
+      player: { x: 160, y: 555 },
+      exit: { x: 1048, y: 84, w: 96, h: 58 },
+      walls: [wall(300, 500, 260, 42), wall(300, 180, 42, 320), wall(520, 180, 230, 42), wall(520, 500, 230, 42), wall(750, 250, 42, 250), wall(930, 160, 42, 180), wall(930, 420, 42, 180)],
+      crates: [crate(435, 520), crate(650, 185)],
+      coinCrates: [coin(440, 360, 82), coin(995, 535, 66)],
+      plates: [plate("A", 225, 185), plate("B", 225, 535), plate("C", 805, 535)],
+      switches: [sw("D", 805, 185), sw("E", 1030, 360)],
+      doors: [{ x: 1042, y: 146, w: 108, h: 32, requires: [], open: false }],
+      turrets: [{ x: 650, y: 360, hp: 3, cooldown: 720 }],
+      drones: [{ x: 980, y: 515, hp: 2, cooldown: 920 }],
+      scrap: scrap([435, 185], [650, 535], [805, 360], [1030, 220])
+    },
+    {
+      name: "Turret Crossfire Library",
+      player: { x: 1035, y: 185 },
+      exit: { x: 110, y: 510, w: 58, h: 100 },
+      walls: [wall(260, 250, 160, 42), wall(260, 430, 160, 42), wall(470, 130, 42, 220), wall(470, 410, 42, 190), wall(690, 185, 42, 350), wall(890, 130, 42, 220), wall(890, 410, 42, 190), wall(560, 320, 250, 42)],
+      crates: [crate(810, 185), crate(555, 520)],
+      coinCrates: [coin(1000, 535, 84), coin(350, 185, 68)],
+      plates: [plate("A", 1015, 535), plate("B", 650, 535), plate("C", 230, 185)],
+      switches: [sw("D", 230, 535), sw("E", 560, 185)],
+      doors: [{ x: 178, y: 505, w: 42, h: 110, requires: [], open: false }],
+      turrets: [{ x: 610, y: 185, hp: 3, cooldown: 760 }, { x: 820, y: 530, hp: 3, cooldown: 860 }, { x: 365, y: 360, hp: 2, cooldown: 980 }],
+      scrap: scrap([1010, 360], [650, 185], [365, 535], [230, 360])
+    },
+    {
+      name: "Drone Fork Hangar",
+      player: { x: 160, y: 180 },
+      exit: { x: 1045, y: 580, w: 96, h: 58 },
+      walls: [wall(255, 250, 290, 42), wall(255, 430, 290, 42), wall(545, 110, 42, 180), wall(545, 470, 42, 150), wall(730, 250, 280, 42), wall(730, 430, 280, 42), wall(990, 292, 42, 138)],
+      crates: [crate(455, 520), crate(745, 185)],
+      coinCrates: [coin(455, 185, 86), coin(995, 360, 70)],
+      plates: [plate("A", 230, 535), plate("B", 650, 185), plate("C", 650, 535)],
+      switches: [sw("D", 1030, 185), sw("E", 1030, 535)],
+      doors: [{ x: 1040, y: 535, w: 108, h: 32, requires: [], open: false }],
+      drones: [{ x: 520, y: 360, hp: 2, cooldown: 860 }, { x: 820, y: 185, hp: 3, cooldown: 940 }, { x: 920, y: 535, hp: 3, cooldown: 1000 }],
+      scrap: scrap([455, 360], [650, 360], [1030, 360])
+    },
+    {
+      name: "Missile Dash Parabola",
+      player: { x: 160, y: 600 },
+      exit: { x: 595, y: 82, w: 108, h: 58 },
+      walls: [wall(275, 520, 250, 42), wall(275, 155, 42, 365), wall(500, 155, 200, 42), wall(700, 155, 42, 185), wall(700, 430, 42, 160), wall(840, 360, 240, 42), wall(1035, 155, 42, 245)],
+      crates: [crate(405, 185), crate(825, 510)],
+      coinCrates: [coin(405, 360, 88), coin(1000, 535, 72)],
+      plates: [plate("A", 225, 185), plate("B", 595, 535), plate("C", 965, 535)],
+      switches: [sw("D", 965, 185), sw("E", 595, 360)],
+      doors: [{ x: 590, y: 144, w: 116, h: 32, requires: [], open: false }],
+      missileSentries: [{ x: 855, y: 250, hp: 3, cooldown: 2600, lockMs: 0 }, { x: 1015, y: 480, hp: 3, cooldown: 2900, lockMs: 0 }],
+      turrets: [{ x: 565, y: 205, hp: 2, cooldown: 920 }],
+      scrap: scrap([405, 535], [595, 185], [965, 360])
+    },
+    {
+      name: "Gravity Plate Crucible",
+      player: { x: 165, y: 175 },
+      exit: { x: 110, y: 510, w: 58, h: 100 },
+      walls: [wall(265, 235, 220, 42), wall(265, 455, 220, 42), wall(485, 140, 42, 235), wall(485, 455, 42, 145), wall(700, 140, 42, 235), wall(700, 415, 42, 185), wall(895, 235, 240, 42), wall(895, 455, 240, 42)],
+      crates: [crate(385, 525), crate(810, 185)],
+      coinCrates: [coin(385, 185, 90), coin(1030, 535, 74)],
+      plates: [plate("A", 220, 185), plate("B", 220, 535), plate("C", 610, 360), plate("D", 1015, 185)],
+      switches: [sw("E", 1015, 535)],
+      doors: [{ x: 178, y: 505, w: 42, h: 110, requires: [], open: false }],
+      gravityNodes: [{ x: 610, y: 220, hp: 4, pulse: 0 }, { x: 845, y: 520, hp: 4, pulse: 0 }],
+      drones: [{ x: 1030, y: 360, hp: 2, cooldown: 960 }],
+      scrap: scrap([385, 360], [610, 535], [845, 185], [1015, 360])
+    },
+    {
+      name: "Jammer Timing Cloister",
+      player: { x: 640, y: 590 },
+      exit: { x: 592, y: 80, w: 112, h: 58 },
+      walls: [wall(275, 300, 250, 42), wall(755, 300, 250, 42), wall(420, 125, 42, 175), wall(420, 342, 42, 185), wall(835, 125, 42, 175), wall(835, 342, 42, 185), wall(560, 430, 160, 42), wall(560, 215, 160, 42)],
+      crates: [crate(385, 520), crate(905, 520)],
+      coinCrates: [coin(385, 185, 92), coin(905, 185, 76)],
+      plates: [plate("A", 215, 185), plate("B", 215, 535), plate("C", 1015, 535)],
+      switches: [sw("D", 1015, 185), sw("E", 650, 360)],
+      doors: [{ x: 586, y: 142, w: 124, h: 32, requires: [], open: false }],
+      echoJammers: [{ x: 650, y: 235, hp: 5, pulse: 0 }],
+      turrets: [{ x: 805, y: 360, hp: 3, cooldown: 780 }],
+      drones: [{ x: 1015, y: 360, hp: 2, cooldown: 960 }],
+      scrap: scrap([385, 360], [650, 535], [905, 360])
+    },
+    {
+      name: "Sweeper Cargo Weave",
+      player: { x: 155, y: 185 },
+      exit: { x: 1085, y: 505, w: 58, h: 106 },
+      walls: [wall(260, 250, 240, 42), wall(405, 430, 240, 42), wall(645, 250, 240, 42), wall(805, 430, 240, 42), wall(500, 292, 42, 138), wall(885, 292, 42, 138)],
+      crates: [crate(420, 520), crate(720, 185)],
+      coinCrates: [coin(420, 185, 94), coin(1000, 535, 78)],
+      plates: [plate("A", 225, 185), plate("B", 225, 535), plate("C", 685, 535), plate("D", 1015, 185)],
+      switches: [sw("E", 685, 360), sw("F", 1015, 360)],
+      doors: [{ x: 1020, y: 500, w: 52, h: 116, requires: [], open: false }],
+      laserSweepers: [{ x: 650, y: 360, hp: 4, angle: 0.2, speed: 0.0012 }, { x: 930, y: 360, hp: 4, angle: 1.6, speed: 0.001 }],
+      drones: [{ x: 990, y: 205, hp: 2, cooldown: 1050 }],
+      lasers: [{ x1: 790, y1: 95, x2: 790, y2: 625, id: "L1", disabledBy: "E" }],
+      scrap: scrap([420, 360], [685, 185], [1015, 535])
+    },
+    {
+      name: "Shield Drone Bastion",
+      player: { x: 1035, y: 560 },
+      exit: { x: 110, y: 90, w: 58, h: 104 },
+      walls: [wall(250, 245, 250, 42), wall(250, 500, 250, 42), wall(500, 120, 42, 165), wall(500, 380, 42, 220), wall(725, 185, 42, 360), wall(930, 245, 42, 255), wall(610, 315, 130, 42)],
+      crates: [crate(820, 520), crate(370, 185)],
+      coinCrates: [coin(820, 185, 96), coin(370, 535, 80)],
+      plates: [plate("A", 1020, 185), plate("B", 1020, 535), plate("C", 610, 535)],
+      switches: [sw("D", 220, 185), sw("E", 220, 535)],
+      doors: [{ x: 178, y: 124, w: 42, h: 114, requires: [], open: false }],
+      turrets: [{ x: 760, y: 360, hp: 3, cooldown: 720 }, { x: 965, y: 225, hp: 3, cooldown: 840 }],
+      drones: [{ x: 920, y: 510, hp: 2, cooldown: 950 }],
+      shieldDrones: [{ x: 870, y: 310, hp: 4, cooldown: 700 }],
+      scrap: scrap([820, 360], [610, 185], [370, 360], [220, 360])
+    },
+    {
+      name: "Repair Turret Depot",
+      player: { x: 165, y: 175 },
+      exit: { x: 1045, y: 580, w: 96, h: 58 },
+      walls: [wall(285, 235, 260, 42), wall(285, 455, 260, 42), wall(545, 120, 42, 155), wall(545, 497, 42, 105), wall(760, 165, 42, 430), wall(960, 235, 42, 275), wall(640, 340, 160, 42)],
+      crates: [crate(430, 520), crate(860, 185)],
+      coinCrates: [coin(430, 185, 98), coin(1000, 360, 82)],
+      plates: [plate("A", 225, 185), plate("B", 225, 535), plate("C", 635, 535)],
+      switches: [sw("D", 635, 185), sw("E", 1015, 535)],
+      doors: [{ x: 1040, y: 535, w: 108, h: 32, requires: [], open: false }],
+      turrets: [{ x: 660, y: 360, hp: 3, cooldown: 680 }, { x: 870, y: 300, hp: 3, cooldown: 760 }, { x: 870, y: 450, hp: 3, cooldown: 860 }],
+      repairBots: [{ x: 805, y: 375, hp: 3, cooldown: 800 }],
+      drones: [{ x: 1015, y: 200, hp: 2, cooldown: 980 }],
+      scrap: scrap([430, 360], [635, 360], [1015, 185])
+    },
+    {
+      name: "Blink Hunter Labyrinth",
+      player: { x: 1035, y: 545 },
+      exit: { x: 110, y: 305, w: 58, h: 114 },
+      walls: [wall(250, 120, 42, 210), wall(250, 430, 42, 210), wall(430, 205, 220, 42), wall(430, 470, 220, 42), wall(650, 120, 42, 210), wall(650, 430, 42, 210), wall(820, 205, 220, 42), wall(820, 470, 220, 42), wall(520, 335, 160, 42)],
+      crates: [crate(860, 520)],
+      coinCrates: [coin(860, 185, 100), coin(385, 535, 84)],
+      plates: [plate("A", 1015, 185), plate("B", 1015, 535), plate("C", 600, 185), plate("D", 385, 535)],
+      switches: [sw("E", 220, 185), sw("F", 220, 535)],
+      doors: [{ x: 178, y: 305, w: 42, h: 112, requires: [], open: false }],
+      blinkHunters: [{ x: 790, y: 360, hp: 4, cooldown: 900, blink: 800 }, { x: 470, y: 360, hp: 4, cooldown: 1050, blink: 1100 }],
+      drones: [{ x: 600, y: 535, hp: 2, cooldown: 980 }],
+      scrap: scrap([860, 360], [600, 360], [385, 185], [220, 360])
+    },
+    {
+      name: "Gravity Missile Canal",
+      player: { x: 160, y: 560 },
+      exit: { x: 596, y: 82, w: 104, h: 58 },
+      walls: [wall(255, 250, 880, 42), wall(255, 440, 880, 42), wall(390, 95, 42, 155), wall(390, 482, 42, 135), wall(615, 95, 42, 155), wall(615, 482, 42, 135), wall(840, 95, 42, 155), wall(1010, 482, 42, 135)],
+      crates: [crate(440, 520), crate(900, 185)],
+      coinCrates: [coin(440, 185, 102), coin(1020, 535, 86)],
+      plates: [plate("A", 225, 185), plate("B", 225, 535), plate("C", 685, 535)],
+      switches: [sw("D", 685, 185), sw("E", 1015, 185), sw("F", 1015, 535)],
+      doors: [{ x: 590, y: 144, w: 116, h: 32, requires: [], open: false }],
+      gravityNodes: [{ x: 650, y: 360, hp: 4, pulse: 0 }],
+      missileSentries: [{ x: 835, y: 360, hp: 3, cooldown: 2500, lockMs: 0 }, { x: 1030, y: 360, hp: 3, cooldown: 3000, lockMs: 0 }],
+      turrets: [{ x: 500, y: 360, hp: 2, cooldown: 900 }],
+      scrap: scrap([440, 360], [685, 360], [1015, 360])
+    },
+    {
+      name: "Echo Jammer Switchyard",
+      player: { x: 155, y: 180 },
+      exit: { x: 1085, y: 505, w: 58, h: 106 },
+      walls: [wall(260, 145, 42, 205), wall(260, 430, 42, 185), wall(455, 250, 240, 42), wall(455, 470, 240, 42), wall(695, 110, 42, 180), wall(695, 512, 42, 105), wall(910, 235, 42, 290), wall(1010, 330, 42, 160)],
+      crates: [crate(430, 520), crate(785, 185)],
+      coinCrates: [coin(430, 185, 104), coin(1005, 535, 88)],
+      plates: [plate("A", 225, 535), plate("B", 575, 185), plate("C", 575, 535)],
+      switches: [sw("D", 225, 185), sw("E", 1015, 185), sw("F", 1015, 360)],
+      doors: [{ x: 1020, y: 500, w: 52, h: 116, requires: [], open: false }],
+      echoJammers: [{ x: 760, y: 360, hp: 5, pulse: 0 }],
+      turrets: [{ x: 945, y: 205, hp: 3, cooldown: 760 }],
+      drones: [{ x: 945, y: 520, hp: 3, cooldown: 980 }, { x: 600, y: 360, hp: 2, cooldown: 900 }],
+      lasers: [{ x1: 820, y1: 95, x2: 820, y2: 625, id: "L1", disabledBy: "E" }],
+      scrap: scrap([430, 360], [575, 360], [1015, 225], [1015, 535])
+    },
+    {
+      name: "Sweeper Shield Gallery",
+      player: { x: 640, y: 585 },
+      exit: { x: 596, y: 82, w: 104, h: 58 },
+      walls: [wall(270, 500, 250, 42), wall(270, 180, 42, 320), wall(520, 180, 42, 170), wall(520, 420, 42, 160), wall(735, 180, 42, 170), wall(735, 420, 42, 160), wall(910, 250, 250, 42), wall(910, 455, 250, 42), wall(590, 325, 130, 42)],
+      crates: [crate(360, 520), crate(840, 520)],
+      coinCrates: [coin(360, 185, 106), coin(1000, 535, 90)],
+      plates: [plate("A", 205, 185), plate("B", 205, 535), plate("C", 845, 185), plate("D", 845, 535)],
+      switches: [sw("E", 500, 360), sw("F", 1030, 360)],
+      doors: [{ x: 590, y: 144, w: 116, h: 32, requires: [], open: false }],
+      laserSweepers: [{ x: 660, y: 360, hp: 4, angle: 0.8, speed: 0.0012 }],
+      turrets: [{ x: 935, y: 300, hp: 3, cooldown: 760 }, { x: 935, y: 470, hp: 3, cooldown: 880 }],
+      shieldDrones: [{ x: 870, y: 360, hp: 4, cooldown: 700 }],
+      scrap: scrap([360, 360], [660, 535], [845, 360], [1030, 185])
+    },
+    {
+      name: "Repair Drone Orchard",
+      player: { x: 1035, y: 185 },
+      exit: { x: 110, y: 520, w: 58, h: 96 },
+      walls: [wall(260, 245, 180, 42), wall(260, 500, 180, 42), wall(475, 130, 42, 170), wall(475, 412, 42, 190), wall(700, 245, 250, 42), wall(700, 500, 250, 42), wall(940, 287, 42, 213), wall(585, 350, 160, 42)],
+      crates: [crate(835, 520), crate(365, 185)],
+      coinCrates: [coin(835, 185, 108), coin(365, 535, 92)],
+      plates: [plate("A", 1015, 535), plate("B", 650, 185), plate("C", 365, 535)],
+      switches: [sw("D", 1015, 360), sw("E", 220, 185), sw("F", 220, 535)],
+      doors: [{ x: 178, y: 515, w: 42, h: 106, requires: [], open: false }],
+      drones: [{ x: 740, y: 360, hp: 3, cooldown: 860 }, { x: 600, y: 535, hp: 3, cooldown: 960 }, { x: 390, y: 360, hp: 2, cooldown: 1050 }],
+      turrets: [{ x: 600, y: 185, hp: 2, cooldown: 840 }],
+      repairBots: [{ x: 650, y: 420, hp: 3, cooldown: 780 }],
+      scrap: scrap([835, 360], [650, 535], [365, 360], [220, 360])
+    },
+    {
+      name: "Core Cargo Furnace",
+      player: { x: 160, y: 560 },
+      exit: { x: 1045, y: 82, w: 96, h: 58 },
+      walls: [wall(260, 500, 250, 42), wall(260, 175, 42, 325), wall(500, 175, 42, 170), wall(500, 415, 42, 160), wall(720, 175, 42, 170), wall(720, 415, 42, 160), wall(900, 250, 230, 42), wall(900, 455, 230, 42)],
+      crates: [crate(350, 525), crate(610, 185), crate(820, 525)],
+      coinCrates: [coin(350, 185, 110), coin(1000, 535, 94)],
+      plates: [plate("A", 205, 185), plate("B", 555, 535), plate("C", 830, 185), plate("D", 830, 535)],
+      switches: [sw("E", 555, 185), sw("F", 1015, 360)],
+      doors: [{ x: 1040, y: 144, w: 108, h: 32, requires: [], open: false }],
+      turrets: [{ x: 610, y: 360, hp: 3, cooldown: 720 }, { x: 965, y: 225, hp: 3, cooldown: 820 }],
+      drones: [{ x: 965, y: 525, hp: 3, cooldown: 980 }],
+      core: { x: 1015, y: 360, hp: 8, alive: true },
+      scrap: scrap([350, 360], [555, 360], [830, 360], [1015, 220])
+    },
+    {
+      name: "Blink Missile Reliquary",
+      player: { x: 640, y: 585 },
+      exit: { x: 596, y: 82, w: 104, h: 58 },
+      walls: [wall(260, 320, 260, 42), wall(780, 320, 260, 42), wall(430, 145, 42, 175), wall(430, 362, 42, 180), wall(780, 145, 42, 175), wall(780, 362, 42, 180), wall(555, 230, 150, 42), wall(555, 452, 150, 42), wall(960, 150, 42, 160)],
+      crates: [crate(380, 520), crate(910, 520)],
+      coinCrates: [coin(380, 185, 112), coin(910, 185, 96)],
+      plates: [plate("A", 215, 185), plate("B", 215, 535), plate("C", 1015, 185), plate("D", 1015, 535)],
+      switches: [sw("E", 650, 360), sw("F", 1015, 360)],
+      doors: [{ x: 590, y: 144, w: 116, h: 32, requires: [], open: false }],
+      blinkHunters: [{ x: 775, y: 360, hp: 4, cooldown: 900, blink: 800 }],
+      missileSentries: [{ x: 925, y: 250, hp: 3, cooldown: 2600, lockMs: 0 }],
+      drones: [{ x: 1015, y: 520, hp: 2, cooldown: 1000 }],
+      scrap: scrap([380, 360], [650, 535], [910, 360], [1015, 250])
+    },
+    {
+      name: "Gravity Shield Foundry",
+      player: { x: 155, y: 185 },
+      exit: { x: 1085, y: 500, w: 58, h: 112 },
+      walls: [wall(260, 250, 210, 42), wall(260, 455, 210, 42), wall(470, 135, 42, 160), wall(470, 497, 42, 105), wall(690, 135, 42, 235), wall(690, 430, 42, 170), wall(890, 250, 240, 42), wall(890, 455, 240, 42), wall(560, 350, 150, 42)],
+      crates: [crate(395, 520), crate(810, 185)],
+      coinCrates: [coin(395, 185, 114), coin(1005, 535, 98)],
+      plates: [plate("A", 225, 185), plate("B", 225, 535), plate("C", 790, 535)],
+      switches: [sw("D", 790, 185), sw("E", 1015, 360)],
+      doors: [{ x: 1020, y: 500, w: 52, h: 114, requires: [], open: false }],
+      gravityNodes: [{ x: 650, y: 360, hp: 4, pulse: 0 }],
+      turrets: [{ x: 925, y: 300, hp: 3, cooldown: 740 }, { x: 925, y: 470, hp: 3, cooldown: 880 }],
+      shieldDrones: [{ x: 860, y: 360, hp: 4, cooldown: 700 }],
+      drones: [{ x: 1015, y: 205, hp: 2, cooldown: 980 }],
+      scrap: scrap([395, 360], [790, 360], [1015, 185], [1015, 535])
+    },
+    {
+      name: "Jammer Repair Cathedral",
+      player: { x: 1035, y: 560 },
+      exit: { x: 110, y: 90, w: 58, h: 104 },
+      walls: [wall(250, 500, 250, 42), wall(250, 178, 42, 322), wall(480, 178, 42, 160), wall(480, 420, 42, 160), wall(700, 140, 42, 235), wall(700, 430, 42, 170), wall(900, 245, 42, 255), wall(560, 305, 150, 42), wall(560, 385, 150, 42)],
+      crates: [crate(820, 520), crate(360, 185)],
+      coinCrates: [coin(820, 185, 116), coin(360, 535, 100)],
+      plates: [plate("A", 1015, 185), plate("B", 1015, 535), plate("C", 600, 535)],
+      switches: [sw("D", 220, 185), sw("E", 220, 535), sw("F", 600, 185)],
+      doors: [{ x: 178, y: 124, w: 42, h: 114, requires: [], open: false }],
+      echoJammers: [{ x: 620, y: 250, hp: 5, pulse: 0 }],
+      turrets: [{ x: 790, y: 330, hp: 3, cooldown: 720 }, { x: 895, y: 500, hp: 3, cooldown: 880 }],
+      drones: [{ x: 550, y: 520, hp: 2, cooldown: 980 }],
+      repairBots: [{ x: 820, y: 410, hp: 3, cooldown: 800 }],
+      scrap: scrap([820, 360], [600, 360], [360, 360], [220, 360])
+    },
+    {
+      name: "Singularity Lock Garden",
+      player: { x: 160, y: 560 },
+      exit: { x: 596, y: 82, w: 104, h: 58 },
+      walls: [wall(250, 505, 250, 42), wall(250, 180, 42, 325), wall(500, 180, 42, 165), wall(500, 430, 42, 160), wall(720, 180, 42, 165), wall(720, 430, 42, 160), wall(940, 180, 42, 325), wall(555, 300, 170, 42), wall(555, 395, 170, 42), wall(835, 300, 170, 42)],
+      crates: [crate(350, 525), crate(610, 185), crate(820, 525)],
+      coinCrates: [coin(350, 185, 120), coin(1030, 535, 104)],
+      plates: [plate("A", 205, 185), plate("B", 205, 535), plate("C", 610, 535), plate("D", 845, 185)],
+      switches: [sw("E", 610, 360), sw("F", 1030, 360)],
+      doors: [{ x: 590, y: 144, w: 116, h: 32, requires: [], open: false }],
+      gravityNodes: [{ x: 650, y: 250, hp: 4, pulse: 0 }],
+      laserSweepers: [{ x: 650, y: 450, hp: 4, angle: 1.1, speed: 0.0011 }],
+      missileSentries: [{ x: 875, y: 360, hp: 3, cooldown: 2700, lockMs: 0 }],
+      shieldDrones: [{ x: 920, y: 305, hp: 4, cooldown: 700 }],
+      turrets: [{ x: 985, y: 250, hp: 3, cooldown: 780 }],
+      core: { x: 1030, y: 455, hp: 9, alive: true },
+      scrap: scrap([350, 360], [610, 535], [845, 535], [1030, 250])
+    },
+    {
+      name: "Crown Reactor Gauntlet",
+      player: { x: 640, y: 585 },
+      exit: { x: 596, y: 80, w: 104, h: 58 },
+      walls: [wall(240, 500, 265, 42), wall(240, 180, 42, 320), wall(455, 180, 42, 165), wall(455, 430, 42, 160), wall(640, 135, 42, 235), wall(640, 430, 42, 170), wall(825, 180, 42, 165), wall(825, 430, 42, 160), wall(1000, 180, 42, 320), wall(535, 305, 130, 42), wall(715, 385, 130, 42)],
+      crates: [crate(330, 525), crate(540, 185), crate(820, 525)],
+      coinCrates: [coin(330, 185, 130), coin(1030, 535, 110)],
+      plates: [plate("A", 195, 185), plate("B", 195, 535), plate("C", 500, 535), plate("D", 850, 185)],
+      switches: [sw("E", 500, 185), sw("F", 850, 535), sw("G", 1030, 360)],
+      doors: [{ x: 590, y: 142, w: 116, h: 32, requires: [], open: false }],
+      turrets: [{ x: 330, y: 360, hp: 3, cooldown: 680 }, { x: 900, y: 360, hp: 3, cooldown: 740 }],
+      drones: [{ x: 1030, y: 205, hp: 3, cooldown: 900 }, { x: 1030, y: 535, hp: 3, cooldown: 1000 }],
+      missileSentries: [{ x: 780, y: 250, hp: 3, cooldown: 2600, lockMs: 0 }],
+      gravityNodes: [{ x: 650, y: 360, hp: 4, pulse: 0 }],
+      echoJammers: [{ x: 650, y: 205, hp: 5, pulse: 0 }],
+      laserSweepers: [{ x: 780, y: 480, hp: 4, angle: 0.7, speed: 0.001 }],
+      blinkHunters: [{ x: 865, y: 535, hp: 4, cooldown: 950, blink: 900 }],
+      shieldDrones: [{ x: 950, y: 300, hp: 4, cooldown: 700 }],
+      repairBots: [{ x: 960, y: 435, hp: 3, cooldown: 850 }],
+      core: { x: 1035, y: 360, hp: 11, alive: true },
+      scrap: scrap([330, 360], [500, 360], [850, 360], [1030, 250], [1030, 470])
     }
   ];
 
@@ -1197,9 +1696,11 @@ function AuthScreen({ onAuth }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
+    if (busy) return;
     const cleanNick = nickname.trim();
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
@@ -1211,6 +1712,7 @@ function AuthScreen({ onAuth }) {
       setMessage("Password needs at least 4 characters.");
       return;
     }
+    setBusy(true);
     if (cleanNick.toLowerCase() === DEV_LOGIN.nickname && cleanPassword === DEV_LOGIN.password) {
       const users = getStoredUsers();
       const existing = users.find((u) => u.nickname.toLowerCase() === DEV_LOGIN.nickname);
@@ -1238,45 +1740,69 @@ function AuthScreen({ onAuth }) {
           abilities: ABILITIES.map((ability) => ability.id)
         },
         devMode: true,
+        sessionNonce: makeRandomHex(16),
+        sessionExpiresAt: Date.now() + AUTH_SESSION_TTL_MS,
         createdAt: existing?.createdAt || new Date().toISOString()
       };
       saveStoredUsers([devUser, ...users.filter((u) => u.id !== devUser.id && u.nickname.toLowerCase() !== DEV_LOGIN.nickname)]);
       const session = makeSession(devUser);
       localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
       onAuth(session);
+      setBusy(false);
       return;
     }
-    const users = getStoredUsers();
-    const found = users.find((u) => u.nickname.toLowerCase() === cleanNick.toLowerCase());
-    if (mode === "signup") {
-      if (found) {
-        setMessage("That nickname is already registered.");
+    try {
+      const users = getStoredUsers();
+      const found = users.find((u) => u.nickname.toLowerCase() === cleanNick.toLowerCase());
+      if (mode === "signup") {
+        if (found) {
+          setMessage("That nickname is already registered.");
+          setBusy(false);
+          return;
+        }
+        const passwordRecord = await createPasswordRecord(cleanPassword);
+        const sessionNonce = makeRandomHex(16);
+        const sessionExpiresAt = Date.now() + AUTH_SESSION_TTL_MS;
+        const user = {
+          id: crypto.randomUUID?.() || `${Date.now()}`,
+          nickname: cleanNick,
+          email: cleanEmail,
+          avatar: "yellow",
+          cosmetic: COSMETIC_DEFAULTS,
+          coins: 25,
+          owned: DEFAULT_OWNED,
+          createdAt: new Date().toISOString(),
+          sessionNonce,
+          sessionExpiresAt,
+          ...passwordRecord
+        };
+        saveStoredUsers([...users, user]);
+        const session = makeSession(user);
+        localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+        onAuth(session);
+        setBusy(false);
         return;
       }
-      const user = {
-        id: crypto.randomUUID?.() || `${Date.now()}`,
-        nickname: cleanNick,
-        email: cleanEmail,
-        password: cleanPassword,
-        avatar: "yellow",
-        cosmetic: COSMETIC_DEFAULTS,
-        coins: 25,
-        owned: DEFAULT_OWNED,
-        createdAt: new Date().toISOString()
-      };
-      saveStoredUsers([...users, user]);
-      const session = makeSession(user);
-      localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+      if (!found || !(await verifyStoredPassword(found, cleanPassword))) {
+        setMessage("Nickname or password is incorrect.");
+        setBusy(false);
+        return;
+      }
+      let updated = { ...found };
+      if (!updated.passwordHash || !updated.passwordSalt) {
+        const passwordRecord = await createPasswordRecord(cleanPassword);
+        updated = { ...updated, ...passwordRecord };
+        delete updated.password;
+      }
+      updated.sessionNonce = makeRandomHex(16);
+      updated.sessionExpiresAt = Date.now() + AUTH_SESSION_TTL_MS;
+      const session = updateStoredUserProfile(updated);
       onAuth(session);
-      return;
+    } catch {
+      setMessage("Login storage failed. Try again.");
+    } finally {
+      setBusy(false);
     }
-    if (!found || found.password !== cleanPassword) {
-      setMessage("Nickname or password is incorrect.");
-      return;
-    }
-    const session = makeSession(found);
-    localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
-    onAuth(session);
   };
 
   return (
@@ -1309,7 +1835,7 @@ function AuthScreen({ onAuth }) {
               <input value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "signup" ? "new-password" : "current-password"} type="password" placeholder="4+ characters" />
             </label>
             {message && <p className="auth-message">{message}</p>}
-            <Button primary className="auth-submit" type="submit">{mode === "signup" ? "Create Profile" : "Enter Station"}</Button>
+            <Button primary className="auth-submit" type="submit">{busy ? "Securing Access..." : mode === "signup" ? "Create Profile" : "Enter Station"}</Button>
           </form>
         </section>
         <section className="panel auth-brief">
@@ -1659,8 +2185,12 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
     }
     ctx.restore();
   });
-  game.echoes.forEach((e) => drawDrone(ctx, e, true, cosmetic));
-  drawCargoTether(ctx, level, game, performance.now());
+  game.echoes.forEach((e) => {
+    drawDrone(ctx, e, true, cosmetic);
+    drawLabel(ctx, `ECHO ${e.slot + 1}`, e.x - 26, e.y + 38, e.echoColor || "#00f0d2");
+  });
+  const now = performance.now();
+  drawCargoTether(ctx, level, game, now);
   if (game.spawnFlash > 0) {
     const flash = clamp(game.spawnFlash / 1200, 0, 1);
     ctx.save();
@@ -1680,6 +2210,9 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
   }
   drawDrone(ctx, game.player, false, cosmetic);
   drawPet(ctx, game.player, cosmetic, performance.now());
+  if (game.echoStatus && now < (game.echoStatusUntil || 0)) {
+    drawLabel(ctx, game.echoStatus.toUpperCase(), game.player.x - 42, game.player.y - 45, "#ffd52d");
+  }
 
   game.bullets.forEach((b) => {
     ctx.fillStyle = b.owner === "enemy" ? "#ff4e41" : "#ffd52d";
@@ -1850,7 +2383,8 @@ function drawSpecialHostile(ctx, h, label, color, shape = "circle") {
 }
 
 function drawDrone(ctx, p, echo, cosmetic = COSMETIC_DEFAULTS) {
-  const skin = echo ? { ...COSMETIC_DEFAULTS, body: "rgba(0,240,210,.28)", accent: "#00f0d2", trail: "#00f0d2", frame: cosmetic.frame } : { ...COSMETIC_DEFAULTS, ...cosmetic };
+  const echoColor = p.echoColor || "#00f0d2";
+  const skin = echo ? { ...COSMETIC_DEFAULTS, body: p.echoFill || "rgba(0,240,210,.28)", accent: echoColor, trail: echoColor, frame: cosmetic.frame } : { ...COSMETIC_DEFAULTS, ...cosmetic };
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.rotate(p.angle || 0);
@@ -1867,10 +2401,10 @@ function drawDrone(ctx, p, echo, cosmetic = COSMETIC_DEFAULTS) {
     ctx.fill();
     ctx.globalAlpha = 1;
   }
-  ctx.shadowColor = echo ? "#00f0d2" : skin.accent;
+  ctx.shadowColor = echo ? echoColor : skin.accent;
   ctx.shadowBlur = echo ? 16 : p.dashTrail ? 22 : 12;
   ctx.fillStyle = skin.body;
-  ctx.strokeStyle = echo ? "#00f0d2" : skin.accent;
+  ctx.strokeStyle = echo ? echoColor : skin.accent;
   ctx.lineWidth = 3;
   ctx.beginPath();
   if (skin.frame === "split") {
@@ -1973,7 +2507,7 @@ function drawDrone(ctx, p, echo, cosmetic = COSMETIC_DEFAULTS) {
     }
   }
   ctx.shadowBlur = 0;
-  ctx.fillStyle = echo ? "#00f0d2" : "#061012";
+  ctx.fillStyle = echo ? echoColor : "#061012";
   if (skin.cockpit === "bubble") {
     ctx.beginPath();
     ctx.arc(4, 0, 7, 0, Math.PI * 2);
@@ -2182,6 +2716,11 @@ function getDifficultyTuning(difficulty = "Standard") {
   return DIFFICULTY_TUNING[difficulty] || DIFFICULTY_TUNING.Standard;
 }
 
+function getRunTuning(levelIndex, customLevel, settings) {
+  if (customLevel) return getDifficultyTuning(settings.difficulty);
+  return getCampaignTuning(levelIndex);
+}
+
 function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, cosmetic, awardCoins, keybinds }) {
   const canvas = useRef(null);
   const game = useRef(null);
@@ -2200,7 +2739,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     const perks = getPetPerks(cosmetic);
     const weapon = getWeaponById(cosmetic.weapon);
     const ability = getAbilityById(cosmetic.ability);
-    const tuning = getDifficultyTuning(settings.difficulty);
+    const tuning = getRunTuning(levelIndex, customLevel, settings);
     const maxShield = perks.maxShield || 0;
     const hostileHpBonus = tuning.hostileHpBonus || 0;
     const tuneHostileHp = (h, fallback = 2) => {
@@ -2263,12 +2802,16 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       coinPopups: [],
       abilityBursts: [],
       spawnFlash: 1200,
+      nextEchoId: 0,
+      echoStatus: "",
+      echoStatusUntil: 0,
       recording: [],
       recordTimer: 0,
       started: performance.now(),
       last: performance.now(),
       status: "playing",
       shake: 0,
+      campaignSection: getCampaignSection(levelIndex),
       tuning
     };
   };
@@ -2289,11 +2832,12 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     const down = (e) => {
       const boundCodes = new Set([...Object.values(keybinds), "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
       if (boundCodes.has(e.code)) e.preventDefault();
-      if (e.code === keybinds.dash && !keys.current.has(e.code)) dashQueued.current = true;
-      if (e.code === keybinds.ability && !keys.current.has(e.code)) abilityQueued.current = true;
-      if (e.code === keybinds.interact && !keys.current.has(e.code)) interactQueued.current = true;
+      const firstPress = !keys.current.has(e.code);
+      if (e.code === keybinds.dash && firstPress) dashQueued.current = true;
+      if (e.code === keybinds.ability && firstPress) abilityQueued.current = true;
+      if (e.code === keybinds.interact && firstPress) interactQueued.current = true;
       keys.current.add(e.code);
-      if (e.code === keybinds.echo) spawnEcho();
+      if (e.code === keybinds.echo && firstPress) spawnEcho();
       if (e.code === "Escape" && game.current?.status === "playing") setScreen("paused");
       if (e.code === "KeyR") reset();
     };
@@ -2354,16 +2898,51 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
 
   function spawnEcho() {
     const g = game.current;
+    if (!g) return;
     const perks = getPetPerks(cosmetic);
     const echoCost = Math.max(8, ECHO_COST - (perks.echoDiscount || 0));
+    const blockEcho = (message, shake = 4) => {
+      g.echoStatus = message;
+      g.echoStatusUntil = performance.now() + 1300;
+      if (settings.shake && !settings.reduced) g.shake = Math.max(g.shake, shake);
+    };
     if (g?.level.echoJammers?.some((j) => j.hp > 0 && dist(j, g.player) < 185)) {
-      if (settings.shake && !settings.reduced) g.shake = 6;
+      blockEcho("Echo jammed", 6);
       return;
     }
-    if (!g || g.echoes.length >= MAX_ECHOES || g.recording.length < 8 || g.player.energy < echoCost) return;
+    if (g.echoes.length >= MAX_ECHOES) {
+      blockEcho("Echo slots full");
+      return;
+    }
+    if (g.recording.length < 8) {
+      blockEcho("Recording route...");
+      return;
+    }
+    if (g.player.energy < echoCost) {
+      blockEcho(`Need ${Math.ceil(echoCost - g.player.energy)} energy`);
+      return;
+    }
     g.player.energy -= echoCost;
-    const frames = g.recording.slice();
-    g.echoes.push({ frames, age: 0, futureMs: 0, x: frames[0].x, y: frames[0].y, angle: 0, fired: 0 });
+    const frames = g.recording.slice(-ECHO_MS / ECHO_FRAME_MS);
+    const usedSlots = new Set(g.echoes.map((echo) => echo.slot));
+    const slot = Array.from({ length: MAX_ECHOES }, (_, i) => i).find((i) => !usedSlots.has(i)) ?? 0;
+    const id = g.nextEchoId ?? 0;
+    g.nextEchoId = id + 1;
+    g.echoes.push({
+      id,
+      slot,
+      frames,
+      age: 0,
+      futureMs: 0,
+      x: frames[0].x,
+      y: frames[0].y,
+      angle: 0,
+      fired: 0,
+      echoColor: ECHO_COLORS[slot] || ECHO_COLORS[0],
+      echoFill: ECHO_FILLS[slot] || ECHO_FILLS[0]
+    });
+    g.echoStatus = `Echo ${slot + 1} online`;
+    g.echoStatusUntil = performance.now() + 1100;
     if (settings.shake && !settings.reduced) g.shake = 8;
   }
 
@@ -3121,10 +3700,11 @@ function Meter({ label, value, max = 100, color }) {
 
 function MainMenu({ setScreen, setLevelIndex, user, onLogout }) {
   const totalStars = getTotalStars(user?.progress);
+  const currentSection = CAMPAIGN_SECTIONS[getCurrentSectionIndex(user)];
   return (
     <div className="overlay">
       <div className="menu-grid">
-        <section className="panel">
+        <section className="panel command-panel">
           <div className="panel-header">
             <span className="badge">Orbital Salvage Run</span>
             <button className="profile-pill" onClick={() => setScreen("profile")}>
@@ -3134,6 +3714,11 @@ function MainMenu({ setScreen, setLevelIndex, user, onLogout }) {
           </div>
           <h1 className="title">Echo Salvage</h1>
           <p className="lead">Pilot a drone through locked station rooms. The Echo replays an eight-second action window, then continues with the next recorded actions you perform after deployment.</p>
+          <div className="campaign-status" style={{ "--section-accent": currentSection.accent }}>
+            <span>{currentSection.label}</span>
+            <strong>{totalStars} stars banked</strong>
+            <small>{currentSection.blurb}</small>
+          </div>
           <div className="button-grid">
             <Button primary onClick={() => setScreen("briefing")}><Play size={22} /> Begin Training</Button>
             <Button onClick={() => setScreen("editor")}><Wand2 size={20} /> Level Creator</Button>
@@ -3144,22 +3729,44 @@ function MainMenu({ setScreen, setLevelIndex, user, onLogout }) {
             <Button danger onClick={onLogout}><LogOut size={20} /> Logout</Button>
           </div>
         </section>
-        <section className="panel">
+        <section className="panel campaign-panel">
           <h2>Run Brief</h2>
-          <Brief icon={<Bot />} title="Tutorial" text="Early rooms teach movement, plate cargo, coin caches, interacting, combat, and pressure plates before Echo timing escalates." />
-          <div className="star-brief"><Sparkles size={18} /><span>{totalStars} stars recovered</span><small>Later decks unlock gently as you extract from earlier rooms.</small></div>
-          <div className="rooms">
-            {rooms.map((r, i) => {
-              const unlocked = isRoomUnlocked(i, user);
-              const roomStars = user?.progress?.[i] || 0;
+          <Brief icon={<Bot />} title="Campaign Flow" text="The station is now split into four decks. You clear them in order; stars rate performance, but they no longer let you jump ahead and skip rooms." />
+          <div className="star-brief"><Sparkles size={18} /><span>{totalStars} stars recovered</span><small>Clear one room to open the next. Replays stay open for practice and better star runs.</small></div>
+          <div className="section-grid">
+            {CAMPAIGN_SECTIONS.map((section) => {
+              const [start, end] = section.range;
+              const sectionRooms = rooms.slice(start, end + 1);
+              const cleared = sectionRooms.filter((_, offset) => (Number(user?.progress?.[start + offset]) || 0) > 0).length;
+              const active = currentSection.id === section.id;
               return (
-              <button className="room-card" data-locked={!unlocked} disabled={!unlocked} key={r} onClick={() => { if (!unlocked) return; setLevelIndex(i); setScreen("playing"); }}>
-                <span className="room-num">{i + 1}</span>
-                <span className="room-tier">{getRoomTier(i)}</span>
-                <span className="room-name">{r}</span>
-                <span className="room-stars">{unlocked ? `${"★".repeat(roomStars)}${"☆".repeat(3 - roomStars)}` : `${getRequiredStars(i)} ★`}</span>
-              </button>
-            );})}
+                <section className="campaign-section" key={section.id} data-active={active} style={{ "--section-accent": section.accent }}>
+                  <div className="campaign-section-head">
+                    <div>
+                      <small>{section.shortLabel}</small>
+                      <h3>{section.label}</h3>
+                    </div>
+                    <span>{cleared}/{sectionRooms.length}</span>
+                  </div>
+                  <p>{section.blurb}</p>
+                  <div className="section-rooms">
+                    {sectionRooms.map((r, offset) => {
+                      const i = start + offset;
+                      const unlocked = isRoomUnlocked(i, user);
+                      const roomStars = user?.progress?.[i] || 0;
+                      return (
+                        <button className="room-card" data-locked={!unlocked} disabled={!unlocked} key={r} onClick={() => { if (!unlocked) return; setLevelIndex(i); setScreen("playing"); }}>
+                          <span className="room-num">{i + 1}</span>
+                          <span className="room-tier">{getRoomTier(i)}</span>
+                          <span className="room-name">{r}</span>
+                          <span className="room-stars">{unlocked ? `${"★".repeat(roomStars)}${"☆".repeat(3 - roomStars)}` : "LOCKED"}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
           </div>
           <p className="small-copy" style={{ marginTop: 16 }}>Keyboard recommended. Pause with Escape. Restart room with R.</p>
         </section>
@@ -3573,6 +4180,7 @@ function SettingsDrawer({ settings, setSettings, setScreen }) {
           <option value="reactor">Reactor</option>
           <option value="midnight">Midnight</option>
         </select>
+        <p className="small-copy">Menu surfaces use this. Stock campaign rooms now shift theme automatically by deck.</p>
       </div>
       <div className="setting">
         <label>Difficulty</label>
@@ -3581,7 +4189,7 @@ function SettingsDrawer({ settings, setSettings, setScreen }) {
           <option>Standard</option>
           <option>Hard</option>
         </select>
-        <p className="small-copy">Changes energy capacity and hostile pressure. Room layouts stay the same.</p>
+        <p className="small-copy">Applies to custom levels and editor tests. The stock campaign now ramps pressure automatically as you climb deeper into the station.</p>
       </div>
     </div>
   );
@@ -3676,6 +4284,7 @@ function PauseMenu({ setScreen, retryLevel }) {
 
 function Summary({ summary, setScreen, next, user, setUser }) {
   const earnedStars = getStarsForRoom(summary.levelIndex, summary);
+  const atFinalRoom = summary.levelIndex >= rooms.length - 1;
   useEffect(() => {
     if (summary.result !== "Extracted" || user?.devMode) return;
     const current = getStoredUsers().find((u) => u.id === user?.id) || user;
@@ -3691,10 +4300,10 @@ function Summary({ summary, setScreen, next, user, setUser }) {
       <section className="panel modal">
         <span className="badge">Run Summary</span>
         <h1 className="title" style={{ fontSize: 58 }}>{summary.result}</h1>
-        <p className="lead">{summary.room} | {summary.time}s | Scrap recovered: {summary.scrap} | Hull {summary.hull ?? 0}%</p>
+        <p className="lead">{summary.room} | {Math.round(summary.time)}s | Scrap recovered: {Math.round(summary.scrap)} | Hull {Math.round(summary.hull ?? 0)}%</p>
         <div className="summary-stars">{"★".repeat(earnedStars)}{"☆".repeat(3 - earnedStars)}</div>
         <div className="button-grid">
-          <Button primary onClick={next}><DoorOpen /> Next Room</Button>
+          <Button primary onClick={next}><DoorOpen /> {atFinalRoom ? "Return To Menu" : "Next Room"}</Button>
           <Button onClick={() => setScreen("menu")}><BookOpen /> Main Menu</Button>
         </div>
       </section>
@@ -4006,13 +4615,17 @@ function App() {
   const [keybinds, setKeybinds] = useState(() => getStoredKeybinds());
   const [summary, setSummary] = useState({ result: "Extracted", scrap: 0, hull: 100, time: 0, room: rooms[0], levelIndex: 0 });
   const activeCosmetic = useMemo(() => ({ ...COSMETIC_DEFAULTS, ...(user?.cosmetic || {}) }), [user?.cosmetic]);
+  const deckTheme = customLevel ? settings.uiTheme : getCampaignTheme(levelIndex);
+  const menuTheme = getCampaignSection(Math.max(0, getHighestClearedRoom(user?.progress) + 1)).theme;
+  const appTheme = screen === "playing" || screen === "paused" || screen === "summary" ? deckTheme : menuTheme;
   useAmbient(settings);
   const next = () => {
+    if (levelIndex >= rooms.length - 1) {
+      setScreen("menu");
+      return;
+    }
     setCustomLevel(null);
-    setLevelIndex((v) => {
-      const target = (v + 1) % rooms.length;
-      return isRoomUnlocked(target, user) ? target : v;
-    });
+    setLevelIndex((v) => Math.min(v + 1, rooms.length - 1));
     setScreen("playing");
   };
   const retryLevel = () => {
@@ -4030,7 +4643,7 @@ function App() {
     setScreen("auth");
   };
   return (
-    <div className="app" data-theme={settings.uiTheme}>
+    <div className="app" data-theme={appTheme}>
       <div className="frame" />
       {(screen === "playing" || screen === "paused" || screen === "summary") && <GameView key={`${levelIndex}-${runSeed}-${customLevel ? "custom" : "stock"}`} levelIndex={levelIndex} customLevel={customLevel} screen={screen === "playing" ? "playing" : "idle"} setScreen={setScreen} settings={settings} setSummary={setSummary} cosmetic={activeCosmetic} keybinds={keybinds} awardCoins={(amount) => {
         if (!user?.id) return;

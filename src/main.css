@@ -418,9 +418,9 @@ textarea {
 
 .menu-grid {
   display: grid;
-  grid-template-columns: minmax(300px, 560px) minmax(320px, 520px);
+  grid-template-columns: minmax(300px, 500px) minmax(420px, 1fr);
   gap: 20px;
-  width: min(1120px, 100%);
+  width: min(1380px, 100%);
   align-items: stretch;
 }
 
@@ -906,6 +906,45 @@ textarea {
   margin-top: 42px;
 }
 
+.command-panel .lead {
+  max-width: 500px;
+}
+
+.campaign-status {
+  display: grid;
+  gap: 4px;
+  margin-top: 22px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--section-accent), rgba(255, 255, 255, 0.12) 35%);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--section-accent), transparent 88%), transparent 60%),
+    rgba(8, 17, 20, 0.78);
+}
+
+.campaign-status span,
+.campaign-status strong {
+  text-transform: uppercase;
+}
+
+.campaign-status span {
+  color: color-mix(in srgb, var(--section-accent), white 20%);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.campaign-status strong {
+  color: var(--text);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.campaign-status small {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .construction-tab {
   position: relative;
 }
@@ -1098,13 +1137,77 @@ textarea {
   align-self: center;
 }
 
-.rooms {
+.section-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(70px, 1fr));
-  gap: 10px;
-  max-height: min(52vh, 520px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  max-height: min(56vh, 620px);
   overflow: auto;
   padding-right: 4px;
+}
+
+.campaign-section {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--section-accent), rgba(75, 116, 128, 0.5) 55%);
+  background:
+    linear-gradient(155deg, color-mix(in srgb, var(--section-accent), transparent 92%), transparent 48%),
+    rgba(8, 17, 20, 0.84);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.campaign-section[data-active="true"] {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--section-accent), transparent 72%),
+    0 12px 28px rgba(0, 0, 0, 0.22);
+}
+
+.campaign-section-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.campaign-section-head small,
+.campaign-section-head span {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.campaign-section-head small {
+  color: color-mix(in srgb, var(--section-accent), white 22%);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.campaign-section-head h3 {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-size: 21px;
+  text-transform: uppercase;
+}
+
+.campaign-section-head span {
+  border: 1px solid color-mix(in srgb, var(--section-accent), transparent 72%);
+  color: color-mix(in srgb, var(--section-accent), white 18%);
+  padding: 5px 8px;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.campaign-section p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.section-rooms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .star-brief {
@@ -1134,10 +1237,17 @@ textarea {
 }
 
 .room-card {
-  min-height: 92px;
-  padding: 10px;
+  min-height: 102px;
+  padding: 12px;
   text-align: left;
   color: var(--text);
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+
+.room-card:hover:not([data-locked="true"]) {
+  transform: translateY(-1px);
+  border-color: rgba(255, 213, 45, 0.34);
+  background: rgba(11, 22, 26, 0.92);
 }
 
 .room-card[data-locked="true"] {
@@ -1158,9 +1268,9 @@ textarea {
   display: inline-block;
   margin-top: 8px;
   padding: 2px 6px;
-  border: 1px solid rgba(0, 240, 210, 0.32);
+  border: 1px solid rgba(255, 213, 45, 0.28);
   border-radius: 4px;
-  color: var(--cyan);
+  color: #d7ebe8;
   font-size: 10px;
   font-weight: 900;
   line-height: 1;
@@ -1679,9 +1789,13 @@ textarea {
   }
 
   .button-grid,
-  .rooms,
+  .section-rooms,
   .controls-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .section-grid {
+    grid-template-columns: 1fr;
   }
 
   .title {
