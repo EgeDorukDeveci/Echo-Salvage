@@ -157,6 +157,14 @@ Build the static app:
 npm run build
 ```
 
+Run the stock-room sanity audit:
+
+```bash
+npm run audit:levels
+```
+
+This checks the handmade campaign rooms for structural issues like bad spawns, unused lock ids, over-capacity pressure plate counts, isolated support bots, missing cargo roles, weak reward density, and exit collisions with permanent geometry.
+
 ## Community Levels
 
 The Community Levels tab is currently marked **In Construction**.

@@ -772,7 +772,7 @@ function makeLevel(index = 0) {
       name: "Relay Turret Yard",
       player: { x: 160, y: 540 },
       exit: { x: 610, y: 80, w: 112, h: 58 },
-      walls: [wall(310, 155, 250, 42), wall(310, 525, 250, 42), wall(700, 100, 42, 220), wall(700, 400, 42, 220), wall(940, 220, 42, 280)],
+      walls: [wall(310, 155, 250, 42), wall(310, 525, 250, 42), wall(700, 180, 42, 140), wall(700, 400, 42, 220), wall(940, 220, 42, 280)],
       coinCrates: [coin(455, 360, 18), coin(1010, 525, 14)],
       plates: [plate("A", 230, 360)],
       switches: [sw("B", 590, 180), sw("C", 590, 540), sw("D", 1015, 360)],
@@ -818,7 +818,7 @@ function makeLevel(index = 0) {
       name: "Pressure Cargo Foundry",
       player: { x: 160, y: 560 },
       exit: { x: 610, y: 80, w: 112, h: 58 },
-      walls: [wall(300, 500, 260, 42), wall(300, 178, 42, 322), wall(610, 105, 42, 230), wall(610, 390, 42, 165), wall(850, 178, 42, 322), wall(850, 178, 220, 42)],
+      walls: [wall(300, 500, 260, 42), wall(300, 178, 42, 322), wall(610, 180, 42, 155), wall(610, 390, 42, 165), wall(850, 178, 42, 322), wall(850, 178, 220, 42)],
       crates: [crate(480, 185), crate(480, 500), crate(760, 360)],
       plates: [plate("A", 220, 185), plate("B", 220, 535), plate("C", 760, 185), plate("D", 760, 535)],
       switches: [sw("E", 1030, 360)],
@@ -1321,7 +1321,7 @@ function makeLevel(index = 0) {
       name: "Gravity Missile Canal",
       player: { x: 160, y: 560 },
       exit: { x: 596, y: 82, w: 104, h: 58 },
-      walls: [wall(255, 250, 880, 42), wall(255, 440, 880, 42), wall(390, 95, 42, 155), wall(390, 482, 42, 135), wall(615, 95, 42, 155), wall(615, 482, 42, 135), wall(840, 95, 42, 155), wall(1010, 482, 42, 135)],
+      walls: [wall(255, 250, 880, 42), wall(255, 440, 880, 42), wall(390, 95, 42, 155), wall(390, 482, 42, 135), wall(615, 180, 42, 70), wall(615, 482, 42, 135), wall(840, 95, 42, 155), wall(1010, 482, 42, 135)],
       crates: [crate(440, 520), crate(900, 185)],
       coinCrates: [coin(440, 185, 102), coin(1020, 535, 86)],
       plates: [plate("A", 225, 185), plate("B", 225, 535), plate("C", 685, 535)],
@@ -1462,7 +1462,7 @@ function makeLevel(index = 0) {
       name: "Crown Reactor Gauntlet",
       player: { x: 640, y: 585 },
       exit: { x: 596, y: 80, w: 104, h: 58 },
-      walls: [wall(240, 500, 265, 42), wall(240, 180, 42, 320), wall(455, 180, 42, 165), wall(455, 430, 42, 160), wall(640, 135, 42, 235), wall(640, 430, 42, 170), wall(825, 180, 42, 165), wall(825, 430, 42, 160), wall(1000, 180, 42, 320), wall(535, 305, 130, 42), wall(715, 385, 130, 42)],
+      walls: [wall(240, 500, 265, 42), wall(240, 180, 42, 320), wall(455, 180, 42, 165), wall(455, 430, 42, 160), wall(640, 180, 42, 190), wall(640, 430, 42, 170), wall(825, 180, 42, 165), wall(825, 430, 42, 160), wall(1000, 180, 42, 320), wall(535, 305, 130, 42), wall(715, 385, 130, 42)],
       crates: [crate(330, 525), crate(540, 185), crate(820, 525)],
       coinCrates: [coin(330, 185, 130), coin(1030, 535, 110)],
       plates: [plate("A", 195, 185), plate("B", 195, 535), plate("C", 500, 535), plate("D", 850, 185)],
@@ -1520,6 +1520,38 @@ const playerRect = (p) => ({ x: p.x - 15, y: p.y - 15, w: 30, h: 30 });
 const getSolidBlocks = (level) => [...level.walls, ...level.doors.filter((d) => !d.open), ...level.crates];
 const SPECIAL_HOSTILE_KEYS = ["gravityNodes", "echoJammers", "laserSweepers", "blinkHunters", "shieldDrones", "repairBots"];
 const LEVEL_ARRAY_KEYS = ["walls", "crates", "coinCrates", "plates", "switches", "doors", "turrets", "drones", "missileSentries", ...SPECIAL_HOSTILE_KEYS, "lasers", "scrap"];
+
+function overlapsAny(rect, blocks) {
+  return blocks.some((block) => rectsTouch(rect, block));
+}
+
+function nudgeOutOfBlocks(entity, blocks, direction = { x: 0, y: 0 }, maxDistance = 180) {
+  const base = playerRect(entity);
+  if (!overlapsAny(base, blocks)) return;
+  const dirLength = Math.hypot(direction.x || 0, direction.y || 0) || 1;
+  const vectors = [
+    { x: (direction.x || 0) / dirLength, y: (direction.y || 0) / dirLength },
+    { x: -(direction.x || 0) / dirLength, y: -(direction.y || 0) / dirLength },
+    { x: 1, y: 0 },
+    { x: -1, y: 0 },
+    { x: 0, y: 1 },
+    { x: 0, y: -1 }
+  ];
+  for (const vector of vectors) {
+    if (!vector.x && !vector.y) continue;
+    for (let distance = 8; distance <= maxDistance; distance += 8) {
+      const probe = {
+        x: clamp(entity.x + vector.x * distance, PLAYER_MARGIN, W - PLAYER_MARGIN),
+        y: clamp(entity.y + vector.y * distance, PLAYER_MARGIN, H - PLAYER_MARGIN)
+      };
+      if (!overlapsAny(playerRect(probe), blocks)) {
+        entity.x = probe.x;
+        entity.y = probe.y;
+        return;
+      }
+    }
+  }
+}
 
 function ensurePlayableSpawn(level) {
   LEVEL_ARRAY_KEYS.forEach((key) => {
@@ -2736,6 +2768,16 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
   const touch = useRef({ up: false, down: false, left: false, right: false, shoot: false, interact: false });
   const mobileMove = useRef({ x: 0, y: 0 });
   const mobileAim = useRef({ x: 0, y: 0, active: false, shooting: false });
+  const clearInputState = () => {
+    keys.current.clear();
+    mouse.current.down = false;
+    dashQueued.current = false;
+    abilityQueued.current = false;
+    interactQueued.current = false;
+    touch.current = { up: false, down: false, left: false, right: false, shoot: false, interact: false };
+    mobileMove.current = { x: 0, y: 0 };
+    mobileAim.current = { x: 0, y: 0, active: false, shooting: false };
+  };
 
   const reset = () => {
     const level = customLevel ? ensurePlayableSpawn(structuredClone(customLevel)) : makeLevel(levelIndex);
@@ -2794,7 +2836,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         abilityId: ability.id,
         abilityReadyAt: 0,
         phaseUntil: 0,
-        overdriveUntil: 0
+        overdriveUntil: 0,
+        phaseVector: { x: 0, y: 0 }
       },
       echoes: [],
       bullets: [],
@@ -2822,16 +2865,6 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
   useEffect(reset, [levelIndex, customLevel, settings.difficulty]);
 
   useEffect(() => {
-    const clearInputState = () => {
-      keys.current.clear();
-      mouse.current.down = false;
-      dashQueued.current = false;
-      abilityQueued.current = false;
-      interactQueued.current = false;
-      touch.current = { up: false, down: false, left: false, right: false, shoot: false, interact: false };
-      mobileMove.current = { x: 0, y: 0 };
-      mobileAim.current = { x: 0, y: 0, active: false, shooting: false };
-    };
     const down = (e) => {
       const boundCodes = new Set([...Object.values(keybinds), "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
       if (boundCodes.has(e.code)) e.preventDefault();
@@ -2851,11 +2884,13 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     window.addEventListener("blur", clearInputState);
+    window.addEventListener("contextmenu", clearInputState);
     document.addEventListener("visibilitychange", visibility);
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
       window.removeEventListener("blur", clearInputState);
+      window.removeEventListener("contextmenu", clearInputState);
       document.removeEventListener("visibilitychange", visibility);
     };
   }, [keybinds]);
@@ -2876,6 +2911,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     const mouseDown = (e) => {
       if (e.button !== 0) {
         e.preventDefault();
+        clearInputState();
         return;
       }
       mouse.current.down = true;
@@ -2891,11 +2927,13 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     c.addEventListener("mousedown", mouseDown);
     c.addEventListener("contextmenu", contextMenu);
     window.addEventListener("mouseup", mouseUp);
+    window.addEventListener("mouseleave", clearInputState);
     return () => {
       c.removeEventListener("mousemove", move);
       c.removeEventListener("mousedown", mouseDown);
       c.removeEventListener("contextmenu", contextMenu);
       window.removeEventListener("mouseup", mouseUp);
+      window.removeEventListener("mouseleave", clearInputState);
     };
   }, [settings.mouseSensitivity]);
 
@@ -3118,6 +3156,12 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     entity.y = clamp(entity.y + dy, PLAYER_MARGIN, H - PLAYER_MARGIN);
   }
 
+  function resolvePlayerAfterPhase(entity, level) {
+    nudgeOutOfBlocks(entity, level.crates, entity.phaseVector, 120);
+    const solids = [...level.walls, ...level.doors.filter((door) => !door.open)];
+    nudgeOutOfBlocks(entity, solids, entity.phaseVector, 220);
+  }
+
   function updateCargoTether(g, dt) {
     const tether = g.cargoTether;
     if (!tether) return;
@@ -3177,6 +3221,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       }
       const dt = Math.min(34, now - g.last);
       g.last = now;
+      if (!document.hasFocus()) clearInputState();
       const level = g.level;
       const perks = getPetPerks(cosmetic);
       const tuning = g.tuning || getDifficultyTuning(settings.difficulty);
@@ -3210,6 +3255,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
           g.player.dash = 0;
           g.player.energy -= DASH_COST;
           g.player.dashTrail = 180;
+          g.player.phaseVector = { x: nx, y: ny };
           if (settings.shake && !settings.reduced) g.shake = 5;
         }
         dashQueued.current = false;
@@ -3497,7 +3543,9 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         g.player.isReloading = false;
         g.player.ammo = activeWeapon.ammoMax;
       }
+      const hadPhase = (g.player.dashTrail || 0) > 0;
       g.player.dashTrail = Math.max(0, (g.player.dashTrail || 0) - dt);
+      if (hadPhase && g.player.dashTrail === 0) resolvePlayerAfterPhase(g.player, level);
       g.dashBursts.forEach((burst) => burst.life -= dt);
       g.dashBursts = g.dashBursts.filter((burst) => burst.life > 0);
       g.railBeams.forEach((beam) => {
