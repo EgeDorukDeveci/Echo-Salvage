@@ -1251,6 +1251,119 @@ textarea {
   text-transform: uppercase;
 }
 
+.world-overview {
+  position: relative;
+  min-height: 0;
+  margin-top: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(120, 171, 181, 0.32);
+  background:
+    linear-gradient(rgba(3, 9, 14, 0.06), rgba(3, 9, 14, 0.2)),
+    url("/assets/campaign-world-map.png") center / cover no-repeat;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 18px 42px rgba(0, 0, 0, 0.32);
+  aspect-ratio: 16 / 9;
+}
+
+.world-overview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 55px rgba(2, 7, 12, 0.5);
+}
+
+.world-route {
+  display: none;
+}
+
+.world-destination {
+  position: absolute;
+  z-index: 2;
+  width: 31%;
+  height: 38%;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 0;
+}
+
+.world-destination[data-deck="training-deck"] { left: 8%; top: 10%; }
+.world-destination[data-deck="breach-deck"] { right: 8%; top: 10%; }
+.world-destination[data-deck="reactor-deck"] { left: 8%; bottom: 6%; }
+.world-destination[data-deck="singularity-deck"] { right: 8%; bottom: 6%; }
+
+.world-destination-art {
+  position: absolute;
+  inset: 2% 8% 13%;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.world-destination:hover .world-destination-art,
+.world-destination:focus-visible .world-destination-art,
+.world-destination[data-active="true"] .world-destination-art {
+  border-color: color-mix(in srgb, var(--section-accent), white 18%);
+  box-shadow:
+    0 0 0 7px color-mix(in srgb, var(--section-accent), transparent 88%),
+    0 0 36px color-mix(in srgb, var(--section-accent), transparent 38%);
+  transform: scale(1.04);
+}
+
+.world-destination:focus-visible {
+  outline: none;
+}
+
+.world-destination-copy {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  display: grid;
+  min-width: 150px;
+  gap: 1px;
+  border: 1px solid color-mix(in srgb, var(--section-accent), transparent 52%);
+  background: rgba(3, 10, 14, 0.9);
+  padding: 7px 12px;
+  text-align: center;
+  transform: translateX(-50%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.world-destination-copy small,
+.world-destination-copy em {
+  color: color-mix(in srgb, var(--section-accent), white 18%);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.world-destination-copy strong {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.section-map-view {
+  min-height: 0;
+  margin-top: 14px;
+}
+
+.section-map-view .deck-map {
+  min-height: min(64vh, 630px);
+}
+
+.section-map-view .deck-map::before {
+  inset: 56px 36px 20px;
+}
+
+.section-map-view .map-route {
+  inset: 70px 42px 28px;
+}
+
 .campaign-map {
   display: grid;
   grid-template-columns: repeat(2, minmax(350px, 1fr));
@@ -1513,6 +1626,11 @@ textarea {
 
   .deck-map {
     min-height: 300px;
+  }
+
+  .world-destination-copy {
+    min-width: 132px;
+    padding: 6px 8px;
   }
 }
 
@@ -2107,8 +2225,36 @@ textarea {
     padding-right: 0;
   }
 
+  .world-overview {
+    min-height: 620px;
+    aspect-ratio: auto;
+    background-size: auto 100%;
+  }
+
+  .world-destination {
+    width: 44%;
+    height: 34%;
+  }
+
+  .world-destination[data-deck="training-deck"] { left: 2%; top: 10%; }
+  .world-destination[data-deck="breach-deck"] { right: 2%; top: 10%; }
+  .world-destination[data-deck="reactor-deck"] { left: 2%; bottom: 8%; }
+  .world-destination[data-deck="singularity-deck"] { right: 2%; bottom: 8%; }
+
+  .world-destination-copy {
+    min-width: 112px;
+  }
+
+  .world-destination-copy strong {
+    font-size: 11px;
+  }
+
   .deck-map {
     min-height: 285px;
+  }
+
+  .section-map-view .deck-map {
+    min-height: 520px;
   }
 
   .title {

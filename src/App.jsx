@@ -3899,6 +3899,8 @@ function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSett
   const totalStars = getTotalStars(safeProgress);
   const currentSection = CAMPAIGN_SECTIONS[getCurrentSectionIndex(user)];
   const nextRoomIndex = getNextCampaignRoomIndex(safeProgress);
+  const [selectedSectionId, setSelectedSectionId] = useState(null);
+  const selectedSection = CAMPAIGN_SECTIONS.find((section) => section.id === selectedSectionId);
   return (
     <div className="overlay">
       <div className="menu-grid">
@@ -3930,18 +3932,53 @@ function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSett
         <section className="panel campaign-panel">
           <div className="campaign-map-head">
             <div>
-              <span className="badge">Station Route</span>
-              <h2>Orbital Deck Map</h2>
-              <p>Follow the salvage route through four station sectors. Cleared rooms stay available for replay; the route opens one room at a time.</p>
+              <span className="badge">{selectedSection ? selectedSection.shortLabel : "Station Atlas"}</span>
+              <h2>{selectedSection ? selectedSection.label : "Orbital World Map"}</h2>
+              <p>{selectedSection ? selectedSection.blurb : "Choose one of the station's four major destinations, then follow its salvage route room by room."}</p>
             </div>
             <div className="campaign-map-stats">
               <span><Sparkles size={15} /> {totalStars} stars</span>
-              <strong>{nextRoomIndex + 1}<small> / {rooms.length}</small></strong>
-              <em>Next room</em>
+              {selectedSection ? (
+                <Button onClick={() => setSelectedSectionId(null)}>World Map</Button>
+              ) : (
+                <>
+                  <strong>{nextRoomIndex + 1}<small> / {rooms.length}</small></strong>
+                  <em>Next room</em>
+                </>
+              )}
             </div>
           </div>
-          <div className="campaign-map">
-            {CAMPAIGN_SECTIONS.map((section) => {
+          {!selectedSection ? (
+            <div className="world-overview">
+              <div className="world-route world-route-a" />
+              <div className="world-route world-route-b" />
+              {CAMPAIGN_SECTIONS.map((section) => {
+                const [start, end] = section.range;
+                const sectionRooms = rooms.slice(start, end + 1);
+                const cleared = sectionRooms.filter((_, offset) => (safeProgress[start + offset] || 0) > 0).length;
+                const active = currentSection.id === section.id;
+                return (
+                  <button
+                    className="world-destination"
+                    data-deck={section.id}
+                    data-active={active}
+                    key={section.id}
+                    style={{ "--section-accent": section.accent }}
+                    onClick={() => setSelectedSectionId(section.id)}
+                  >
+                    <span className="world-destination-art" aria-hidden="true"><i /><i /><i /></span>
+                    <span className="world-destination-copy">
+                      <small>{section.shortLabel}</small>
+                      <strong>{section.label}</strong>
+                      <em>{cleared}/{sectionRooms.length} rooms</em>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="section-map-view">
+              {CAMPAIGN_SECTIONS.filter((section) => section.id === selectedSection.id).map((section) => {
               const [start, end] = section.range;
               const sectionRooms = rooms.slice(start, end + 1);
               const cleared = sectionRooms.filter((_, offset) => (safeProgress[start + offset] || 0) > 0).length;
@@ -3990,7 +4027,8 @@ function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSett
                 </section>
               );
             })}
-          </div>
+            </div>
+          )}
         </section>
       </div>
     </div>
