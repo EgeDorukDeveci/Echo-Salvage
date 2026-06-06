@@ -41,8 +41,7 @@ const MAX_ENERGY = 120;
 const ECHO_COST = 14;
 const ECHO_COLORS = ["#00f0d2", "#ffd52d", "#b78cff"];
 const ECHO_FILLS = ["rgba(0,240,210,.28)", "rgba(255,213,45,.24)", "rgba(183,140,255,.25)"];
-const DASH_COST = 10;
-const ABILITY_DEFAULT = "emp";
+const ABILITY_DEFAULT = "dash";
 const DIFFICULTY_TUNING = {
   Easy: {
     maxEnergy: 150,
@@ -106,8 +105,8 @@ const keybindActions = [
   { id: "moveLeft", label: "Move Left" },
   { id: "moveRight", label: "Move Right" },
   { id: "shoot", label: "Shoot" },
-  { id: "dash", label: "Dash" },
-  { id: "ability", label: "Ability" },
+  { id: "dash", label: "Use Ability" },
+  { id: "ability", label: "Use Ability (Alt)" },
   { id: "reload", label: "Reload" },
   { id: "interact", label: "Interact" },
   { id: "echo", label: "Spawn Echo" }
@@ -321,7 +320,7 @@ const PETS = [
   { id: "ember", label: "Ember Dot", color: "#ff4e41", price: 55, perk: "Bullets hit harder" },
   { id: "moss", label: "Moss Byte", color: "#58e07a", price: 55, perk: "Slow hull repair" },
   { id: "orbit", label: "Orbit Pup", color: "#e7f0ef", price: 70, perk: "Small shield bar" },
-  { id: "bolt", label: "Bolt Mite", color: "#ffb000", price: 80, perk: "Dash cooldown is shorter" },
+  { id: "bolt", label: "Bolt Mite", color: "#ffb000", price: 80, perk: "Equipped ability cooldown is shorter" },
   { id: "lumen", label: "Lumen Eye", color: "#b2fff6", price: 95, perk: "Stronger shield recharge" },
   { id: "nova", label: "Nova Seed", color: "#ff8a00", price: 110, perk: "Bigger coin cache rewards" },
   { id: "royal", label: "Royal Core", color: "#b78cff", price: 140, perk: "Energy and hull trickle" },
@@ -341,10 +340,11 @@ const WEAPONS = [
   { id: "storm", label: "Storm Vector", price: 230, ammoMax: 34, reloadMs: 1600, fireDelay: 105, bulletSpeed: 600, damage: 1, spread: 0.11, shotsPerTrigger: 1, burstGap: 0, maxRange: 390, perk: "Very high DPS, but burns ammo fast and kicks wide." }
 ];
 const ABILITIES = [
-  { id: "emp", label: "EMP Pulse", price: 0, energyCost: 24, cooldownMs: 7000, perk: "Disables nearby turrets and stuns drones for a moment." },
-  { id: "shield", label: "Shield Surge", price: 110, energyCost: 28, cooldownMs: 9000, perk: "Instantly restores shield and steadies the hull." },
-  { id: "phase", label: "Phase Shift", price: 150, energyCost: 26, cooldownMs: 8000, perk: "Briefly ignore incoming damage while slipping through danger." },
-  { id: "overdrive", label: "Overdrive", price: 195, energyCost: 32, cooldownMs: 10000, perk: "Short burst of speed and weapon tempo." }
+  { id: "dash", label: "Phase Dash", price: 0, energyCost: 10, cooldownMs: 1800, perk: "Free starter. Phase quickly through danger in your movement direction." },
+  { id: "teleport", label: "Long Jump", price: 115, energyCost: 26, cooldownMs: 8500, perk: "Mark your aimed destination, then teleport there after a 2-second charge." },
+  { id: "blastDash", label: "Blast Dash", price: 155, energyCost: 24, cooldownMs: 6500, perk: "Launch forward and send a damaging shockwave through enemies in your path." },
+  { id: "cloak", label: "Invisibility Cloak", price: 185, energyCost: 28, cooldownMs: 10000, perk: "Become invisible to enemy targeting for 5 seconds." },
+  { id: "grapple", label: "Grappling Hook", price: 210, energyCost: 18, cooldownMs: 4800, perk: "Pull yourself rapidly toward the aimed point, stopping at solid walls." }
 ];
 const DEFAULT_OWNED = {
   colors: [COSMETIC_DEFAULTS.body, COSMETIC_DEFAULTS.accent, COSMETIC_DEFAULTS.trail],
@@ -503,6 +503,11 @@ async function verifyStoredPassword(user, password) {
 
 function normalizeEconomy(data = {}) {
   const devMode = data.devMode || data.nickname?.toLowerCase() === DEV_LOGIN.nickname;
+  const validAbilityIds = new Set(ABILITIES.map((ability) => ability.id));
+  const legacyAbilityMap = { emp: "teleport", shield: "cloak", phase: "grapple", overdrive: "blastDash" };
+  const migratedAbilities = (data.owned?.abilities || []).map((id) => legacyAbilityMap[id] || id);
+  const migratedSelectedAbility = legacyAbilityMap[data.cosmetic?.ability] || data.cosmetic?.ability;
+  const savedAbility = validAbilityIds.has(migratedSelectedAbility) ? migratedSelectedAbility : ABILITY_DEFAULT;
   return {
     coins: devMode ? DEV_COINS : Math.max(0, Math.round(Number.isFinite(data.coins) ? data.coins : 25)),
     owned: {
@@ -517,9 +522,9 @@ function normalizeEconomy(data = {}) {
       pets: [...new Set([...(data.owned?.pets || []), ...DEFAULT_OWNED.pets])],
       dashes: [...new Set([...(data.owned?.dashes || []), ...DEFAULT_OWNED.dashes])],
       weapons: [...new Set([...(data.owned?.weapons || []), ...DEFAULT_OWNED.weapons])],
-      abilities: [...new Set([...(data.owned?.abilities || []), ...DEFAULT_OWNED.abilities])]
+      abilities: [...new Set([...migratedAbilities.filter((id) => validAbilityIds.has(id)), ...DEFAULT_OWNED.abilities])]
     },
-    cosmetic: { ...COSMETIC_DEFAULTS, weapon: WEAPON_DEFAULT, ability: ABILITY_DEFAULT, ...(data.cosmetic || {}) }
+    cosmetic: { ...COSMETIC_DEFAULTS, weapon: WEAPON_DEFAULT, ...(data.cosmetic || {}), ability: savedAbility }
   };
 }
 
@@ -2052,19 +2057,149 @@ function useAmbient(settings) {
   }, [settings.music, settings.volume]);
 }
 
+const SECTION_VISUALS = {
+  "training-deck": { id: "training-deck", void: "#020b12", floor: ["#09262d", "#07171d", "#102328"], grid: "rgba(0,240,210,.12)", edge: "#66d7d2", wall: "#19353b" },
+  "breach-deck": { id: "breach-deck", void: "#100704", floor: ["#33170d", "#17100d", "#3a1d0b"], grid: "rgba(255,170,86,.16)", edge: "#ff9d3c", wall: "#4a2715" },
+  "reactor-deck": { id: "reactor-deck", void: "#041008", floor: ["#102b19", "#09170f", "#173522"], grid: "rgba(112,245,152,.14)", edge: "#79e49a", wall: "#183c27" },
+  "singularity-deck": { id: "singularity-deck", void: "#05040f", floor: ["#17152b", "#090b18", "#231637"], grid: "rgba(167,188,255,.13)", edge: "#a7b8ff", wall: "#252a4d" }
+};
+
+function getSectionVisual(game, uiTheme) {
+  const id = game?.campaignSection?.id || {
+    station: "training-deck",
+    hazard: "breach-deck",
+    reactor: "reactor-deck",
+    midnight: "singularity-deck"
+  }[uiTheme] || "training-deck";
+  return SECTION_VISUALS[id] || SECTION_VISUALS["training-deck"];
+}
+
+function drawSpaceBackdrop(ctx, visual, now) {
+  ctx.fillStyle = visual.void;
+  ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 95; i += 1) {
+    const x = (i * 137 + 31) % W;
+    const y = (i * 83 + 17) % H;
+    const pulse = 0.45 + Math.sin(now / 900 + i) * 0.25;
+    ctx.fillStyle = `rgba(205,232,242,${Math.max(0.12, pulse)})`;
+    ctx.fillRect(x, y, i % 11 === 0 ? 2 : 1, i % 11 === 0 ? 2 : 1);
+  }
+  ctx.strokeStyle = "rgba(135, 184, 202, 0.08)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(1120, 95, 118, 0, Math.PI * 2);
+  ctx.arc(1120, 95, 151, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = visual.id === "breach-deck" ? "rgba(255, 100, 30, 0.12)" : visual.id === "reactor-deck" ? "rgba(70, 220, 120, 0.1)" : "rgba(100, 150, 255, 0.09)";
+  ctx.beginPath();
+  ctx.arc(1120, 95, 66, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawSectionDecor(ctx, visual, now) {
+  ctx.save();
+  if (visual.id === "training-deck") {
+    ctx.strokeStyle = "rgba(0,240,210,.18)";
+    ctx.setLineDash([7, 10]);
+    [240, 640, 1040].forEach((x, i) => {
+      ctx.beginPath();
+      ctx.arc(x, 360, 70 + i * 8, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeRect(x - 24, 336, 48, 48);
+    });
+    ctx.setLineDash([]);
+  } else if (visual.id === "breach-deck") {
+    [[185, 150], [1045, 565], [965, 160]].forEach(([x, y], i) => {
+      const pulse = 8 + Math.sin(now / 420 + i) * 4;
+      ctx.fillStyle = "rgba(255,74,20,.14)";
+      ctx.beginPath();
+      ctx.arc(x, y, 36 + pulse, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,160,54,.35)";
+      ctx.beginPath();
+      ctx.moveTo(x - 30, y + 20);
+      ctx.lineTo(x - 10, y - 20);
+      ctx.lineTo(x + 6, y + 5);
+      ctx.lineTo(x + 24, y - 14);
+      ctx.stroke();
+    });
+  } else if (visual.id === "reactor-deck") {
+    [[150, 145], [1110, 160], [180, 570], [1080, 555], [640, 105]].forEach(([x, y], i) => {
+      ctx.strokeStyle = "rgba(88,224,122,.3)";
+      ctx.lineWidth = 2;
+      for (let branch = 0; branch < 4; branch += 1) {
+        const a = branch * 1.7 + i;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.quadraticCurveTo(x + Math.cos(a) * 25, y + Math.sin(a) * 35, x + Math.cos(a) * 52, y + Math.sin(a) * 52);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(134,255,158,.22)";
+        ctx.beginPath();
+        ctx.ellipse(x + Math.cos(a) * 42, y + Math.sin(a) * 42, 9, 4, a, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+  } else {
+    const pulse = 1 + Math.sin(now / 700) * 0.08;
+    ctx.translate(1090, 125);
+    ctx.scale(pulse, pulse);
+    ctx.fillStyle = "#010106";
+    ctx.shadowColor = "#9c72ff";
+    ctx.shadowBlur = 30;
+    ctx.beginPath();
+    ctx.arc(0, 0, 42, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(183,140,255,.5)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 78, 24, -0.35, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawSectionWall(ctx, wall, visual) {
+  glowRect(ctx, wall.x, wall.y, wall.w, wall.h, visual.edge, visual.wall, 12, 2);
+  ctx.save();
+  if (visual.id === "training-deck") {
+    ctx.strokeStyle = "rgba(190,255,250,.24)";
+    ctx.strokeRect(wall.x + 7, wall.y + 7, Math.max(1, wall.w - 14), Math.max(1, wall.h - 14));
+  } else if (visual.id === "breach-deck") {
+    ctx.strokeStyle = "rgba(255,196,80,.44)";
+    ctx.lineWidth = 4;
+    for (let x = wall.x + 6; x < wall.x + wall.w - 4; x += 18) {
+      ctx.beginPath();
+      ctx.moveTo(x, wall.y + wall.h - 5);
+      ctx.lineTo(x + 10, wall.y + 5);
+      ctx.stroke();
+    }
+  } else if (visual.id === "reactor-deck") {
+    ctx.strokeStyle = "rgba(100,255,145,.34)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(wall.x + 4, wall.y + 5);
+    ctx.bezierCurveTo(wall.x + wall.w * .3, wall.y + wall.h, wall.x + wall.w * .65, wall.y - 8, wall.x + wall.w - 4, wall.y + wall.h - 5);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(135,255,155,.24)";
+    ctx.beginPath();
+    ctx.arc(wall.x + wall.w * .7, wall.y + 7, 4, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.strokeStyle = "rgba(190,170,255,.32)";
+    ctx.setLineDash([9, 7]);
+    ctx.strokeRect(wall.x + 6, wall.y + 6, Math.max(1, wall.w - 12), Math.max(1, wall.h - 12));
+    ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+
 function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, uiTheme = "station") {
   ctx.save();
   ctx.clearRect(0, 0, W, H);
   if (shake) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
-  ctx.fillStyle = "#020b0d";
-  ctx.fillRect(0, 0, W, H);
-  const palettes = [
-    ["rgba(0, 32, 34, 0.78)", "rgba(0, 18, 20, 0.94)", "rgba(15, 18, 6, 0.78)"],
-    ["rgba(22, 31, 8, 0.7)", "rgba(0, 18, 20, 0.95)", "rgba(37, 24, 9, 0.7)"],
-    ["rgba(28, 5, 8, 0.56)", "rgba(0, 13, 17, 0.96)", "rgba(9, 29, 33, 0.72)"],
-    ["rgba(18, 8, 26, 0.5)", "rgba(0, 15, 17, 0.95)", "rgba(34, 10, 8, 0.62)"]
-  ];
-  const theme = palettes[(level.theme || 0) % palettes.length];
+  const now = performance.now();
+  const visual = getSectionVisual(game, uiTheme);
+  drawSpaceBackdrop(ctx, visual, now);
   const globalTheme = {
     station: { grid: "rgba(0,240,210,.09)", wallEdge: "rgba(131, 176, 185, 0.72)", wallFill: "rgba(24, 42, 47, 0.9)", laser: "#ff4e41", laserGlow: "#ff4e41" },
     hazard: { grid: "rgba(255,170,86,.14)", wallEdge: "rgba(255, 184, 94, 0.82)", wallFill: "rgba(54, 32, 14, 0.9)", laser: "#ff6b34", laserGlow: "#ff8a00" },
@@ -2072,12 +2207,12 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
     midnight: { grid: "rgba(167,188,255,.11)", wallEdge: "rgba(156, 176, 255, 0.8)", wallFill: "rgba(28, 34, 56, 0.92)", laser: "#9aa8ff", laserGlow: "#8aa0ff" }
   }[uiTheme] || { grid: "rgba(0,240,210,.09)", wallEdge: "rgba(131, 176, 185, 0.72)", wallFill: "rgba(24, 42, 47, 0.9)", laser: "#ff4e41", laserGlow: "#ff4e41" };
   const floor = ctx.createLinearGradient(0, 0, W, 0);
-  floor.addColorStop(0, theme[0]);
-  floor.addColorStop(0.46, theme[1]);
-  floor.addColorStop(1, theme[2]);
+  floor.addColorStop(0, visual.floor[0]);
+  floor.addColorStop(0.46, visual.floor[1]);
+  floor.addColorStop(1, visual.floor[2]);
   ctx.fillStyle = floor;
   ctx.fillRect(70, 50, W - 140, H - 100);
-  ctx.strokeStyle = globalTheme.grid;
+  ctx.strokeStyle = visual.grid;
   ctx.lineWidth = 1;
   for (let x = 80; x < W - 80; x += CELL) {
     ctx.beginPath();
@@ -2099,12 +2234,10 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
     ctx.lineTo(202, y + 20);
     ctx.stroke();
   }
+  drawSectionDecor(ctx, visual, now);
 
   level.walls.forEach((w) => {
-    glowRect(ctx, w.x, w.y, w.w, w.h, globalTheme.wallEdge, globalTheme.wallFill, 12, 2);
-    ctx.fillStyle = "rgba(204, 231, 232, 0.14)";
-    if (w.h > w.w) ctx.fillRect(w.x + 6, w.y + 8, Math.max(2, w.w - 12), 2);
-    else ctx.fillRect(w.x + 8, w.y + 6, Math.max(2, w.w - 16), 2);
+    drawSectionWall(ctx, w, visual);
   });
 
   level.crates.forEach((c) => {
@@ -2134,9 +2267,9 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
   level.plates.forEach((p) => {
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-    ctx.fillStyle = active.has(p.id) ? "rgba(88,224,122,.35)" : "rgba(255,213,45,.16)";
-    ctx.strokeStyle = active.has(p.id) ? "#58e07a" : "rgba(255,213,45,.7)";
-    ctx.shadowColor = active.has(p.id) ? "#58e07a" : "#ffd52d";
+    ctx.fillStyle = active.has(p.id) ? "rgba(88,224,122,.35)" : `${visual.edge}22`;
+    ctx.strokeStyle = active.has(p.id) ? "#58e07a" : visual.edge;
+    ctx.shadowColor = active.has(p.id) ? "#58e07a" : visual.edge;
     ctx.shadowBlur = 12;
     ctx.lineWidth = 3;
     ctx.fill();
@@ -2239,7 +2372,8 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
     ctx.arc(h.x, h.y, 150 + Math.sin((h.pulse || 0) * 0.01) * 10, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
-    drawSpecialHostile(ctx, h, "GRAVITY NODE", "#8aa0ff", "diamond");
+    if (visual.id === "singularity-deck") drawBlackHoleHostile(ctx, h);
+    else drawSpecialHostile(ctx, h, "GRAVITY NODE", "#8aa0ff", "diamond");
   });
   level.echoJammers?.forEach((h) => {
     if (h.hp <= 0) return;
@@ -2266,9 +2400,14 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
     ctx.lineTo(h.x + Math.cos(a) * 220, h.y + Math.sin(a) * 220);
     ctx.stroke();
     ctx.restore();
-    drawSpecialHostile(ctx, h, "LASER SWEEPER", "#ff4e41", "circle");
+    if (visual.id === "breach-deck") drawMagmaVentHostile(ctx, h);
+    else drawSpecialHostile(ctx, h, "LASER SWEEPER", "#ff4e41", "circle");
   });
-  level.blinkHunters?.forEach((h) => h.hp > 0 && drawSpecialHostile(ctx, h, "BLINK HUNTER", "#ff6ec7", "diamond"));
+  level.blinkHunters?.forEach((h) => {
+    if (h.hp <= 0) return;
+    if (visual.id === "reactor-deck") drawDeathPlantHostile(ctx, h);
+    else drawSpecialHostile(ctx, h, "BLINK HUNTER", "#ff6ec7", "diamond");
+  });
   level.shieldDrones?.forEach((h) => {
     if (h.hp <= 0) return;
     ctx.save();
@@ -2295,11 +2434,13 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
       ctx.stroke();
       ctx.restore();
     }
-    drawLabel(ctx, t.seesPlayer ? "TURRET LOCK" : "TURRET", t.x - 28, t.y - 38, t.seesPlayer ? "#ff4e41" : "#ff7c72");
-    drawHealthBar(ctx, t.x, t.y - 50, t.hp, t.maxHp || 3, "#ff4e41");
-    ctx.fillStyle = "#33272a";
-    ctx.strokeStyle = t.seesPlayer ? "#ff4e41" : "rgba(255, 78, 65, 0.55)";
-    ctx.shadowColor = t.seesPlayer ? "#ff4e41" : "rgba(255, 78, 65, 0.45)";
+    const turretLabel = visual.id === "training-deck" ? "SENTRY SIM" : visual.id === "reactor-deck" ? "THORN TURRET" : visual.id === "singularity-deck" ? "VOID TURRET" : "FORGE TURRET";
+    const turretColor = visual.id === "reactor-deck" ? "#9dff8f" : visual.id === "singularity-deck" ? "#b78cff" : visual.id === "training-deck" ? "#00f0d2" : "#ff6b34";
+    drawLabel(ctx, t.seesPlayer ? `${turretLabel} LOCK` : turretLabel, t.x - 34, t.y - 38, t.seesPlayer ? "#ff4e41" : turretColor);
+    drawHealthBar(ctx, t.x, t.y - 50, t.hp, t.maxHp || 3, turretColor);
+    ctx.fillStyle = visual.wall;
+    ctx.strokeStyle = t.seesPlayer ? "#ff4e41" : turretColor;
+    ctx.shadowColor = t.seesPlayer ? "#ff4e41" : turretColor;
     ctx.shadowBlur = 12;
     ctx.beginPath();
     ctx.arc(t.x, t.y, 22, 0, Math.PI * 2);
@@ -2311,14 +2452,18 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
   });
 
   if (level.core?.alive) {
-    ctx.fillStyle = "rgba(255,213,45,.18)";
-    ctx.strokeStyle = "#ffd52d";
+    const coreColor = visual.id === "reactor-deck" ? "#9dff8f" : visual.id === "singularity-deck" ? "#c2a0ff" : visual.id === "breach-deck" ? "#ff8a22" : "#ffd52d";
+    ctx.fillStyle = `${coreColor}28`;
+    ctx.strokeStyle = coreColor;
+    ctx.shadowColor = coreColor;
+    ctx.shadowBlur = 20;
     ctx.beginPath();
     ctx.arc(level.core.x, level.core.y, 28, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = "#ffd52d";
-    ctx.fillText("CORE", level.core.x - 17, level.core.y + 5);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = coreColor;
+    ctx.fillText(visual.id === "singularity-deck" ? "CROWN" : visual.id === "reactor-deck" ? "SEED" : "CORE", level.core.x - 17, level.core.y + 5);
   }
 
   drawLabel(ctx, "EXTRACT", level.exit.x - 3, level.exit.y - 18, "#00f0d2");
@@ -2355,7 +2500,6 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
     drawDrone(ctx, e, true, cosmetic);
     drawLabel(ctx, `ECHO ${e.slot + 1}`, e.x - 26, e.y + 38, e.echoColor || "#00f0d2");
   });
-  const now = performance.now();
   drawCargoTether(ctx, level, game, now);
   if (game.spawnFlash > 0) {
     const flash = clamp(game.spawnFlash / 1200, 0, 1);
@@ -2471,10 +2615,11 @@ function drawAbilityBurst(ctx, burst) {
   ctx.lineWidth = 4;
   const radius = 18 + (1 - life) * 88;
   const color =
-    burst.type === "shield" ? "#b2fff6" :
-      burst.type === "phase" ? "#8aa0ff" :
-        burst.type === "overdrive" ? "#ff8a00" :
-          "#00f0d2";
+    burst.type === "teleport" ? "#b78cff" :
+      burst.type === "blastDash" ? "#ff8a00" :
+        burst.type === "cloak" ? "#8aa0ff" :
+          burst.type === "grapple" ? "#ffd52d" :
+            "#00f0d2";
   ctx.strokeStyle = color;
   ctx.shadowColor = color;
   ctx.shadowBlur = 18;
@@ -2548,13 +2693,100 @@ function drawSpecialHostile(ctx, h, label, color, shape = "circle") {
   drawHealthBar(ctx, h.x, h.y - 50, h.hp, h.maxHp || 4, color);
 }
 
+function drawDeathPlantHostile(ctx, h) {
+  ctx.save();
+  ctx.translate(h.x, h.y);
+  ctx.rotate((h.angle || 0) + Math.PI / 2);
+  ctx.shadowColor = "#76ff87";
+  ctx.shadowBlur = 18;
+  for (let i = 0; i < 6; i += 1) {
+    ctx.rotate(Math.PI / 3);
+    ctx.fillStyle = i % 2 ? "#2d7a43" : "#4dac55";
+    ctx.strokeStyle = "#9dff8f";
+    ctx.beginPath();
+    ctx.ellipse(0, -15, 8, 20, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.fillStyle = "#291317";
+  ctx.strokeStyle = "#ff7080";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(0, 0, 12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#ffe8a3";
+  for (let i = 0; i < 5; i += 1) {
+    const a = i * Math.PI * 2 / 5;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * 7, Math.sin(a) * 7);
+    ctx.lineTo(Math.cos(a + .18) * 13, Math.sin(a + .18) * 13);
+    ctx.lineTo(Math.cos(a - .18) * 13, Math.sin(a - .18) * 13);
+    ctx.fill();
+  }
+  ctx.restore();
+  drawLabel(ctx, "DEATH PLANT", h.x - 42, h.y - 42, "#9dff8f");
+  drawHealthBar(ctx, h.x, h.y - 54, h.hp, h.maxHp || 3, "#58e07a");
+}
+
+function drawBlackHoleHostile(ctx, h) {
+  ctx.save();
+  ctx.translate(h.x, h.y);
+  ctx.rotate((h.pulse || 0) * 0.001);
+  ctx.shadowColor = "#b78cff";
+  ctx.shadowBlur = 28;
+  ctx.strokeStyle = "#c2a0ff";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 30, 11, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(115,145,255,.65)";
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 41, 16, Math.PI / 3, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "#010106";
+  ctx.beginPath();
+  ctx.arc(0, 0, 15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  drawLabel(ctx, "BLACK HOLE", h.x - 40, h.y - 42, "#c2a0ff");
+  drawHealthBar(ctx, h.x, h.y - 54, h.hp, h.maxHp || 4, "#b78cff");
+}
+
+function drawMagmaVentHostile(ctx, h) {
+  ctx.save();
+  ctx.translate(h.x, h.y);
+  ctx.shadowColor = "#ff4e20";
+  ctx.shadowBlur = 22;
+  ctx.fillStyle = "#24100b";
+  ctx.strokeStyle = "#ff8a22";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-22, 18);
+  ctx.lineTo(-14, -10);
+  ctx.lineTo(-5, -20);
+  ctx.lineTo(5, -12);
+  ctx.lineTo(14, -24);
+  ctx.lineTo(24, 18);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#ffcf45";
+  ctx.beginPath();
+  ctx.arc(0, 4, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  drawLabel(ctx, "MAGMA VENT", h.x - 42, h.y - 42, "#ff9d3c");
+  drawHealthBar(ctx, h.x, h.y - 54, h.hp, h.maxHp || 4, "#ff6b34");
+}
+
 function drawDrone(ctx, p, echo, cosmetic = COSMETIC_DEFAULTS) {
   const echoColor = p.echoColor || "#00f0d2";
   const skin = echo ? { ...COSMETIC_DEFAULTS, body: p.echoFill || "rgba(0,240,210,.28)", accent: echoColor, trail: echoColor, frame: cosmetic.frame } : { ...COSMETIC_DEFAULTS, ...cosmetic };
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.rotate(p.angle || 0);
-  ctx.globalAlpha = echo ? 0.48 : 1;
+  ctx.globalAlpha = echo ? 0.48 : p.cloakUntil > performance.now() ? 0.22 : 1;
   if (p.dashTrail && !echo) {
     ctx.globalAlpha = 0.35;
     ctx.fillStyle = skin.trail;
@@ -2856,7 +3088,7 @@ function getPetPerks(cosmetic = COSMETIC_DEFAULTS) {
     case "orbit":
       return { maxShield: 18, shieldRegen: 1.2 };
     case "bolt":
-      return { dashRegenMultiplier: 1.55 };
+      return { abilityCooldownMultiplier: 0.78 };
     case "lumen":
       return { maxShield: 26, shieldRegen: 2.4 };
     case "nova":
@@ -2894,7 +3126,6 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
   const keys = useRef(new Set());
   const mouse = useRef({ x: 0, y: 0, down: false });
   const aim = useRef({ x: W / 2, y: H / 2 });
-  const dashQueued = useRef(false);
   const abilityQueued = useRef(false);
   const interactQueued = useRef(false);
   const touch = useRef({ up: false, down: false, left: false, right: false, shoot: false, interact: false });
@@ -2903,7 +3134,6 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
   const clearInputState = () => {
     keys.current.clear();
     mouse.current.down = false;
-    dashQueued.current = false;
     abilityQueued.current = false;
     interactQueued.current = false;
     touch.current = { up: false, down: false, left: false, right: false, shoot: false, interact: false };
@@ -2956,7 +3186,6 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         maxEnergy: tuning.maxEnergy,
         shield: maxShield,
         maxShield,
-        dash: 100,
         scrap: 0,
         coinsEarned: 0,
         weaponId: weapon.id,
@@ -2969,7 +3198,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         abilityId: ability.id,
         abilityReadyAt: 0,
         phaseUntil: 0,
-        overdriveUntil: 0,
+        cloakUntil: 0,
+        pendingTeleport: null,
         phaseVector: { x: 0, y: 0 }
       },
       echoes: [],
@@ -3008,8 +3238,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       if (boundCodes.has(e.code)) e.preventDefault();
       if (screen !== "playing") return;
       const firstPress = !keys.current.has(e.code);
-      if (e.code === keybinds.dash && firstPress) dashQueued.current = true;
-      if (e.code === keybinds.ability && firstPress) abilityQueued.current = true;
+      if ((e.code === keybinds.dash || e.code === keybinds.ability) && firstPress) abilityQueued.current = true;
       if (e.code === keybinds.interact && firstPress) interactQueued.current = true;
       keys.current.add(e.code);
       if (e.code === keybinds.echo && firstPress) spawnEcho();
@@ -3193,24 +3422,69 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
   function useAbility(now) {
     const g = game.current;
     const ability = getAbilityById(g.player.abilityId || cosmetic.ability);
+    const perks = getPetPerks(cosmetic);
     if (now < g.player.abilityReadyAt || g.player.energy < ability.energyCost) return;
+    const movementX =
+      (keys.current.has(keybinds.moveRight) || keys.current.has("ArrowRight") || touch.current.right ? 1 : 0) -
+      (keys.current.has(keybinds.moveLeft) || keys.current.has("ArrowLeft") || touch.current.left ? 1 : 0) +
+      mobileMove.current.x;
+    const movementY =
+      (keys.current.has(keybinds.moveDown) || keys.current.has("ArrowDown") || touch.current.down ? 1 : 0) -
+      (keys.current.has(keybinds.moveUp) || keys.current.has("ArrowUp") || touch.current.up ? 1 : 0) +
+      mobileMove.current.y;
+    const directionAngle = movementX || movementY ? Math.atan2(movementY, movementX) : g.player.angle;
+    const nx = Math.cos(directionAngle);
+    const ny = Math.sin(directionAngle);
+    const aimedTarget = mobileAim.current.active
+      ? {
+          x: clamp(g.player.x + mobileAim.current.x * 430, PLAYER_MARGIN, W - PLAYER_MARGIN),
+          y: clamp(g.player.y + mobileAim.current.y * 430, PLAYER_MARGIN, H - PLAYER_MARGIN)
+        }
+      : {
+          x: clamp(mouse.current.x, PLAYER_MARGIN, W - PLAYER_MARGIN),
+          y: clamp(mouse.current.y, PLAYER_MARGIN, H - PLAYER_MARGIN)
+        };
     g.player.energy -= ability.energyCost;
-    g.player.abilityReadyAt = now + ability.cooldownMs;
+    g.player.abilityReadyAt = now + ability.cooldownMs * (perks.abilityCooldownMultiplier || 1);
     g.abilityBursts.push({ x: g.player.x, y: g.player.y, type: ability.id, life: 520, maxLife: 520 });
-    if (ability.id === "emp") {
-      g.level.turrets.forEach((t) => {
-        if (t.hp > 0 && dist(t, g.player) < 210) t.cooldown = Math.max(t.cooldown, 2800);
+    if (ability.id === "dash") {
+      g.dashBursts.push({ x: g.player.x, y: g.player.y, angle: directionAngle, life: 260, maxLife: 260 });
+      phaseMove(g.player, nx * 132, ny * 132);
+      g.player.dashTrail = 190;
+      g.player.phaseUntil = now + 320;
+      g.player.phaseVector = { x: nx, y: ny };
+    } else if (ability.id === "teleport") {
+      const targetX = aimedTarget.x;
+      const targetY = aimedTarget.y;
+      g.player.pendingTeleport = { x: targetX, y: targetY, executeAt: now + 2000 };
+      g.abilityBursts.push({ x: targetX, y: targetY, type: ability.id, life: 2000, maxLife: 2000 });
+    } else if (ability.id === "blastDash") {
+      const start = { x: g.player.x, y: g.player.y };
+      phaseMove(g.player, nx * 205, ny * 205);
+      g.player.phaseUntil = now + 360;
+      g.player.phaseVector = { x: nx, y: ny };
+      resolvePlayerAfterPhase(g.player, g.level);
+      const end = { x: g.player.x, y: g.player.y };
+      const targets = [...g.level.turrets, ...(g.level.drones || []), ...(g.level.missileSentries || []), ...SPECIAL_HOSTILE_KEYS.flatMap((key) => g.level[key] || [])];
+      targets.forEach((target) => {
+        if (target.hp > 0 && pointToSegmentDistance(target, start, end) < 72) target.hp -= isShielded(g.level, target) ? 0 : 3;
       });
-      g.level.drones?.forEach((d) => {
-        if (d.hp > 0 && dist(d, g.player) < 220) d.cooldown = Math.max(d.cooldown, 1800);
-      });
-    } else if (ability.id === "shield") {
-      g.player.shield = Math.min(g.player.maxShield || 30, (g.player.shield || 0) + 18);
-      g.player.hp = clamp(g.player.hp + 10, 0, 100);
-    } else if (ability.id === "phase") {
-      g.player.phaseUntil = now + 1700;
-    } else if (ability.id === "overdrive") {
-      g.player.overdriveUntil = now + 2400;
+      if (g.level.core?.alive && pointToSegmentDistance(g.level.core, start, end) < 78) {
+        g.level.core.hp -= 3;
+        if (g.level.core.hp <= 0) g.level.core.alive = false;
+      }
+      g.abilityBursts.push({ x: g.player.x, y: g.player.y, type: ability.id, life: 720, maxLife: 720 });
+    } else if (ability.id === "cloak") {
+      g.player.cloakUntil = now + 5000;
+    } else if (ability.id === "grapple") {
+      const targetX = aimedTarget.x;
+      const targetY = aimedTarget.y;
+      const dx = targetX - g.player.x;
+      const dy = targetY - g.player.y;
+      const gap = Math.hypot(dx, dy) || 1;
+      const pull = Math.min(390, gap);
+      tryMove(g.player, (dx / gap) * pull, (dy / gap) * pull, g.level, false);
+      g.abilityBursts.push({ x: targetX, y: targetY, type: ability.id, life: 440, maxLife: 440 });
     }
     if (settings.shake && !settings.reduced) g.shake = Math.max(g.shake, 6);
   }
@@ -3241,8 +3515,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         }, burstDelay);
       }
     }
-    const overdriveRate = now < (g.player.overdriveUntil || 0) ? 0.68 : 1;
-    g.player.nextShotAt = now + weapon.fireDelay * overdriveRate;
+    g.player.nextShotAt = now + weapon.fireDelay;
     if (g.player.ammo <= 0) startReload(now);
   }
 
@@ -3385,41 +3658,32 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         mx = mobileMove.current.x;
         my = mobileMove.current.y;
       }
-      if (!mx && !my && dashQueued.current && mobileAim.current.active) {
-        mx = mobileAim.current.x;
-        my = mobileAim.current.y;
-      }
       if (mx || my) {
         const len = Math.hypot(mx, my);
         const nx = mx / len;
         const ny = my / len;
-        if (dashQueued.current && g.player.dash >= 100 && g.player.energy >= DASH_COST) {
-          const dashAngle = Math.atan2(ny, nx);
-          g.dashBursts.push({ x: g.player.x, y: g.player.y, angle: dashAngle, life: 260, maxLife: 260 });
-          phaseMove(g.player, nx * 116, ny * 116);
-          g.player.dash = 0;
-          g.player.energy -= DASH_COST;
-          g.player.dashTrail = 180;
-          g.player.phaseVector = { x: nx, y: ny };
-          if (settings.shake && !settings.reduced) g.shake = 5;
-        }
-        dashQueued.current = false;
-        const overdriveBoost = now < (g.player.overdriveUntil || 0) ? 1.22 : 1;
         const dashBoost = g.player.dashTrail > 0 ? 1.35 : 1;
-        const moveX = nx * speed * dashBoost * overdriveBoost * dt / 1000;
-        const moveY = ny * speed * dashBoost * overdriveBoost * dt / 1000;
+        const moveX = nx * speed * dashBoost * dt / 1000;
+        const moveY = ny * speed * dashBoost * dt / 1000;
         if (g.player.dashTrail > 0) {
           phaseMove(g.player, moveX, moveY);
         } else {
           tryMove(g.player, moveX, moveY, level, true);
         }
-      } else if (dashQueued.current) {
-        dashQueued.current = false;
       }
       if (abilityQueued.current) {
         useAbility(now);
         abilityQueued.current = false;
       }
+      if (g.player.pendingTeleport && now >= g.player.pendingTeleport.executeAt) {
+        const target = g.player.pendingTeleport;
+        g.player.phaseVector = { x: target.x - g.player.x, y: target.y - g.player.y };
+        phaseMove(g.player, target.x - g.player.x, target.y - g.player.y);
+        resolvePlayerAfterPhase(g.player, level);
+        g.abilityBursts.push({ x: g.player.x, y: g.player.y, type: "teleport", life: 620, maxLife: 620 });
+        g.player.pendingTeleport = null;
+      }
+      const playerHidden = now < (g.player.cloakUntil || 0);
       if (mobileAim.current.active && (Math.abs(mobileAim.current.x) > 0.05 || Math.abs(mobileAim.current.y) > 0.05)) {
         g.player.angle = Math.atan2(mobileAim.current.y, mobileAim.current.x);
       } else {
@@ -3479,6 +3743,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
 
       level.drones?.forEach((d) => {
         if (d.hp <= 0) return;
+        if (playerHidden) return;
         const a = Math.atan2(g.player.y - d.y, g.player.x - d.x);
         d.angle = a;
         const gap = dist(d, g.player);
@@ -3500,7 +3765,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         if (m.hp <= 0) return;
         const gap = dist(m, g.player);
         const blockers = getSolidBlocks(level);
-        const seesPlayer = hasLineOfSight(m, g.player, blockers) && gap < 720;
+        const seesPlayer = !playerHidden && hasLineOfSight(m, g.player, blockers) && gap < 720;
         m.cooldown -= dt;
         if (seesPlayer) {
           m.lockMs = Math.min(1600, (m.lockMs || 0) + dt);
@@ -3534,6 +3799,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       });
       level.blinkHunters?.forEach((h) => {
         if (h.hp <= 0) return;
+        if (playerHidden) return;
         h.cooldown -= dt;
         h.blink -= dt;
         const a = Math.atan2(g.player.y - h.y, g.player.x - h.x);
@@ -3569,7 +3835,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         if (t.hp <= 0) return;
         t.cooldown -= dt;
         const blockers = getSolidBlocks(level);
-        const seesPlayer = hasLineOfSight(t, g.player, blockers);
+        const seesPlayer = !playerHidden && hasLineOfSight(t, g.player, blockers);
         t.seesPlayer = seesPlayer;
         if (t.cooldown <= 0 && seesPlayer) {
           const a = Math.atan2(g.player.y - t.y, g.player.x - t.x);
@@ -3630,8 +3896,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       g.bullets = g.bullets.filter((b) => b.life > 0 && b.x > 0 && b.x < W && b.y > 0 && b.y < H);
       g.missiles.forEach((missile) => {
         missile.life -= dt;
-        const target = Math.atan2(g.player.y - missile.y, g.player.x - missile.x);
         const current = Math.atan2(missile.vy || 0.001, missile.vx || 0.001);
+        const target = playerHidden ? current : Math.atan2(g.player.y - missile.y, g.player.x - missile.x);
         let delta = target - current;
         while (delta > Math.PI) delta -= Math.PI * 2;
         while (delta < -Math.PI) delta += Math.PI * 2;
@@ -3673,8 +3939,6 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         g.recording.push(frame);
         while (g.recording.length > ECHO_MS / ECHO_FRAME_MS) g.recording.shift();
       }
-      const overdriveRecharge = now < (g.player.overdriveUntil || 0) ? 1.3 : 1;
-      g.player.dash = clamp(g.player.dash + dt * 0.055 * (perks.dashRegenMultiplier || 1) * overdriveRecharge, 0, 100);
       const activeWeapon = getWeaponById(g.player.weaponId || cosmetic.weapon);
       g.player.ammoMax = activeWeapon.ammoMax;
       if (g.player.isReloading && now >= g.player.reloadUntil) {
@@ -3743,7 +4007,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
   }
   function mobileAction(action) {
     const now = performance.now();
-    if (action === "dash") dashQueued.current = true;
+    if (action === "dash") useAbility(now);
     if (action === "echo") spawnEcho();
     if (action === "ability") useAbility(now);
     if (action === "reload") startReload(now);
@@ -3858,10 +4122,9 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
           <div className="stat-tile"><Shield size={16} /><span>Scrap</span><strong>{g?.player.scrap ?? 0}</strong></div>
           <div className="stat-tile"><Sparkles size={16} /><span>Coins</span><strong>{g?.player.coinsEarned ?? 0}</strong></div>
           <button className="stat-tile" onClick={spawnEcho}><Radio size={16} /><span>Echo</span><strong>{g?.echoes.length ?? 0}/{MAX_ECHOES}</strong></button>
-          <div className="stat-tile"><Zap size={16} /><span>Dash</span><strong>{Math.round(g?.player.dash ?? 100)}%</strong></div>
           <div className="stat-tile"><Crosshair size={16} /><span>Ammo</span><strong>{g?.player.isReloading ? "..." : `${g?.player.ammo ?? 0}/${g?.player.ammoMax ?? 0}`}</strong></div>
           <div className="stat-tile"><Gauge size={16} /><span>Weapon</span><strong>{getWeaponById(g?.player.weaponId).label.split(" ")[0]}</strong></div>
-          <div className="stat-tile"><Radio size={16} /><span>Ability</span><strong>{Math.max(0, Math.ceil(((g?.player.abilityReadyAt ?? 0) - performance.now()) / 1000)) || "READY"}</strong></div>
+          <div className="stat-tile"><Zap size={16} /><span>{getAbilityById(g?.player.abilityId).label}</span><strong>{Math.max(0, Math.ceil(((g?.player.abilityReadyAt ?? 0) - performance.now()) / 1000)) || "READY"}</strong></div>
           <div className="hud-help">
             <button className="mode-chip" onClick={() => setControlMode(isMobile ? "pc" : "mobile")}>{isMobile ? "Mobile Mode" : "PC Mode"}</button>
             <span>{isMobile ? "Twin-stick touch active." : `${keyName(keybinds.interact)} toggles nearby cargo tether. ${keyName(keybinds.echo)} spawns Echo. ${keyName(keybinds.reload)} reloads.`}</span>
@@ -3875,9 +4138,8 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
             <span className="mobile-stick-knob" style={{ transform: `translate(${leftStick.x * 34}px, ${leftStick.y * 34}px)` }} />
           </div>
           <div className="mobile-actions">
-            <button className="mobile-action mobile-action-dash" onClick={() => mobileAction("dash")}>Dash</button>
+            <button className="mobile-action mobile-action-dash" onClick={() => mobileAction("dash")}>{getAbilityById(g?.player.abilityId).label}</button>
             <button className="mobile-action mobile-action-echo" onClick={() => mobileAction("echo")}>Echo</button>
-            <button className="mobile-action mobile-action-ability" onClick={() => mobileAction("ability")}>Ability</button>
             <button className="mobile-action mobile-action-pause" onClick={() => mobileAction("pause")}>Pause</button>
           </div>
           <div className="mobile-stick mobile-stick-aim" onPointerDown={onRightStickStart} onPointerMove={onRightStickMove} onPointerUp={onRightStickEnd} onPointerCancel={onRightStickEnd}>
@@ -4079,7 +4341,7 @@ function createInitialSummaryState() {
 
 function ProfileScreen({ user, setUser, setScreen }) {
   const [avatar, setAvatar] = useState(user?.avatar || "yellow");
-  const [cosmetic, setCosmetic] = useState({ ...COSMETIC_DEFAULTS, ...(user?.cosmetic || {}) });
+  const [cosmetic, setCosmetic] = useState(() => ({ ...COSMETIC_DEFAULTS, ...normalizeEconomy(user).cosmetic }));
   const [message, setMessage] = useState("");
   const economy = normalizeEconomy(user);
   const owned = economy.owned;
@@ -4141,7 +4403,8 @@ function ProfileScreen({ user, setUser, setScreen }) {
         x: 66,
         y: 62,
         angle: 0,
-        dashTrail: burstPhase < 0.18 ? 160 : 0
+        dashTrail: (ability.id === "dash" || ability.id === "blastDash") && burstPhase < 0.18 ? 160 : 0,
+        cloakUntil: ability.id === "cloak" && burstPhase < 0.55 ? now + 100 : 0
       };
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -4162,7 +4425,7 @@ function ProfileScreen({ user, setUser, setScreen }) {
         ctx.stroke();
       }
 
-      if (burstLife > 0) {
+      if (burstLife > 0 && (ability.id === "dash" || ability.id === "blastDash")) {
         drawDashBurst(ctx, { x: 48, y: 62, angle: 0, life: burstLife * 260, maxLife: 260 }, cosmetic);
       }
 
@@ -4194,7 +4457,7 @@ function ProfileScreen({ user, setUser, setScreen }) {
       if (((t * 1000) % ability.cooldownMs) < 900) {
         drawAbilityBurst(ctx, { x: 66, y: 62, type: ability.id, life: 360, maxLife: 520 });
       }
-      ctx.fillText(`Dash: ${DASH_STYLES.find((dash) => dash.id === cosmetic.dashStyle)?.label || "Streak"}`, 12, 90);
+      ctx.fillText(`Trail: ${DASH_STYLES.find((dash) => dash.id === cosmetic.dashStyle)?.label || "Streak"}`, 12, 90);
       ctx.fillText(`Pet: ${PETS.find((pet) => pet.id === cosmetic.pet)?.label || "No Pet"}`, 12, 104);
       ctx.fillText(`Ability: ${ability.label}`, 12, 118);
 
@@ -4899,7 +5162,7 @@ function App() {
   const [keybinds, setKeybinds] = useState(() => getStoredKeybinds());
   const [overlayReturnScreen, setOverlayReturnScreen] = useState("menu");
   const [summary, setSummary] = useState(createInitialSummaryState);
-  const activeCosmetic = useMemo(() => ({ ...COSMETIC_DEFAULTS, ...(user?.cosmetic || {}) }), [user?.cosmetic]);
+  const activeCosmetic = useMemo(() => ({ ...COSMETIC_DEFAULTS, ...normalizeEconomy(user).cosmetic }), [user]);
   const deckTheme = customLevel ? settings.uiTheme : getCampaignTheme(levelIndex);
   const menuTheme = getCampaignTheme(getNextCampaignRoomIndex(user?.progress));
   const appTheme = screen === "playing" || screen === "paused" || screen === "summary" ? deckTheme : menuTheme;

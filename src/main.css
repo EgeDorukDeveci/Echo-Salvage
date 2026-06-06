@@ -101,6 +101,20 @@ textarea {
   opacity: 0.45;
 }
 
+.app::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.42;
+  background-image:
+    radial-gradient(circle, rgba(230, 247, 255, 0.8) 0 1px, transparent 1.5px),
+    radial-gradient(circle, rgba(126, 211, 226, 0.5) 0 1px, transparent 1.5px);
+  background-position: 0 0, 37px 53px;
+  background-size: 113px 97px, 181px 149px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,.7), transparent 78%);
+}
+
 .frame {
   position: absolute;
   inset: clamp(10px, 2.4vw, 34px);

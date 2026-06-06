@@ -10,7 +10,8 @@ The Echo records an eight-second window of movement, shooting, dashing, and inte
 - Handmade 56-room campaign ordered by difficulty
 - Echo replay puzzles with plates, switches, doors, lasers, cargo, and timing
 - Hostiles: turrets, chase drones, missile sentries, gravity nodes, echo jammers, laser sweepers, shield drones, repair bots, and blink hunters
-- Dash, abilities, weapons, ammo, reloads, health, shield, energy, scrap, and coins
+- Four visually specialized orbital biomes with unique floors, walls, landmarks, cores, turrets, and section-native hostile variants such as Death Plants, Magma Vents, and Black Holes
+- A single equipped-ability system: starter Phase Dash plus Long Jump, Blast Dash, Invisibility Cloak, and Grappling Hook
 - Coin crates and a coin-based Customization Bay for skins, parts, pets, weapons, abilities, dash effects, and universal colors
 - Character customization with a larger live preview and buy/equip flow on one screen
 - Universal color unlocks: buy a color once, then use it across drone paint, glow, trail, and engine-style effects
@@ -107,7 +108,7 @@ Rooms 22-56 are hand-authored advanced rooms. They spread the hostile types acro
 - Move: `WASD` or arrow keys
 - Aim: mouse
 - Shoot: left click or `Space`
-- Dash: `Shift`
+- Use equipped ability: `Shift` or `F`
 - Interact: `E`
 - Spawn Echo: `Q`
 - Reload: configured reload key
