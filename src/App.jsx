@@ -1762,42 +1762,50 @@ function AuthScreen({ onAuth }) {
     }
     setBusy(true);
     if (cleanNick.toLowerCase() === DEV_LOGIN.nickname && cleanPassword === DEV_LOGIN.password) {
-      const users = getStoredUsers();
-      const existing = users.find((u) => u.nickname.toLowerCase() === DEV_LOGIN.nickname);
-      const devUser = {
-        ...(existing || {}),
-        id: existing?.id || "dev-local-profile",
-        nickname: DEV_LOGIN.nickname,
-        email: existing?.email || "",
-        password: DEV_LOGIN.password,
-        avatar: existing?.avatar || "gold",
-        cosmetic: existing?.cosmetic || COSMETIC_DEFAULTS,
-        coins: DEV_COINS,
-        owned: {
-          colors: UNIVERSAL_COLORS,
-          bodies: BODY_COLORS,
-          trails: TRAIL_COLORS,
-          frames: DRONE_FRAMES.map((frame) => frame.id),
-          cockpits: COCKPITS.map((cockpit) => cockpit.id),
-          engines: ENGINES.map((engine) => engine.id),
-          decals: DECALS.map((decal) => decal.id),
-          armors: ARMORS.map((armor) => armor.id),
-          pets: PETS.map((pet) => pet.id),
-          dashes: DASH_STYLES.map((dash) => dash.id),
-          weapons: WEAPONS.map((weapon) => weapon.id),
-          abilities: ABILITIES.map((ability) => ability.id)
-        },
-        devMode: true,
-        sessionNonce: makeRandomHex(16),
-        sessionExpiresAt: Date.now() + AUTH_SESSION_TTL_MS,
-        createdAt: existing?.createdAt || new Date().toISOString()
-      };
-      saveStoredUsers([devUser, ...users.filter((u) => u.id !== devUser.id && u.nickname.toLowerCase() !== DEV_LOGIN.nickname)]);
-      const session = makeSession(devUser);
-      localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
-      onAuth(session);
-      setBusy(false);
-      return;
+      try {
+        const users = getStoredUsers();
+        const existing = users.find((u) => u.nickname.toLowerCase() === DEV_LOGIN.nickname);
+        const passwordRecord = await createPasswordRecord(DEV_LOGIN.password);
+        const devUser = {
+          ...(existing || {}),
+          id: existing?.id || "dev-local-profile",
+          nickname: DEV_LOGIN.nickname,
+          email: existing?.email || "",
+          avatar: existing?.avatar || "gold",
+          cosmetic: existing?.cosmetic || COSMETIC_DEFAULTS,
+          coins: DEV_COINS,
+          owned: {
+            colors: UNIVERSAL_COLORS,
+            bodies: BODY_COLORS,
+            trails: TRAIL_COLORS,
+            frames: DRONE_FRAMES.map((frame) => frame.id),
+            cockpits: COCKPITS.map((cockpit) => cockpit.id),
+            engines: ENGINES.map((engine) => engine.id),
+            decals: DECALS.map((decal) => decal.id),
+            armors: ARMORS.map((armor) => armor.id),
+            pets: PETS.map((pet) => pet.id),
+            dashes: DASH_STYLES.map((dash) => dash.id),
+            weapons: WEAPONS.map((weapon) => weapon.id),
+            abilities: ABILITIES.map((ability) => ability.id)
+          },
+          devMode: true,
+          sessionNonce: makeRandomHex(16),
+          sessionExpiresAt: Date.now() + AUTH_SESSION_TTL_MS,
+          createdAt: existing?.createdAt || new Date().toISOString(),
+          ...passwordRecord
+        };
+        delete devUser.password;
+        saveStoredUsers([devUser, ...users.filter((u) => u.id !== devUser.id && u.nickname.toLowerCase() !== DEV_LOGIN.nickname)]);
+        const session = makeSession(devUser);
+        localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+        onAuth(session);
+        setBusy(false);
+        return;
+      } catch {
+        setMessage("Login storage failed. Try again.");
+        setBusy(false);
+        return;
+      }
     }
     try {
       const users = getStoredUsers();
