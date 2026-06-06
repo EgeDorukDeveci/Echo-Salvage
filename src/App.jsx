@@ -3629,9 +3629,23 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       g.spawnFlash = Math.max(0, (g.spawnFlash || 0) - dt);
       g.shake = Math.max(0, g.shake - dt * 0.03);
 
-      if (g.player.hp <= 0) {
-        setSummary({ result: "Signal Lost", scrap: g.player.scrap, hull: Math.max(0, Math.round(g.player.hp)), time: Math.round((now - g.started) / 1000), room: level.name, levelIndex, isCustom: Boolean(customLevel) });
+      const finishRun = (result) => {
+        if (g.status !== "playing") return;
+        g.status = "resolved";
+        setSummary({
+          result,
+          scrap: g.player.scrap,
+          hull: Math.max(0, Math.round(g.player.hp)),
+          time: Math.round((now - g.started) / 1000),
+          room: level.name,
+          levelIndex,
+          isCustom: Boolean(customLevel)
+        });
         setScreen("summary");
+      };
+
+      if (g.player.hp <= 0) {
+        finishRun("Signal Lost");
       }
       const roomSecured =
         (!level.core || !level.core.alive || levelIndex < 4) &&
@@ -3640,8 +3654,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         (level.missileSentries || []).every((m) => m.hp <= 0) &&
         SPECIAL_HOSTILE_KEYS.every((key) => (level[key] || []).every((h) => h.hp <= 0));
       if (rectsTouch(playerRect(g.player), level.exit) && level.doors.every((d) => d.open) && roomSecured) {
-        setSummary({ result: "Extracted", scrap: g.player.scrap, hull: Math.max(0, Math.round(g.player.hp)), time: Math.round((now - g.started) / 1000), room: level.name, levelIndex, isCustom: Boolean(customLevel) });
-        setScreen("summary");
+        finishRun("Extracted");
       }
 
       const ctx = canvas.current?.getContext("2d");
