@@ -1637,45 +1637,49 @@ function ensurePlayableSpawn(level) {
   return level;
 }
 
-function finalizeStockLevel(level) {
-  LEVEL_ARRAY_KEYS.forEach((key) => {
-    level[key] = level[key] || [];
-  });
-  const maxHeldPlates = 1 + MAX_ECHOES + level.crates.length;
-  if (level.plates.length > maxHeldPlates) {
-    const kept = new Set(level.plates.slice(0, maxHeldPlates).map((p) => p.id));
-    level.plates = level.plates.filter((p) => kept.has(p.id));
-    level.lasers = level.lasers.filter((l) => kept.has(l.disabledBy) || level.switches.some((s) => s.id === l.disabledBy));
-  }
-  const plateIds = level.plates.map((p) => p.id);
-  const switchIds = level.switches.map((s) => s.id);
-  level.doors.forEach((door) => {
-    door.requires = [...new Set([...plateIds, ...switchIds])];
-  });
-  level.crates.forEach((crate) => {
-    crate.role = "plate-weight";
-  });
-  return ensurePlayableSpawn(level);
-}
-
-function finalizeCustomLevel(level) {
+function normalizeInteractionLayout(level, { fillDoorRequirements = false } = {}) {
   LEVEL_ARRAY_KEYS.forEach((key) => {
     level[key] = level[key] || [];
   });
   level.doors = level.doors || [];
+  level.lasers = level.lasers || [];
   level.coinCrates = level.coinCrates || [];
-  const plateIds = level.plates.map((p) => p.id).filter(Boolean);
-  const switchIds = level.switches.map((s) => s.id).filter(Boolean);
+  level.plates = level.plates.map((plate, index) => ({
+    ...plate,
+    id: plate.id || `P${index + 1}`
+  }));
+  level.switches = level.switches.map((sw, index) => ({
+    ...sw,
+    id: sw.id || `S${index + 1}`
+  }));
+  const maxHeldPlates = 1 + MAX_ECHOES + level.crates.length;
+  if (level.plates.length > maxHeldPlates) {
+    const kept = new Set(level.plates.slice(0, maxHeldPlates).map((p) => p.id));
+    level.plates = level.plates.filter((p) => kept.has(p.id));
+  }
+  const plateIds = level.plates.map((p) => p.id);
+  const switchIds = level.switches.map((s) => s.id);
   const availableIds = new Set([...plateIds, ...switchIds]);
-  const fallbackRequirements = [...availableIds];
-  const hasExplicitRequirements = level.doors.some((door) => Array.isArray(door.requires) && door.requires.length > 0);
+  level.lasers = level.lasers.filter((laser) => availableIds.has(laser.disabledBy));
+  const normalizedRequirements = [...availableIds];
   level.doors.forEach((door) => {
     const requires = Array.isArray(door.requires) ? door.requires.filter((id) => availableIds.has(id)) : [];
-    door.requires = hasExplicitRequirements ? [...new Set(requires)] : [...fallbackRequirements];
+    door.requires = fillDoorRequirements ? normalizedRequirements : [...new Set(requires)];
   });
   level.crates.forEach((crate) => {
     crate.role = "plate-weight";
   });
+  return level;
+}
+
+function finalizeStockLevel(level) {
+  normalizeInteractionLayout(level, { fillDoorRequirements: true });
+  return ensurePlayableSpawn(level);
+}
+
+function finalizeCustomLevel(level) {
+  const hasExplicitRequirements = (level.doors || []).some((door) => Array.isArray(door.requires) && door.requires.length > 0);
+  normalizeInteractionLayout(level, { fillDoorRequirements: !hasExplicitRequirements });
   return ensurePlayableSpawn(level);
 }
 const segmentIntersectsRect = (a, b, r) => {
