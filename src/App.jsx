@@ -4661,9 +4661,15 @@ function Editor({ setScreen, setCustomLevel, user, settings = defaultSettings })
 }
 
 function App() {
-  const initialSession = useMemo(() => getStoredSession(), []);
-  const [user, setUser] = useState(initialSession);
-  const [screen, setScreen] = useState(initialSession ? "menu" : "auth");
+  const [bootState] = useState(() => {
+    const session = getStoredSession();
+    return {
+      user: session,
+      screen: session ? "menu" : "auth"
+    };
+  });
+  const [user, setUser] = useState(bootState.user);
+  const [screen, setScreen] = useState(bootState.screen);
   const [levelIndex, setLevelIndex] = useState(0);
   const [runSeed, setRunSeed] = useState(0);
   const [customLevel, setCustomLevel] = useState(null);
