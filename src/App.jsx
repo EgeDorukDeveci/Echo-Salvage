@@ -132,7 +132,7 @@ const rooms = [
   "Missile Dash Range",
   "Gravity Node Primer",
   "Jammer Mirror Lock",
-  "Sweeper Repair Bay",
+  "Sweeper Lock Bay",
   "Shield Drone Gauntlet",
   "Blink Hunter Furnace",
   "Echo Core Finale",
@@ -891,7 +891,7 @@ function makeLevel(index = 0) {
       scrap: scrap([475, 520], [760, 520], [1010, 190])
     },
     {
-      name: "Sweeper Repair Bay",
+      name: "Sweeper Lock Bay",
       exit: { x: 1000, y: 82, w: 112, h: 58 },
       walls: [wall(300, 100, 42, 520), wall(525, 220, 260, 42), wall(525, 460, 260, 42), wall(940, 100, 42, 520)],
       crates: [crate(450, 530)],
@@ -899,7 +899,6 @@ function makeLevel(index = 0) {
       switches: [sw("C", 1015, 185), sw("D", 1015, 535)],
       doors: [{ x: 995, y: 144, w: 122, h: 32, requires: [], open: false }],
       laserSweepers: [{ x: 650, y: 360, hp: 4, angle: 0, speed: 0.001 }],
-      repairBots: [{ x: 850, y: 360, hp: 3, cooldown: 900 }],
       turrets: [{ x: 900, y: 535, hp: 2, cooldown: 800 }],
       scrap: scrap([450, 185], [635, 185], [1015, 360])
     },

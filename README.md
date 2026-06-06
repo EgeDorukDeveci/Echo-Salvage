@@ -163,7 +163,7 @@ Run the stock-room sanity audit:
 npm run audit:levels
 ```
 
-This checks the handmade campaign rooms for structural issues like bad spawns, unused lock ids, over-capacity pressure plate counts, isolated support bots, missing cargo roles, weak reward density, and exit collisions with permanent geometry.
+This checks the handmade campaign rooms for structural issues like bad spawns, unused lock ids, over-capacity pressure plate counts, isolated support bots, missing cargo roles, weak reward density, exit collisions with permanent geometry, and early hostile introductions that would break the campaign teaching curve.
 
 Run the local verification bundle:
 

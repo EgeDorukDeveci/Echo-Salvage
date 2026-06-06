@@ -120,14 +120,56 @@ function auditLevel(level, index) {
   return issues;
 }
 
+const pacingRules = [
+  { key: "missileSentries", minRoom: 15, label: "Missile Sentry" },
+  { key: "gravityNodes", minRoom: 16, label: "Gravity Node" },
+  { key: "echoJammers", minRoom: 17, label: "Echo Jammer" },
+  { key: "laserSweepers", minRoom: 18, label: "Laser Sweeper" },
+  { key: "shieldDrones", minRoom: 19, label: "Shield Drone" },
+  { key: "blinkHunters", minRoom: 20, label: "Blink Hunter" },
+  { key: "repairBots", minRoom: 25, label: "Repair Bot" }
+];
+
+function auditCampaignPacing(levels) {
+  const issues = [];
+  levels.slice(0, 14).forEach((level, index) => {
+    pacingRules.forEach((rule) => {
+      if ((level[rule.key] || []).length > 0) {
+        issues.push(`Training deck room ${index + 1} introduces ${rule.label} too early`);
+      }
+    });
+    if (level.core) issues.push(`Training deck room ${index + 1} introduces a reactor core too early`);
+  });
+
+  pacingRules.forEach((rule) => {
+    const firstIndex = levels.findIndex((level) => (level[rule.key] || []).length > 0);
+    if (firstIndex !== -1 && firstIndex + 1 < rule.minRoom) {
+      issues.push(`${rule.label} first appears in room ${firstIndex + 1}, expected room ${rule.minRoom} or later`);
+    }
+  });
+
+  const firstCore = levels.findIndex((level) => level.core);
+  if (firstCore !== -1 && firstCore + 1 < 21) {
+    issues.push(`Reactor core first appears in room ${firstCore + 1}, expected room 21 or later`);
+  }
+
+  return issues;
+}
+
 const allIssues = [];
-rooms.forEach((roomName, index) => {
-  const level = makeLevel(index);
+const levels = rooms.map((_, index) => makeLevel(index));
+levels.forEach((level, index) => {
+  const roomName = rooms[index];
   const issues = auditLevel(level, index);
   if (issues.length) {
     allIssues.push({ index: index + 1, name: roomName, issues });
   }
 });
+
+const pacingIssues = auditCampaignPacing(levels);
+if (pacingIssues.length) {
+  allIssues.push({ index: 0, name: "Campaign pacing", issues: pacingIssues });
+}
 
 if (allIssues.length) {
   console.error("Level audit failed:");
