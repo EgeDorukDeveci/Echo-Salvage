@@ -3863,6 +3863,10 @@ function Brief({ icon, title, text }) {
   return <div className="brief-card"><div className="brief-icon">{icon}</div><div><h3>{title}</h3><p>{text}</p></div></div>;
 }
 
+function createInitialSummaryState() {
+  return { result: "Extracted", scrap: 0, hull: 100, time: 0, room: rooms[0], levelIndex: 0, isCustom: false };
+}
+
 function ProfileScreen({ user, setUser, setScreen }) {
   const [avatar, setAvatar] = useState(user?.avatar || "yellow");
   const [cosmetic, setCosmetic] = useState({ ...COSMETIC_DEFAULTS, ...(user?.cosmetic || {}) });
@@ -4683,7 +4687,7 @@ function App() {
   const [settings, setSettings] = useState(defaultSettings);
   const [keybinds, setKeybinds] = useState(() => getStoredKeybinds());
   const [overlayReturnScreen, setOverlayReturnScreen] = useState("menu");
-  const [summary, setSummary] = useState({ result: "Extracted", scrap: 0, hull: 100, time: 0, room: rooms[0], levelIndex: 0, isCustom: false });
+  const [summary, setSummary] = useState(createInitialSummaryState);
   const activeCosmetic = useMemo(() => ({ ...COSMETIC_DEFAULTS, ...(user?.cosmetic || {}) }), [user?.cosmetic]);
   const deckTheme = customLevel ? settings.uiTheme : getCampaignTheme(levelIndex);
   const menuTheme = getCampaignTheme(getNextCampaignRoomIndex(user?.progress));
@@ -4691,6 +4695,7 @@ function App() {
   useAmbient(settings);
   const returnToMenu = () => {
     setCustomLevel(null);
+    setOverlayReturnScreen("menu");
     setScreen("menu");
   };
   const openBriefing = () => {
@@ -4730,7 +4735,7 @@ function App() {
     setLevelIndex(0);
     setRunSeed(0);
     setOverlayReturnScreen("menu");
-    setSummary({ result: "Extracted", scrap: 0, hull: 100, time: 0, room: rooms[0], levelIndex: 0, isCustom: false });
+    setSummary(createInitialSummaryState());
     setUser(null);
     setScreen("auth");
   };
