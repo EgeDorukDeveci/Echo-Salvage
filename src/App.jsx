@@ -1657,6 +1657,27 @@ function finalizeStockLevel(level) {
   });
   return ensurePlayableSpawn(level);
 }
+
+function finalizeCustomLevel(level) {
+  LEVEL_ARRAY_KEYS.forEach((key) => {
+    level[key] = level[key] || [];
+  });
+  level.doors = level.doors || [];
+  level.coinCrates = level.coinCrates || [];
+  const plateIds = level.plates.map((p) => p.id).filter(Boolean);
+  const switchIds = level.switches.map((s) => s.id).filter(Boolean);
+  const availableIds = new Set([...plateIds, ...switchIds]);
+  const fallbackRequirements = [...availableIds];
+  const hasExplicitRequirements = level.doors.some((door) => Array.isArray(door.requires) && door.requires.length > 0);
+  level.doors.forEach((door) => {
+    const requires = Array.isArray(door.requires) ? door.requires.filter((id) => availableIds.has(id)) : [];
+    door.requires = hasExplicitRequirements ? [...new Set(requires)] : [...fallbackRequirements];
+  });
+  level.crates.forEach((crate) => {
+    crate.role = "plate-weight";
+  });
+  return ensurePlayableSpawn(level);
+}
 const segmentIntersectsRect = (a, b, r) => {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
@@ -2813,7 +2834,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
 
   const reset = () => {
     runInstance.current += 1;
-    const level = customLevel ? ensurePlayableSpawn(structuredClone(customLevel)) : makeLevel(levelIndex);
+    const level = customLevel ? finalizeCustomLevel(structuredClone(customLevel)) : makeLevel(levelIndex);
     const perks = getPetPerks(cosmetic);
     const weapon = getWeaponById(cosmetic.weapon);
     const ability = getAbilityById(cosmetic.ability);
@@ -4617,11 +4638,13 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
 
   const importCode = () => {
     try {
-      setLevel(decodeLevelCode(code));
+      setLevel(finalizeCustomLevel(decodeLevelCode(code)));
+      setSelected(null);
       setPublishStatus("Level code imported.");
     } catch {
       try {
-        setLevel(JSON.parse(code));
+        setLevel(finalizeCustomLevel(JSON.parse(code)));
+        setSelected(null);
         setPublishStatus("Legacy JSON imported.");
       } catch {
         setPublishStatus("Invalid level code.");
@@ -4640,7 +4663,7 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
           <p>Build, edit, or delete. Right-click an object to inspect it.</p>
         </div>
         <div className="editor-actions">
-          <Button primary onClick={() => { setCustomLevel(level); setScreen("playing"); }}><Play /> Test</Button>
+          <Button primary onClick={() => { setCustomLevel(finalizeCustomLevel(structuredClone(level))); setScreen("playing"); }}><Play /> Test</Button>
           <Button onClick={exportCode}>Make Code</Button>
           <Button onClick={importCode}>Import</Button>
           <Button onClick={returnToMenu}>Menu</Button>
