@@ -2881,9 +2881,14 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
   useEffect(reset, [levelIndex, customLevel, settings.difficulty]);
 
   useEffect(() => {
+    if (screen !== "playing") clearInputState();
+  }, [screen]);
+
+  useEffect(() => {
     const down = (e) => {
       const boundCodes = new Set([...Object.values(keybinds), "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
       if (boundCodes.has(e.code)) e.preventDefault();
+      if (screen !== "playing") return;
       const firstPress = !keys.current.has(e.code);
       if (e.code === keybinds.dash && firstPress) dashQueued.current = true;
       if (e.code === keybinds.ability && firstPress) abilityQueued.current = true;
@@ -2909,7 +2914,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       window.removeEventListener("contextmenu", clearInputState);
       document.removeEventListener("visibilitychange", visibility);
     };
-  }, [keybinds]);
+  }, [keybinds, screen]);
 
   useEffect(() => {
     const c = canvas.current;
