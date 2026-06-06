@@ -3759,7 +3759,7 @@ function Meter({ label, value, max = 100, color }) {
   );
 }
 
-function MainMenu({ setScreen, setLevelIndex, user, onLogout, openSettings, openControls }) {
+function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSettings, openControls }) {
   const totalStars = getTotalStars(user?.progress);
   const currentSection = CAMPAIGN_SECTIONS[getCurrentSectionIndex(user)];
   return (
@@ -3781,7 +3781,7 @@ function MainMenu({ setScreen, setLevelIndex, user, onLogout, openSettings, open
             <small>{currentSection.blurb}</small>
           </div>
           <div className="button-grid">
-            <Button primary onClick={() => setScreen("briefing")}><Play size={22} /> Begin Training</Button>
+            <Button primary onClick={openBriefing}><Play size={22} /> Begin Training</Button>
             <Button onClick={() => setScreen("editor")}><Wand2 size={20} /> Level Creator</Button>
             <Button className="construction-tab" onClick={() => setScreen("community")}><Globe2 size={20} /> Community Levels <span>In Construction</span></Button>
             <Button onClick={() => setScreen("profile")}><UserRound size={20} /> Customization Bay</Button>
@@ -3816,7 +3816,7 @@ function MainMenu({ setScreen, setLevelIndex, user, onLogout, openSettings, open
                       const unlocked = isRoomUnlocked(i, user);
                       const roomStars = user?.progress?.[i] || 0;
                       return (
-                        <button className="room-card" data-locked={!unlocked} disabled={!unlocked} key={r} onClick={() => { if (!unlocked) return; setLevelIndex(i); setScreen("playing"); }}>
+                        <button className="room-card" data-locked={!unlocked} disabled={!unlocked} key={r} onClick={() => { if (!unlocked) return; startRoom(i); }}>
                           <span className="room-num">{i + 1}</span>
                           <span className="room-tier">{getRoomTier(i)}</span>
                           <span className="room-name">{r}</span>
@@ -3836,7 +3836,7 @@ function MainMenu({ setScreen, setLevelIndex, user, onLogout, openSettings, open
   );
 }
 
-function Briefing({ setScreen }) {
+function Briefing({ setScreen, startRun }) {
   return (
     <div className="overlay">
       <div className="menu-grid">
@@ -3845,7 +3845,7 @@ function Briefing({ setScreen }) {
           <h1 className="title" style={{ fontSize: "clamp(46px, 6vw, 70px)" }}>Your past self is the tool.</h1>
           <p className="lead">Create an Echo after doing something useful. It replays your recent action window, then follows the actions you record immediately afterward on a delay.</p>
           <div className="button-grid">
-            <Button primary onClick={() => setScreen("playing")}><Play size={22} /> Start Run</Button>
+            <Button primary onClick={startRun}><Play size={22} /> Start Run</Button>
             <Button onClick={() => setScreen("menu")}>Main Menu</Button>
           </div>
         </section>
@@ -4326,7 +4326,7 @@ function Controls({ setScreen, keybinds, setKeybinds, returnScreen = "menu" }) {
   );
 }
 
-function PauseMenu({ setScreen, retryLevel, openSettings, openControls }) {
+function PauseMenu({ setScreen, retryLevel, openSettings, openControls, abandonRun }) {
   return (
     <div className="overlay">
       <section className="panel modal">
@@ -4336,14 +4336,14 @@ function PauseMenu({ setScreen, retryLevel, openSettings, openControls }) {
           <Button onClick={retryLevel}><RotateCcw /> Retry Level</Button>
           <Button onClick={openSettings}><Settings /> Settings</Button>
           <Button onClick={openControls}><Gamepad2 /> Controls</Button>
-          <Button danger onClick={() => setScreen("menu")}>Abandon Run</Button>
+          <Button danger onClick={abandonRun}>Abandon Run</Button>
         </div>
       </section>
     </div>
   );
 }
 
-function Summary({ summary, setScreen, next, user, setUser }) {
+function Summary({ summary, setScreen, next, user, setUser, returnToMenu }) {
   const earnedStars = getStarsForRoom(summary.levelIndex, summary);
   const isCustomRun = Boolean(summary.isCustom);
   const atFinalRoom = isCustomRun || summary.levelIndex >= rooms.length - 1;
@@ -4366,14 +4366,14 @@ function Summary({ summary, setScreen, next, user, setUser }) {
         <div className="summary-stars">{"★".repeat(earnedStars)}{"☆".repeat(3 - earnedStars)}</div>
         <div className="button-grid">
           <Button primary onClick={next}><DoorOpen /> {isCustomRun ? "Return To Menu" : atFinalRoom ? "Return To Menu" : "Next Room"}</Button>
-          <Button onClick={() => setScreen("menu")}><BookOpen /> Main Menu</Button>
+          <Button onClick={returnToMenu}><BookOpen /> Main Menu</Button>
         </div>
       </section>
     </div>
   );
 }
 
-function CommunityLevels({ setScreen, playLevel }) {
+function CommunityLevels({ returnToMenu, setScreen, playLevel }) {
   return (
     <div className="overlay">
       <section className="panel community-panel">
@@ -4384,7 +4384,7 @@ function CommunityLevels({ setScreen, playLevel }) {
             <p className="small-copy">Global level publishing is paused while the main game is being built.</p>
           </div>
           <div className="community-actions">
-            <Button onClick={() => setScreen("menu")}>Menu</Button>
+            <Button onClick={returnToMenu}>Menu</Button>
           </div>
         </div>
         <div className="community-list">
@@ -4399,7 +4399,7 @@ function CommunityLevels({ setScreen, playLevel }) {
   );
 }
 
-function Editor({ setScreen, setCustomLevel, user, settings = defaultSettings }) {
+function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defaultSettings }) {
   const canvas = useRef(null);
   const [mode, setMode] = useState("build");
   const [tool, setTool] = useState("wall");
@@ -4609,7 +4609,7 @@ function Editor({ setScreen, setCustomLevel, user, settings = defaultSettings })
           <Button primary onClick={() => { setCustomLevel(level); setScreen("playing"); }}><Play /> Test</Button>
           <Button onClick={exportCode}>Make Code</Button>
           <Button onClick={importCode}>Import</Button>
-          <Button onClick={() => setScreen("menu")}>Menu</Button>
+          <Button onClick={returnToMenu}>Menu</Button>
         </div>
       </aside>
       <aside className="editor-inspector" data-open={Boolean(selectedObject)}>
@@ -4689,14 +4689,26 @@ function App() {
   const menuTheme = getCampaignTheme(getNextCampaignRoomIndex(user?.progress));
   const appTheme = screen === "playing" || screen === "paused" || screen === "summary" ? deckTheme : menuTheme;
   useAmbient(settings);
+  const returnToMenu = () => {
+    setCustomLevel(null);
+    setScreen("menu");
+  };
+  const openBriefing = () => {
+    setCustomLevel(null);
+    setScreen("briefing");
+  };
+  const startCampaignRoom = (index = 0) => {
+    setCustomLevel(null);
+    setLevelIndex(index);
+    setScreen("playing");
+  };
   const next = () => {
     if (summary.isCustom) {
-      setCustomLevel(null);
-      setScreen("menu");
+      returnToMenu();
       return;
     }
     if (levelIndex >= rooms.length - 1) {
-      setScreen("menu");
+      returnToMenu();
       return;
     }
     setCustomLevel(null);
@@ -4734,16 +4746,16 @@ function App() {
         setUser(session);
       }} />}
       {screen === "auth" && <AuthScreen onAuth={(session) => { setUser(session); setScreen("menu"); }} />}
-      {screen === "menu" && <MainMenu user={user} onLogout={logout} setScreen={setScreen} setLevelIndex={(i) => { setCustomLevel(null); setLevelIndex(i); }} openSettings={() => openSettingsFrom("menu")} openControls={() => openControlsFrom("menu")} />}
+      {screen === "menu" && <MainMenu user={user} onLogout={logout} setScreen={setScreen} openBriefing={openBriefing} startRoom={startCampaignRoom} openSettings={() => openSettingsFrom("menu")} openControls={() => openControlsFrom("menu")} />}
       {screen === "profile" && <ProfileScreen user={user} setUser={setUser} setScreen={setScreen} />}
       {screen === "shop" && <ShopScreen user={user} setUser={setUser} setScreen={setScreen} />}
-      {screen === "briefing" && <Briefing setScreen={setScreen} />}
+      {screen === "briefing" && <Briefing setScreen={setScreen} startRun={() => startCampaignRoom(0)} />}
       {screen === "settings" && <SettingsDrawer settings={settings} setSettings={setSettings} setScreen={setScreen} returnScreen={overlayReturnScreen} />}
       {screen === "controls" && <Controls setScreen={setScreen} keybinds={keybinds} setKeybinds={setKeybinds} returnScreen={overlayReturnScreen} />}
-      {screen === "paused" && <PauseMenu setScreen={setScreen} retryLevel={retryLevel} openSettings={() => openSettingsFrom("paused")} openControls={() => openControlsFrom("paused")} />}
-      {screen === "summary" && <Summary summary={summary} setScreen={setScreen} next={next} user={user} setUser={setUser} />}
-      {screen === "community" && <CommunityLevels setScreen={setScreen} playLevel={playCommunityLevel} />}
-      {screen === "editor" && <Editor user={user} setScreen={setScreen} setCustomLevel={setCustomLevel} settings={settings} />}
+      {screen === "paused" && <PauseMenu setScreen={setScreen} retryLevel={retryLevel} abandonRun={returnToMenu} openSettings={() => openSettingsFrom("paused")} openControls={() => openControlsFrom("paused")} />}
+      {screen === "summary" && <Summary summary={summary} setScreen={setScreen} next={next} returnToMenu={returnToMenu} user={user} setUser={setUser} />}
+      {screen === "community" && <CommunityLevels returnToMenu={returnToMenu} setScreen={setScreen} playLevel={playCommunityLevel} />}
+      {screen === "editor" && <Editor returnToMenu={returnToMenu} user={user} setScreen={setScreen} setCustomLevel={setCustomLevel} settings={settings} />}
     </div>
   );
 }
