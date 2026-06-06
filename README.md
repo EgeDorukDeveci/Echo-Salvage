@@ -173,6 +173,14 @@ npm run verify
 
 That runs the room audit first, then the production build.
 
+Print the campaign pressure report:
+
+```bash
+npm run report:difficulty
+```
+
+This gives a quick weighted readout of room pressure so we can spot suspicious spikes or dips before changing the campaign by hand.
+
 ## Community Levels
 
 The Community Levels tab is currently marked **In Construction**.

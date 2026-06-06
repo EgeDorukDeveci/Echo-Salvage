@@ -8,6 +8,7 @@
     "community": "node server/community-server.js",
     "audit:levels": "node scripts/audit-levels.cjs",
     "build": "vite build",
+    "report:difficulty": "node scripts/report-difficulty.cjs",
     "verify": "npm run audit:levels && npm run build",
     "preview": "vite preview --host 0.0.0.0"
   },
