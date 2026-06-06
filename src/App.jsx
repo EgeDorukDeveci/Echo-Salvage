@@ -3103,6 +3103,10 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     if (settings.shake && !settings.reduced) g.shake = 8;
   }
 
+  function isShielded(level, target) {
+    return level.shieldDrones?.some((shield) => shield.hp > 0 && dist(shield, target) < 110 && dist(shield, target) > 18);
+  }
+
   function shoot(from, owner = "player") {
     const g = game.current;
     const angle = from.angle || 0;
@@ -3122,19 +3126,19 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       g.railBeams.push({ x1, y1, x2, y2, life: 110, maxLife: 110 });
       const blockers = getSolidBlocks(level);
       level.turrets.forEach((t) => {
-        if (t.hp > 0 && pointToSegmentDistance({ x: t.x, y: t.y }, line, end) < 24 && hasLineOfSight(line, t, blockers)) t.hp -= damage;
+        if (t.hp > 0 && !isShielded(level, t) && pointToSegmentDistance({ x: t.x, y: t.y }, line, end) < 24 && hasLineOfSight(line, t, blockers)) t.hp -= damage;
       });
       level.drones?.forEach((d) => {
-        if (d.hp > 0 && pointToSegmentDistance({ x: d.x, y: d.y }, line, end) < 22 && hasLineOfSight(line, d, blockers)) d.hp -= damage;
+        if (d.hp > 0 && !isShielded(level, d) && pointToSegmentDistance({ x: d.x, y: d.y }, line, end) < 22 && hasLineOfSight(line, d, blockers)) d.hp -= damage;
       });
-        level.missileSentries?.forEach((m) => {
-          if (m.hp > 0 && pointToSegmentDistance({ x: m.x, y: m.y }, line, end) < 23 && hasLineOfSight(line, m, blockers)) m.hp -= damage;
+      level.missileSentries?.forEach((m) => {
+        if (m.hp > 0 && !isShielded(level, m) && pointToSegmentDistance({ x: m.x, y: m.y }, line, end) < 23 && hasLineOfSight(line, m, blockers)) m.hp -= damage;
+      });
+      SPECIAL_HOSTILE_KEYS.forEach((key) => {
+        level[key]?.forEach((h) => {
+          if (h.hp > 0 && !isShielded(level, h) && pointToSegmentDistance({ x: h.x, y: h.y }, line, end) < 24 && hasLineOfSight(line, h, blockers)) h.hp -= damage;
         });
-        SPECIAL_HOSTILE_KEYS.forEach((key) => {
-          level[key]?.forEach((h) => {
-            if (h.hp > 0 && pointToSegmentDistance({ x: h.x, y: h.y }, line, end) < 24 && hasLineOfSight(line, h, blockers)) h.hp -= damage;
-          });
-        });
+      });
       if (level.core?.alive && pointToSegmentDistance(level.core, line, end) < 32 && hasLineOfSight(line, level.core, blockers)) {
         level.core.hp -= damage;
         if (level.core.hp <= 0) level.core.alive = false;
@@ -3559,16 +3563,15 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         b.life -= dt;
         if (b.traveled > (b.maxRange || 9999)) b.life = 0;
         if (getSolidBlocks(level).some((w) => rectsTouch({ x: b.x - 3, y: b.y - 3, w: 6, h: 6 }, w))) b.life = 0;
-        const shielded = (target) => level.shieldDrones?.some((s) => s.hp > 0 && dist(s, target) < 110 && dist(s, target) > 18);
         level.turrets.forEach((t) => {
           if (b.owner !== "enemy" && t.hp > 0 && dist(b, t) < 25) {
-            t.hp -= shielded(t) ? 0 : b.damage || 1;
+            t.hp -= isShielded(level, t) ? 0 : b.damage || 1;
             b.life = 0;
           }
         });
         level.drones?.forEach((d) => {
           if (b.owner !== "enemy" && d.hp > 0 && dist(b, d) < 24) {
-            d.hp -= shielded(d) ? 0 : b.damage || 1;
+            d.hp -= isShielded(level, d) ? 0 : b.damage || 1;
             b.life = 0;
             if (d.hp <= 0) {
               g.player.energy = clamp(g.player.energy + 12, 0, g.player.maxEnergy || MAX_ENERGY);
@@ -3577,14 +3580,14 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         });
         level.missileSentries?.forEach((m) => {
           if (b.owner !== "enemy" && m.hp > 0 && dist(b, m) < 25) {
-            m.hp -= shielded(m) ? 0 : b.damage || 1;
+            m.hp -= isShielded(level, m) ? 0 : b.damage || 1;
             b.life = 0;
           }
         });
         SPECIAL_HOSTILE_KEYS.forEach((key) => {
           level[key]?.forEach((h) => {
             if (b.owner !== "enemy" && h.hp > 0 && dist(b, h) < 25) {
-              h.hp -= b.damage || 1;
+              h.hp -= isShielded(level, h) ? 0 : b.damage || 1;
               b.life = 0;
             }
           });
