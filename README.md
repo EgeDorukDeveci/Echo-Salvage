@@ -165,6 +165,14 @@ npm run audit:levels
 
 This checks the handmade campaign rooms for structural issues like bad spawns, unused lock ids, over-capacity pressure plate counts, isolated support bots, missing cargo roles, weak reward density, and exit collisions with permanent geometry.
 
+Run the local verification bundle:
+
+```bash
+npm run verify
+```
+
+That runs the room audit first, then the production build.
+
 ## Community Levels
 
 The Community Levels tab is currently marked **In Construction**.

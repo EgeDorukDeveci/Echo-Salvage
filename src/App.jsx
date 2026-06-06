@@ -431,13 +431,17 @@ function getHighestClearedRoom(progress = {}) {
   return highest;
 }
 
+function getNextCampaignRoomIndex(progress = {}) {
+  return clamp(getHighestClearedRoom(progress) + 1, 0, rooms.length - 1);
+}
+
 function isRoomUnlocked(index, user) {
   if (user?.devMode) return true;
   return index <= getHighestClearedRoom(user?.progress) + 1;
 }
 
 function getCurrentSectionIndex(user) {
-  return Math.min(CAMPAIGN_SECTIONS.length - 1, Math.floor((getHighestClearedRoom(user?.progress) + 1) / 14));
+  return Math.min(CAMPAIGN_SECTIONS.length - 1, Math.floor(getNextCampaignRoomIndex(user?.progress) / 14));
 }
 
 function bytesToHex(bytes) {
@@ -4658,8 +4662,9 @@ function Editor({ setScreen, setCustomLevel, user, settings = defaultSettings })
 }
 
 function App() {
-  const [user, setUser] = useState(() => getStoredSession());
-  const [screen, setScreen] = useState(() => (getStoredSession() ? "menu" : "auth"));
+  const initialSession = useMemo(() => getStoredSession(), []);
+  const [user, setUser] = useState(initialSession);
+  const [screen, setScreen] = useState(initialSession ? "menu" : "auth");
   const [levelIndex, setLevelIndex] = useState(0);
   const [runSeed, setRunSeed] = useState(0);
   const [customLevel, setCustomLevel] = useState(null);
@@ -4669,7 +4674,7 @@ function App() {
   const [summary, setSummary] = useState({ result: "Extracted", scrap: 0, hull: 100, time: 0, room: rooms[0], levelIndex: 0, isCustom: false });
   const activeCosmetic = useMemo(() => ({ ...COSMETIC_DEFAULTS, ...(user?.cosmetic || {}) }), [user?.cosmetic]);
   const deckTheme = customLevel ? settings.uiTheme : getCampaignTheme(levelIndex);
-  const menuTheme = getCampaignSection(Math.max(0, getHighestClearedRoom(user?.progress) + 1)).theme;
+  const menuTheme = getCampaignTheme(getNextCampaignRoomIndex(user?.progress));
   const appTheme = screen === "playing" || screen === "paused" || screen === "summary" ? deckTheme : menuTheme;
   useAmbient(settings);
   const next = () => {
