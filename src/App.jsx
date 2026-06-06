@@ -583,10 +583,17 @@ function getStoredSession() {
       return null;
     }
     const user = getStoredUsers().find((entry) => entry.id === session.id);
-    if (!user) return null;
-    if (user.sessionNonce && session.sessionNonce !== user.sessionNonce) return null;
+    if (!user) {
+      localStorage.removeItem(AUTH_SESSION_KEY);
+      return null;
+    }
+    if (user.sessionNonce && session.sessionNonce !== user.sessionNonce) {
+      localStorage.removeItem(AUTH_SESSION_KEY);
+      return null;
+    }
     return makeSession({ ...user, ...session });
   } catch {
+    localStorage.removeItem(AUTH_SESSION_KEY);
     return null;
   }
 }
@@ -4349,7 +4356,7 @@ function Summary({ summary, setScreen, next, user, setUser }) {
       progress[summary.levelIndex] = earnedStars;
       setUser(updateStoredUserProfile({ ...current, progress }));
     }
-  }, [summary.result, summary.levelIndex, isCustomRun]);
+  }, [earnedStars, isCustomRun, setUser, summary.levelIndex, summary.result, user]);
   return (
     <div className="overlay">
       <section className="panel modal">
