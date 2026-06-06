@@ -4034,8 +4034,7 @@ function ProfileScreen({ user, setUser, setScreen }) {
       decal: currentOwned.decals.includes(cosmetic.decal) ? cosmetic.decal : COSMETIC_DEFAULTS.decal,
       armor: currentOwned.armors.includes(cosmetic.armor) ? cosmetic.armor : COSMETIC_DEFAULTS.armor,
       pet: currentOwned.pets.includes(cosmetic.pet) ? cosmetic.pet : "none",
-      dashStyle: currentOwned.dashes.includes(cosmetic.dashStyle) ? cosmetic.dashStyle : "streak"
-      ,
+      dashStyle: currentOwned.dashes.includes(cosmetic.dashStyle) ? cosmetic.dashStyle : "streak",
       weapon: currentOwned.weapons.includes(cosmetic.weapon) ? cosmetic.weapon : WEAPON_DEFAULT,
       ability: currentOwned.abilities.includes(cosmetic.ability) ? cosmetic.ability : ABILITY_DEFAULT
     };

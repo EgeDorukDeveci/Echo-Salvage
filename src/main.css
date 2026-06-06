@@ -530,6 +530,7 @@ textarea {
   width: min(1320px, 96vw);
   height: min(900px, 92vh);
   max-height: 92vh;
+  position: relative;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   overflow: hidden;
@@ -540,6 +541,8 @@ textarea {
 }
 
 .profile-message {
+  position: relative;
+  z-index: 2;
   min-height: 34px;
   margin-bottom: 10px;
   border-color: rgba(0, 240, 210, 0.32);
@@ -550,6 +553,7 @@ textarea {
 
 .profile-message[data-visible="false"] {
   opacity: 0;
+  visibility: hidden;
 }
 
 .profile-head-actions {
@@ -560,10 +564,11 @@ textarea {
 
 .profile-scroll {
   position: relative;
-  z-index: 1;
+  z-index: 0;
   min-height: 0;
   overflow: auto;
   padding-right: 8px;
+  padding-bottom: 10px;
 }
 
 .avatar-grid {
@@ -593,7 +598,7 @@ textarea {
 
 .profile-preview {
   position: relative;
-  z-index: 3;
+  z-index: 2;
   isolation: isolate;
   display: grid;
   grid-template-columns: minmax(280px, 390px) minmax(0, 1fr);
@@ -602,6 +607,9 @@ textarea {
   margin-bottom: 12px;
   padding: 14px;
   border: 1px solid var(--line);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 10px 24px rgba(0, 0, 0, 0.16);
   background:
     linear-gradient(rgba(0, 240, 210, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 240, 210, 0.05) 1px, transparent 1px),
@@ -631,6 +639,8 @@ textarea {
 }
 
 .profile-actions {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
@@ -781,6 +791,9 @@ textarea {
 }
 
 .shop-item {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: grid;
   min-height: 84px;
   grid-template-rows: auto auto auto;
@@ -792,10 +805,45 @@ textarea {
   color: var(--text);
   padding: 10px;
   text-align: center;
+  transition: border-color .16s ease, background .16s ease, transform .16s ease, box-shadow .16s ease;
+}
+
+.shop-item::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 38%);
+  opacity: 0;
+  transition: opacity .16s ease;
+}
+
+.shop-item:hover,
+.shop-item:focus-visible {
+  border-color: rgba(255, 213, 45, 0.42);
+  background: rgba(10, 21, 26, 0.92);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.16);
+}
+
+.shop-item:hover::after,
+.shop-item:focus-visible::after {
+  opacity: 1;
+}
+
+.shop-item:focus-visible {
+  outline: 2px solid rgba(255, 213, 45, 0.28);
+  outline-offset: 2px;
 }
 
 .shop-item[aria-disabled="true"] {
   cursor: default;
+}
+
+.shop-item[aria-disabled="true"]:hover,
+.shop-item[aria-disabled="true"]:focus-visible {
+  transform: none;
+  box-shadow: none;
 }
 
 .shop-item[data-owned="true"] {
@@ -808,6 +856,11 @@ textarea {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
     rgba(8, 17, 20, 0.82);
+}
+
+.shop-item[data-color-card="true"] .shop-swatch {
+  width: 38px;
+  height: 38px;
 }
 
 .shop-item[data-color-card="true"][data-owned="true"] {
