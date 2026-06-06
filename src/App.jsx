@@ -424,9 +424,9 @@ function getRoomTier(index) {
 
 function getHighestClearedRoom(progress = {}) {
   let highest = -1;
-  Object.entries(progress || {}).forEach(([rawIndex, stars]) => {
+  Object.entries(normalizeProgress(progress)).forEach(([rawIndex, stars]) => {
     const index = Number(rawIndex);
-    if ((Number(stars) || 0) > 0 && index > highest) highest = index;
+    if (stars > 0 && index > highest) highest = index;
   });
   return highest;
 }
@@ -487,7 +487,7 @@ async function verifyStoredPassword(user, password) {
 function normalizeEconomy(data = {}) {
   const devMode = data.devMode || data.nickname?.toLowerCase() === DEV_LOGIN.nickname;
   return {
-    coins: devMode ? DEV_COINS : Number.isFinite(data.coins) ? data.coins : 25,
+    coins: devMode ? DEV_COINS : Math.max(0, Math.round(Number.isFinite(data.coins) ? data.coins : 25)),
     owned: {
       colors: [...new Set([...(data.owned?.colors || []), ...(data.owned?.bodies || []), ...(data.owned?.trails || []), ...DEFAULT_OWNED.colors])],
       bodies: [...new Set([...(data.owned?.bodies || []), ...DEFAULT_OWNED.bodies])],
@@ -506,6 +506,16 @@ function normalizeEconomy(data = {}) {
   };
 }
 
+function normalizeProgress(progress = {}) {
+  return Object.entries(progress || {}).reduce((safe, [rawIndex, rawStars]) => {
+    const index = Number(rawIndex);
+    if (!Number.isInteger(index) || index < 0 || index >= rooms.length) return safe;
+    const stars = clamp(Math.round(Number(rawStars) || 0), 0, 3);
+    if (stars > 0) safe[index] = stars;
+    return safe;
+  }, {});
+}
+
 function makeSession(user) {
   const economy = normalizeEconomy(user);
   return {
@@ -514,7 +524,7 @@ function makeSession(user) {
     email: user.email,
     avatar: user.avatar || "yellow",
     devMode: Boolean(user.devMode),
-    progress: user.progress || {},
+    progress: normalizeProgress(user.progress),
     sessionNonce: user.sessionNonce,
     sessionExpiresAt: user.sessionExpiresAt,
     ...economy
@@ -530,7 +540,7 @@ function getStarsForRoom(index, summary) {
 }
 
 function getTotalStars(progress = {}) {
-  return Object.values(progress).reduce((sum, value) => sum + (Number(value) || 0), 0);
+  return Object.values(normalizeProgress(progress)).reduce((sum, value) => sum + value, 0);
 }
 
 function getStoredKeybinds() {
@@ -599,7 +609,7 @@ function getStoredSession() {
 }
 
 function updateStoredUserProfile(updated) {
-  const normalized = { ...updated, ...normalizeEconomy(updated) };
+  const normalized = { ...updated, progress: normalizeProgress(updated.progress), ...normalizeEconomy(updated) };
   const users = getStoredUsers();
   const nextUsers = users.some((user) => user.id === normalized.id)
     ? users.map((user) => (user.id === normalized.id ? { ...user, ...normalized } : user))
@@ -3780,7 +3790,8 @@ function Meter({ label, value, max = 100, color }) {
 }
 
 function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSettings, openControls }) {
-  const totalStars = getTotalStars(user?.progress);
+  const safeProgress = normalizeProgress(user?.progress);
+  const totalStars = getTotalStars(safeProgress);
   const currentSection = CAMPAIGN_SECTIONS[getCurrentSectionIndex(user)];
   return (
     <div className="overlay">
@@ -3818,7 +3829,7 @@ function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSett
             {CAMPAIGN_SECTIONS.map((section) => {
               const [start, end] = section.range;
               const sectionRooms = rooms.slice(start, end + 1);
-              const cleared = sectionRooms.filter((_, offset) => (Number(user?.progress?.[start + offset]) || 0) > 0).length;
+              const cleared = sectionRooms.filter((_, offset) => (safeProgress[start + offset] || 0) > 0).length;
               const active = currentSection.id === section.id;
               return (
                 <section className="campaign-section" key={section.id} data-active={active} style={{ "--section-accent": section.accent }}>
@@ -3834,7 +3845,7 @@ function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSett
                     {sectionRooms.map((r, offset) => {
                       const i = start + offset;
                       const unlocked = isRoomUnlocked(i, user);
-                      const roomStars = user?.progress?.[i] || 0;
+                      const roomStars = safeProgress[i] || 0;
                       return (
                         <button className="room-card" data-locked={!unlocked} disabled={!unlocked} key={r} onClick={() => { if (!unlocked) return; startRoom(i); }}>
                           <span className="room-num">{i + 1}</span>
@@ -3908,7 +3919,7 @@ function ProfileScreen({ user, setUser, setScreen }) {
       return;
     }
     if (latestEconomy.coins < price) {
-      setMessage(`Need ${price - latestEconomy.coins} more coins for ${label}.`);
+      setMessage(`Need ${Math.max(0, Math.ceil(price - latestEconomy.coins))} more coins for ${label}.`);
       return;
     }
     const session = updateUserEconomy(latestUser, (current) => {
