@@ -2772,6 +2772,7 @@ function getRunTuning(levelIndex, customLevel, settings) {
 function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, cosmetic, awardCoins, keybinds }) {
   const canvas = useRef(null);
   const game = useRef(null);
+  const runInstance = useRef(0);
   const keys = useRef(new Set());
   const mouse = useRef({ x: 0, y: 0, down: false });
   const aim = useRef({ x: W / 2, y: H / 2 });
@@ -2793,6 +2794,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
   };
 
   const reset = () => {
+    runInstance.current += 1;
     const level = customLevel ? ensurePlayableSpawn(structuredClone(customLevel)) : makeLevel(levelIndex);
     const perks = getPetPerks(cosmetic);
     const weapon = getWeaponById(cosmetic.weapon);
@@ -2869,6 +2871,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       started: performance.now(),
       last: performance.now(),
       status: "playing",
+      runId: runInstance.current,
       shake: 0,
       campaignSection: getCampaignSection(levelIndex),
       tuning
@@ -3095,6 +3098,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     if (now < g.player.nextShotAt) return;
     g.player.ammo -= 1;
     const base = g.player.angle;
+    const runId = g.runId;
     for (let i = 0; i < weapon.shotsPerTrigger; i += 1) {
       const spread = weapon.spread ? (Math.random() * 2 - 1) * weapon.spread : 0;
       const a = base + spread;
@@ -3104,7 +3108,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       } else {
         setTimeout(() => {
           const live = game.current;
-          if (!live || live.status !== "playing") return;
+          if (!live || live.status !== "playing" || live.runId !== runId) return;
           shoot({ x: live.player.x, y: live.player.y, angle: a }, "player");
         }, burstDelay);
       }
