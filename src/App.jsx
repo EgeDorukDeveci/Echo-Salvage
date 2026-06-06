@@ -4726,6 +4726,11 @@ function App() {
   };
   const logout = () => {
     localStorage.removeItem(AUTH_SESSION_KEY);
+    setCustomLevel(null);
+    setLevelIndex(0);
+    setRunSeed(0);
+    setOverlayReturnScreen("menu");
+    setSummary({ result: "Extracted", scrap: 0, hull: 100, time: 0, room: rooms[0], levelIndex: 0, isCustom: false });
     setUser(null);
     setScreen("auth");
   };
