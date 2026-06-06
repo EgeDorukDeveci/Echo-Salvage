@@ -32,7 +32,6 @@ import "./main.css";
 const W = 1280;
 const H = 720;
 const ECHO_MS = 8000;
-const ECHO_FUTURE_MS = 8000;
 const ECHO_FRAME_MS = 50;
 const MAX_ECHOES = 3;
 const CELL = 40;
@@ -3095,18 +3094,20 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       blockEcho("Echo slots full");
       return;
     }
-    if (g.recording.length < 8) {
-      blockEcho("Recording route...");
-      return;
-    }
     if (g.player.energy < echoCost) {
       blockEcho(`Need ${Math.ceil(echoCost - g.player.energy)} energy`);
       return;
     }
-    g.player.energy -= echoCost;
-    const frames = g.recording.slice(-ECHO_MS / ECHO_FRAME_MS);
     const usedSlots = new Set(g.echoes.map((echo) => echo.slot));
     const slot = Array.from({ length: MAX_ECHOES }, (_, i) => i).find((i) => !usedSlots.has(i)) ?? 0;
+    const replayFrames = ECHO_MS / ECHO_FRAME_MS;
+    if (g.recording.length < replayFrames) {
+      const remainingSeconds = Math.ceil((replayFrames - g.recording.length) * ECHO_FRAME_MS / 1000);
+      blockEcho(`Recording ${remainingSeconds}s more history`);
+      return;
+    }
+    g.player.energy -= echoCost;
+    const frames = g.recording.slice(-replayFrames).map((frame) => ({ ...frame }));
     const id = g.nextEchoId ?? 0;
     g.nextEchoId = id + 1;
     g.echoes.push({
@@ -3114,7 +3115,6 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       slot,
       frames,
       age: 0,
-      futureMs: 0,
       x: frames[0].x,
       y: frames[0].y,
       angle: 0,
@@ -3122,7 +3122,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       echoColor: ECHO_COLORS[slot] || ECHO_COLORS[0],
       echoFill: ECHO_FILLS[slot] || ECHO_FILLS[0]
     });
-    g.echoStatus = `Echo ${slot + 1} online`;
+    g.echoStatus = `Echo ${slot + 1} replaying captured history`;
     g.echoStatusUntil = performance.now() + 1100;
     if (settings.shake && !settings.reduced) g.shake = 8;
   }
@@ -3447,7 +3447,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
           shoot(e);
         }
       });
-      g.echoes = g.echoes.filter((e) => e.age < e.frames.length * ECHO_FRAME_MS || e.futureMs < ECHO_FUTURE_MS);
+      g.echoes = g.echoes.filter((e) => e.age < e.frames.length * ECHO_FRAME_MS);
       updateCargoTether(g, dt);
 
       const bodies = [g.player, ...g.echoes, ...level.crates.map((c) => ({ x: c.x + c.w / 2, y: c.y + c.h / 2 }))];
@@ -3672,12 +3672,6 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         };
         g.recording.push(frame);
         while (g.recording.length > ECHO_MS / ECHO_FRAME_MS) g.recording.shift();
-        g.echoes.forEach((echo) => {
-          if (echo.futureMs < ECHO_FUTURE_MS) {
-            echo.frames.push({ ...frame });
-            echo.futureMs += ECHO_FRAME_MS;
-          }
-        });
       }
       const overdriveRecharge = now < (g.player.overdriveUntil || 0) ? 1.3 : 1;
       g.player.dash = clamp(g.player.dash + dt * 0.055 * (perks.dashRegenMultiplier || 1) * overdriveRecharge, 0, 100);
@@ -3925,7 +3919,7 @@ function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSett
             </button>
           </div>
           <h1 className="title">Echo Salvage</h1>
-          <p className="lead">Pilot a drone through locked station rooms. The Echo replays an eight-second action window, then continues with the next recorded actions you perform after deployment.</p>
+          <p className="lead">Pilot a drone through locked station rooms. Each time you deploy an Echo, it captures and replays the eight seconds immediately before you pressed the button.</p>
           <div className="campaign-status" style={{ "--section-accent": currentSection.accent }}>
             <span>{currentSection.label}</span>
             <strong>{totalStars} stars banked</strong>
@@ -4059,7 +4053,7 @@ function Briefing({ setScreen, startRun }) {
         <section className="panel">
           <div className="panel-header"><span className="badge">First Boot</span><span className="status-pill">Echo Link Unstable</span></div>
           <h1 className="title" style={{ fontSize: "clamp(46px, 6vw, 70px)" }}>Your past self is the tool.</h1>
-          <p className="lead">Create an Echo after doing something useful. It replays your recent action window, then follows the actions you record immediately afterward on a delay.</p>
+          <p className="lead">Create Echoes after doing something useful. Every deployment captures its own eight-second recording, so each Echo can repeat a different job.</p>
           <div className="button-grid">
             <Button primary onClick={startRun}><Play size={22} /> Start Run</Button>
             <Button onClick={() => setScreen("menu")}>Main Menu</Button>
@@ -4067,7 +4061,7 @@ function Briefing({ setScreen, startRun }) {
         </section>
         <section className="panel">
           <Brief icon={<Boxes />} title="Read the labels" text="Plate cargo is pushable weight for pressure plates. Switches latch, plates need bodies or cargo, and gates require the whole lock chain." />
-          <Brief icon={<Zap />} title="Record, then replay" text="The Echo starts eight seconds in your past and keeps following the next actions you perform after release, delayed behind you." />
+          <Brief icon={<Zap />} title="Capture, then replay" text="Press Echo to capture the eight seconds immediately before that moment. Move somewhere else and deploy again to create a different recording." />
           <Brief icon={<Shield />} title="Clear the lock chain" text="Locked gates show how many requirements remain. Solve the room, survive the hazards, and extract." />
         </section>
       </div>
