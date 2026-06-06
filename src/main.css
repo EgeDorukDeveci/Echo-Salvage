@@ -1256,22 +1256,36 @@ textarea {
   min-height: 0;
   margin-top: 14px;
   overflow: hidden;
-  border: 1px solid rgba(120, 171, 181, 0.32);
+  border: 1px solid rgba(206, 177, 119, 0.42);
   background:
-    linear-gradient(rgba(3, 9, 14, 0.06), rgba(3, 9, 14, 0.2)),
-    url("/assets/campaign-world-map.png") center / cover no-repeat;
+    url("/assets/campaign-world-map-v2.png") center / cover no-repeat;
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    inset 0 0 0 3px rgba(2, 8, 12, 0.52),
     0 18px 42px rgba(0, 0, 0, 0.32);
   aspect-ratio: 16 / 9;
 }
 
+.world-overview::before,
 .world-overview::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  box-shadow: inset 0 0 55px rgba(2, 7, 12, 0.5);
+}
+
+.world-overview::before {
+  z-index: 1;
+  opacity: 0.42;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(255, 238, 196, 0.035) 3px 4px),
+    linear-gradient(90deg, rgba(4, 11, 16, 0.2), transparent 20%, transparent 80%, rgba(4, 11, 16, 0.26));
+  mix-blend-mode: screen;
+}
+
+.world-overview::after {
+  z-index: 3;
+  border: 8px solid rgba(4, 12, 17, 0.42);
+  box-shadow: inset 0 0 60px rgba(2, 7, 12, 0.64);
 }
 
 .world-route {
@@ -1281,35 +1295,32 @@ textarea {
 .world-destination {
   position: absolute;
   z-index: 2;
-  width: 31%;
-  height: 38%;
+  width: 34%;
+  height: 40%;
   border: 0;
   background: transparent;
   color: var(--text);
   padding: 0;
 }
 
-.world-destination[data-deck="training-deck"] { left: 8%; top: 10%; }
-.world-destination[data-deck="breach-deck"] { right: 8%; top: 10%; }
-.world-destination[data-deck="reactor-deck"] { left: 8%; bottom: 6%; }
-.world-destination[data-deck="singularity-deck"] { right: 8%; bottom: 6%; }
+.world-destination[data-deck="training-deck"] { left: 5%; top: 4%; }
+.world-destination[data-deck="breach-deck"] { right: 4%; top: 5%; }
+.world-destination[data-deck="reactor-deck"] { left: 4%; bottom: 3%; }
+.world-destination[data-deck="singularity-deck"] { right: 4%; bottom: 2%; }
 
 .world-destination-art {
   position: absolute;
-  inset: 2% 8% 13%;
-  border: 2px solid transparent;
-  border-radius: 50%;
-  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+  inset: 0 3% 4%;
+  border: 1px dashed transparent;
+  transition: border-color .18s ease, background .18s ease, transform .18s ease;
 }
 
 .world-destination:hover .world-destination-art,
 .world-destination:focus-visible .world-destination-art,
 .world-destination[data-active="true"] .world-destination-art {
-  border-color: color-mix(in srgb, var(--section-accent), white 18%);
-  box-shadow:
-    0 0 0 7px color-mix(in srgb, var(--section-accent), transparent 88%),
-    0 0 36px color-mix(in srgb, var(--section-accent), transparent 38%);
-  transform: scale(1.04);
+  border-color: color-mix(in srgb, var(--section-accent), white 8%);
+  background: color-mix(in srgb, var(--section-accent), transparent 94%);
+  transform: scale(1.015);
 }
 
 .world-destination:focus-visible {
@@ -1318,31 +1329,38 @@ textarea {
 
 .world-destination-copy {
   position: absolute;
-  left: 50%;
-  bottom: 0;
+  left: 2%;
+  bottom: 3%;
   display: grid;
-  min-width: 150px;
-  gap: 1px;
-  border: 1px solid color-mix(in srgb, var(--section-accent), transparent 52%);
-  background: rgba(3, 10, 14, 0.9);
-  padding: 7px 12px;
-  text-align: center;
-  transform: translateX(-50%);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  min-width: 176px;
+  gap: 2px;
+  border-top: 1px solid color-mix(in srgb, var(--section-accent), white 10%);
+  background: rgba(3, 10, 14, 0.86);
+  padding: 6px 9px 7px;
+  text-align: left;
+  box-shadow: 5px 5px 0 rgba(2, 7, 10, 0.52);
+}
+
+.world-destination[data-deck="breach-deck"] .world-destination-copy,
+.world-destination[data-deck="singularity-deck"] .world-destination-copy {
+  right: 2%;
+  left: auto;
+  text-align: right;
 }
 
 .world-destination-copy small,
 .world-destination-copy em {
-  color: color-mix(in srgb, var(--section-accent), white 18%);
-  font-size: 9px;
+  color: color-mix(in srgb, var(--section-accent), white 12%);
+  font-size: 8px;
   font-style: normal;
   font-weight: 900;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .world-destination-copy strong {
   color: var(--text);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1;
   text-transform: uppercase;
 }
@@ -1357,11 +1375,11 @@ textarea {
 }
 
 .section-map-view .deck-map::before {
-  inset: 56px 36px 20px;
+  inset: 0;
 }
 
 .section-map-view .map-route {
-  inset: 70px 42px 28px;
+  inset: 72px 32px 28px;
 }
 
 .campaign-map {
@@ -1380,8 +1398,16 @@ textarea {
   min-height: 285px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--section-accent), rgba(120, 171, 181, 0.24) 68%);
-  background: rgba(3, 10, 14, 0.72);
+  background-color: #071014;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
+
+.deck-map[data-deck="training-deck"] { background-image: url("/assets/deck-training-map.png"); }
+.deck-map[data-deck="breach-deck"] { background-image: url("/assets/deck-breach-map.png"); }
+.deck-map[data-deck="reactor-deck"] { background-image: url("/assets/deck-reactor-map.png"); }
+.deck-map[data-deck="singularity-deck"] { background-image: url("/assets/deck-singularity-map.png"); }
 
 .deck-map::before,
 .deck-map::after {
@@ -1391,39 +1417,23 @@ textarea {
 }
 
 .deck-map::before {
-  inset: 42px 20px 12px;
-  border: 2px solid color-mix(in srgb, var(--section-accent), white 12%);
+  inset: 0;
   background:
-    linear-gradient(145deg, color-mix(in srgb, var(--section-accent), rgba(20, 43, 48, 0.92) 68%), rgba(7, 18, 22, 0.96));
+    linear-gradient(180deg, rgba(2, 7, 10, 0.78) 0, rgba(2, 7, 10, 0.08) 19%, rgba(2, 7, 10, 0.1) 76%, rgba(2, 7, 10, 0.56) 100%);
   box-shadow:
-    inset 0 0 0 7px rgba(2, 8, 11, 0.24),
-    0 14px 28px rgba(0, 0, 0, 0.28);
+    inset 0 0 0 7px rgba(2, 8, 11, 0.35),
+    inset 0 0 70px rgba(0, 0, 0, 0.25);
 }
 
 .deck-map::after {
   inset: 0;
-  opacity: 0.28;
+  opacity: 0.2;
   background-image:
-    linear-gradient(rgba(150, 210, 218, 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(150, 210, 218, 0.12) 1px, transparent 1px);
-  background-size: 22px 22px;
-  mask-image: linear-gradient(to bottom, transparent, black 24%, black 78%, transparent);
-}
-
-.deck-map[data-deck="training-deck"]::before {
-  clip-path: polygon(8% 24%, 24% 9%, 54% 13%, 72% 4%, 92% 25%, 87% 68%, 66% 91%, 35% 84%, 10% 69%);
-}
-
-.deck-map[data-deck="breach-deck"]::before {
-  clip-path: polygon(8% 33%, 20% 10%, 43% 17%, 59% 4%, 88% 16%, 95% 48%, 82% 82%, 56% 91%, 29% 79%, 5% 61%);
-}
-
-.deck-map[data-deck="reactor-deck"]::before {
-  clip-path: polygon(11% 17%, 37% 6%, 58% 14%, 83% 8%, 95% 37%, 88% 72%, 65% 88%, 39% 82%, 14% 92%, 4% 52%);
-}
-
-.deck-map[data-deck="singularity-deck"]::before {
-  clip-path: polygon(7% 28%, 27% 8%, 49% 15%, 69% 5%, 91% 26%, 96% 60%, 77% 88%, 51% 79%, 26% 92%, 5% 66%);
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(255, 243, 205, 0.05) 3px 4px),
+    linear-gradient(rgba(150, 210, 218, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(150, 210, 218, 0.1) 1px, transparent 1px);
+  background-size: auto, 44px 44px, 44px 44px;
+  mix-blend-mode: screen;
 }
 
 .deck-map[data-active="true"] {
@@ -1472,18 +1482,43 @@ textarea {
   inset: 48px 18px 10px;
 }
 
-.deck-landmark {
+.deck-map-note {
   position: absolute;
   z-index: 0;
-  inset: 20% 20% 18%;
   display: grid;
-  place-items: center;
-  color: color-mix(in srgb, var(--section-accent), transparent 58%);
-  font-size: 48px;
-  font-weight: 900;
-  text-transform: uppercase;
-  transform: rotate(-8deg);
+  gap: 1px;
+  max-width: 150px;
+  border-top: 1px solid color-mix(in srgb, var(--section-accent), white 8%);
+  background: rgba(3, 9, 12, 0.76);
+  color: var(--text);
+  padding: 5px 8px 6px;
+  box-shadow: 4px 4px 0 rgba(2, 7, 10, 0.44);
+  opacity: 0.82;
   pointer-events: none;
+}
+
+.deck-map-note small {
+  color: color-mix(in srgb, var(--section-accent), white 18%);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.deck-map-note strong {
+  font-size: 9px;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.deck-map-note-a {
+  top: 3%;
+  right: 2%;
+}
+
+.deck-map-note-b {
+  right: 2%;
+  bottom: 1%;
 }
 
 .map-route-line {

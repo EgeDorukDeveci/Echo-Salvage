@@ -181,6 +181,9 @@ const CAMPAIGN_SECTIONS = [
     range: [0, 13],
     theme: "station",
     accent: "#00f0d2",
+    sector: "OS-01 / CALIBRATION RING",
+    condition: "Stable",
+    directive: "Recover the flight recorder",
     blurb: "Movement, pressure plates, cargo discipline, and first-contact combat."
   },
   {
@@ -190,6 +193,9 @@ const CAMPAIGN_SECTIONS = [
     range: [14, 27],
     theme: "hazard",
     accent: "#ffd52d",
+    sector: "OS-02 / FRACTURE YARD",
+    condition: "Hull breach",
+    directive: "Cross the exposed forge",
     blurb: "Missiles, gravity pulls, and denser lock chains start testing timing."
   },
   {
@@ -199,6 +205,9 @@ const CAMPAIGN_SECTIONS = [
     range: [28, 41],
     theme: "reactor",
     accent: "#58e07a",
+    sector: "OS-03 / VERDANT CORE",
+    condition: "Biohazard",
+    directive: "Restore coolant circulation",
     blurb: "Support enemies, split routes, and harsher pressure management."
   },
   {
@@ -208,6 +217,9 @@ const CAMPAIGN_SECTIONS = [
     range: [42, 55],
     theme: "midnight",
     accent: "#b78cff",
+    sector: "OS-04 / NULL ARCHIVE",
+    condition: "Signal lost",
+    directive: "Seal the singularity crown",
     blurb: "Late-game hostile combinations and longer Echo coordination chains."
   }
 ];
@@ -3968,9 +3980,9 @@ function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSett
                   >
                     <span className="world-destination-art" aria-hidden="true"><i /><i /><i /></span>
                     <span className="world-destination-copy">
-                      <small>{section.shortLabel}</small>
+                      <small>{section.sector}</small>
                       <strong>{section.label}</strong>
-                      <em>{cleared}/{sectionRooms.length} rooms</em>
+                      <em>{cleared}/{sectionRooms.length} rooms · {section.condition}</em>
                     </span>
                   </button>
                 );
@@ -3987,14 +3999,19 @@ function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSett
                 <section className="deck-map" key={section.id} data-active={active} data-deck={section.id} style={{ "--section-accent": section.accent }}>
                   <div className="deck-map-head">
                     <div>
-                      <small>{section.shortLabel}</small>
+                      <small>{section.sector}</small>
                       <h3>{section.label}</h3>
                     </div>
                     <span>{cleared}/{sectionRooms.length}</span>
                   </div>
                   <div className="map-route">
-                    <div className="deck-landmark" aria-hidden="true">
-                      <span>{section.shortLabel}</span>
+                    <div className="deck-map-note deck-map-note-a" aria-hidden="true">
+                      <small>Deck condition</small>
+                      <strong>{section.condition}</strong>
+                    </div>
+                    <div className="deck-map-note deck-map-note-b" aria-hidden="true">
+                      <small>Salvage directive</small>
+                      <strong>{section.directive}</strong>
                     </div>
                     <svg className="map-route-line" viewBox="0 0 100 82" preserveAspectRatio="none" aria-hidden="true">
                       <path d={CAMPAIGN_ROUTE_PATH} />
