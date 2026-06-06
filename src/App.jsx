@@ -212,6 +212,12 @@ const CAMPAIGN_SECTIONS = [
   }
 ];
 
+const CAMPAIGN_ROUTE_POINTS = [
+  [10, 70], [19, 53], [30, 65], [39, 43], [50, 58], [61, 38], [73, 54],
+  [86, 34], [76, 18], [62, 24], [50, 14], [37, 27], [23, 18], [11, 31]
+];
+const CAMPAIGN_ROUTE_PATH = CAMPAIGN_ROUTE_POINTS.map(([x, y], index) => `${index ? "L" : "M"} ${x} ${y}`).join(" ");
+
 const AUTH_USERS_KEY = "echo-salvage-users";
 const AUTH_SESSION_KEY = "echo-salvage-session";
 const COMMUNITY_LEVELS_KEY = "echo-salvage-community-levels";
@@ -3892,6 +3898,7 @@ function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSett
   const safeProgress = normalizeProgress(user?.progress);
   const totalStars = getTotalStars(safeProgress);
   const currentSection = CAMPAIGN_SECTIONS[getCurrentSectionIndex(user)];
+  const nextRoomIndex = getNextCampaignRoomIndex(safeProgress);
   return (
     <div className="overlay">
       <div className="menu-grid">
@@ -3921,36 +3928,61 @@ function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSett
           </div>
         </section>
         <section className="panel campaign-panel">
-          <h2>Run Brief</h2>
-          <Brief icon={<Bot />} title="Campaign Flow" text="The station is now split into four decks. You clear them in order; stars rate performance, but they no longer let you jump ahead and skip rooms." />
-          <div className="star-brief"><Sparkles size={18} /><span>{totalStars} stars recovered</span><small>Clear one room to open the next. Replays stay open for practice and better star runs.</small></div>
-          <div className="section-grid">
+          <div className="campaign-map-head">
+            <div>
+              <span className="badge">Station Route</span>
+              <h2>Orbital Deck Map</h2>
+              <p>Follow the salvage route through four station sectors. Cleared rooms stay available for replay; the route opens one room at a time.</p>
+            </div>
+            <div className="campaign-map-stats">
+              <span><Sparkles size={15} /> {totalStars} stars</span>
+              <strong>{nextRoomIndex + 1}<small> / {rooms.length}</small></strong>
+              <em>Next room</em>
+            </div>
+          </div>
+          <div className="campaign-map">
             {CAMPAIGN_SECTIONS.map((section) => {
               const [start, end] = section.range;
               const sectionRooms = rooms.slice(start, end + 1);
               const cleared = sectionRooms.filter((_, offset) => (safeProgress[start + offset] || 0) > 0).length;
               const active = currentSection.id === section.id;
               return (
-                <section className="campaign-section" key={section.id} data-active={active} style={{ "--section-accent": section.accent }}>
-                  <div className="campaign-section-head">
+                <section className="deck-map" key={section.id} data-active={active} data-deck={section.id} style={{ "--section-accent": section.accent }}>
+                  <div className="deck-map-head">
                     <div>
                       <small>{section.shortLabel}</small>
                       <h3>{section.label}</h3>
                     </div>
                     <span>{cleared}/{sectionRooms.length}</span>
                   </div>
-                  <p>{section.blurb}</p>
-                  <div className="section-rooms">
+                  <div className="map-route">
+                    <div className="deck-landmark" aria-hidden="true">
+                      <span>{section.shortLabel}</span>
+                    </div>
+                    <svg className="map-route-line" viewBox="0 0 100 82" preserveAspectRatio="none" aria-hidden="true">
+                      <path d={CAMPAIGN_ROUTE_PATH} />
+                    </svg>
                     {sectionRooms.map((r, offset) => {
                       const i = start + offset;
                       const unlocked = isRoomUnlocked(i, user);
                       const roomStars = safeProgress[i] || 0;
+                      const [routeX, routeY] = CAMPAIGN_ROUTE_POINTS[offset];
                       return (
-                        <button className="room-card" data-locked={!unlocked} disabled={!unlocked} key={r} onClick={() => { if (!unlocked) return; startRoom(i); }}>
-                          <span className="room-num">{i + 1}</span>
-                          <span className="room-tier">{getRoomTier(i)}</span>
-                          <span className="room-name">{r}</span>
-                          <span className="room-stars">{unlocked ? `${"★".repeat(roomStars)}${"☆".repeat(3 - roomStars)}` : "LOCKED"}</span>
+                        <button
+                          className="map-node"
+                          data-locked={!unlocked}
+                          data-cleared={roomStars > 0}
+                          data-current={i === nextRoomIndex}
+                          disabled={!unlocked}
+                          key={r}
+                          style={{ "--map-x": `${routeX}%`, "--map-y": `${routeY}%` }}
+                          title={`${i + 1}. ${r}${unlocked ? ` | ${roomStars}/3 stars` : " | Locked"}`}
+                          aria-label={`${i + 1}. ${r}${unlocked ? `, ${roomStars} stars` : ", locked"}`}
+                          onClick={() => { if (!unlocked) return; startRoom(i); }}
+                        >
+                          <span className="map-node-core">{i + 1}</span>
+                          <span className="map-node-label">{r}</span>
+                          <span className="map-node-stars">{unlocked ? `${"★".repeat(roomStars)}${"☆".repeat(3 - roomStars)}` : "LOCKED"}</span>
                         </button>
                       );
                     })}
@@ -3959,7 +3991,6 @@ function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSett
               );
             })}
           </div>
-          <p className="small-copy" style={{ marginTop: 16 }}>Keyboard recommended. Pause with Escape. Restart room with R.</p>
         </section>
       </div>
     </div>
