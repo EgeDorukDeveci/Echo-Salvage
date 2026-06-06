@@ -4016,7 +4016,7 @@ function ProfileScreen({ user, setUser, setScreen }) {
   }, [cosmetic]);
 
   const save = () => {
-    const current = getStoredUsers().find((u) => u.id === user?.id);
+    const current = getStoredUsers().find((u) => u.id === user?.id) || user;
     if (!current) {
       setMessage("Profile not found. Log in again.");
       return;
