@@ -1637,6 +1637,57 @@ function ensurePlayableSpawn(level) {
   return level;
 }
 
+function getPointEntityRadius(key, entity) {
+  if (key === "core") return 34;
+  if (key === "plates") return entity.r || 34;
+  if (key === "switches") return entity.r || 25;
+  if (key === "scrap") return 12;
+  return entity.r || 25;
+}
+
+function movePointEntitiesOutOfWalls(level) {
+  const groups = [
+    "plates",
+    "switches",
+    "turrets",
+    "drones",
+    "missileSentries",
+    ...SPECIAL_HOSTILE_KEYS,
+    "scrap"
+  ];
+  if (level.core) groups.push("core");
+  const barriers = [...(level.walls || []), ...(level.doors || [])];
+  const isOpen = (key, entity, x, y) => {
+    const radius = getPointEntityRadius(key, entity);
+    const rect = { x: x - radius, y: y - radius, w: radius * 2, h: radius * 2 };
+    return x >= radius + 50 &&
+      x <= W - radius - 50 &&
+      y >= radius + 50 &&
+      y <= H - radius - 50 &&
+      !barriers.some((barrier) => rectsTouch(rect, barrier));
+  };
+  groups.forEach((key) => {
+    const entities = key === "core" ? [level.core] : level[key] || [];
+    entities.forEach((entity) => {
+      if (isOpen(key, entity, entity.x, entity.y)) return;
+      const candidates = [];
+      for (let radius = 20; radius <= 240; radius += 20) {
+        for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
+          candidates.push({
+            x: Math.round(entity.x + Math.cos(angle) * radius),
+            y: Math.round(entity.y + Math.sin(angle) * radius)
+          });
+        }
+      }
+      const replacement = candidates.find((candidate) => isOpen(key, entity, candidate.x, candidate.y));
+      if (replacement) {
+        entity.x = replacement.x;
+        entity.y = replacement.y;
+      }
+    });
+  });
+}
+
 function normalizeInteractionLayout(level, { fillDoorRequirements = false } = {}) {
   LEVEL_ARRAY_KEYS.forEach((key) => {
     level[key] = level[key] || [];
@@ -1669,6 +1720,7 @@ function normalizeInteractionLayout(level, { fillDoorRequirements = false } = {}
   level.crates.forEach((crate) => {
     crate.role = "plate-weight";
   });
+  movePointEntitiesOutOfWalls(level);
   return level;
 }
 

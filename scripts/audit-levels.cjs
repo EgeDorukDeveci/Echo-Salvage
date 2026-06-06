@@ -55,6 +55,15 @@ function supportDistance(level, support) {
   return targets.reduce((best, hostile) => Math.min(best, dist(support, hostile)), Infinity);
 }
 
+function pointEntityRect(label, entity) {
+  const radius = label === "core" ? 34 :
+    label === "plate" ? entity.r || 34 :
+    label === "switch" ? entity.r || 25 :
+    label === "scrap" ? 12 :
+    entity.r || 25;
+  return { x: entity.x - radius, y: entity.y - radius, w: radius * 2, h: radius * 2 };
+}
+
 function auditLevel(level, index) {
   const issues = [];
   const plateIds = new Set((level.plates || []).map((plate) => plate.id));
@@ -89,6 +98,25 @@ function auditLevel(level, index) {
   if (permanentSolids.some((block) => rectsTouch(exitRect, block))) {
     issues.push("exit overlaps permanent geometry");
   }
+
+  const wallEmbeddedGroups = [
+    ["plate", level.plates || []],
+    ["switch", level.switches || []],
+    ["turret", level.turrets || []],
+    ["drone", level.drones || []],
+    ["missile sentry", level.missileSentries || []],
+    ...SPECIAL_HOSTILE_KEYS.map((key) => [key, level[key] || []]),
+    ["scrap", level.scrap || []],
+    ["core", level.core ? [level.core] : []]
+  ];
+  const entityBarriers = [...(level.walls || []), ...(level.doors || [])];
+  wallEmbeddedGroups.forEach(([label, entities]) => {
+    entities.forEach((entity, entityIndex) => {
+      if (entityBarriers.some((barrier) => rectsTouch(pointEntityRect(label, entity), barrier))) {
+        issues.push(`${label} ${entity.id || entityIndex + 1} is embedded in a wall or door`);
+      }
+    });
+  });
 
   const supportBots = [...(level.shieldDrones || []), ...(level.repairBots || [])];
   supportBots.forEach((support, supportIndex) => {
