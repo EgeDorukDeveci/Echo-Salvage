@@ -600,8 +600,11 @@ function getStoredSession() {
 
 function updateStoredUserProfile(updated) {
   const normalized = { ...updated, ...normalizeEconomy(updated) };
-  const users = getStoredUsers().map((u) => (u.id === normalized.id ? { ...u, ...normalized } : u));
-  saveStoredUsers(users);
+  const users = getStoredUsers();
+  const nextUsers = users.some((user) => user.id === normalized.id)
+    ? users.map((user) => (user.id === normalized.id ? { ...user, ...normalized } : user))
+    : [...users, normalized];
+  saveStoredUsers(nextUsers);
   const session = makeSession(normalized);
   localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
   return session;
