@@ -129,7 +129,7 @@ Coins are earned from orange coin crates during rooms. Real-money purchases are 
 
 ## Local Auth Note
 
-This build now stores normal user passwords as PBKDF2 hashes with per-user salts and uses expiring local session records. That is more trustworthy than the old plain-text browser storage, but it is still a local browser auth flow, not a public production auth backend.
+This build now stores normal user passwords as PBKDF2 hashes with per-user salts and uses expiring local session tokens containing only an id, nonce, and expiry. Profile, progress, and economy data are loaded from the matching user record instead of trusting session snapshots. This is more trustworthy than the old plain-text browser storage, but it is still a local browser auth flow, not a public production auth backend.
 
 ## Run Locally
 
@@ -163,7 +163,7 @@ Run the stock-room sanity audit:
 npm run audit:levels
 ```
 
-This checks the handmade campaign rooms for structural issues like bad spawns, unused lock ids, over-capacity pressure plate counts, isolated support bots, missing cargo roles, weak reward density, exit collisions with permanent geometry, and early hostile introductions that would break the campaign teaching curve.
+This checks the handmade campaign rooms for structural issues like bad spawns, unused lock ids, over-capacity pressure plate counts, isolated support bots, missing cargo roles, weak reward density, exit collisions, entities embedded in walls or doors, and early hostile introductions that would break the campaign teaching curve.
 
 Run the local verification bundle:
 

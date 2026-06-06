@@ -584,6 +584,16 @@ function saveStoredUsers(users) {
   localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
 }
 
+function storeSession(user) {
+  const token = {
+    id: user.id,
+    sessionNonce: user.sessionNonce,
+    sessionExpiresAt: user.sessionExpiresAt
+  };
+  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(token));
+  return makeSession(user);
+}
+
 function getStoredSession() {
   try {
     const session = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || "null");
@@ -601,7 +611,7 @@ function getStoredSession() {
       localStorage.removeItem(AUTH_SESSION_KEY);
       return null;
     }
-    return makeSession({ ...user, ...session });
+    return makeSession(user);
   } catch {
     localStorage.removeItem(AUTH_SESSION_KEY);
     return null;
@@ -615,9 +625,7 @@ function updateStoredUserProfile(updated) {
     ? users.map((user) => (user.id === normalized.id ? { ...user, ...normalized } : user))
     : [...users, normalized];
   saveStoredUsers(nextUsers);
-  const session = makeSession(normalized);
-  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
-  return session;
+  return storeSession(normalized);
 }
 
 function updateUserEconomy(user, updater) {
@@ -1883,8 +1891,7 @@ function AuthScreen({ onAuth }) {
         };
         delete devUser.password;
         saveStoredUsers([devUser, ...users.filter((u) => u.id !== devUser.id && u.nickname.toLowerCase() !== DEV_LOGIN.nickname)]);
-        const session = makeSession(devUser);
-        localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+        const session = storeSession(devUser);
         onAuth(session);
         setBusy(false);
         return;
@@ -1920,8 +1927,7 @@ function AuthScreen({ onAuth }) {
           ...passwordRecord
         };
         saveStoredUsers([...users, user]);
-        const session = makeSession(user);
-        localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+        const session = storeSession(user);
         onAuth(session);
         setBusy(false);
         return;
