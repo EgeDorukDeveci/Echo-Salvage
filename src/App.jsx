@@ -491,6 +491,13 @@ function getBossPhase(boss) {
   return ratio > 0.66 ? 1 : ratio > 0.33 ? 2 : 3;
 }
 
+function getBossPalette(kind) {
+  if (kind === "warden") return { color: "#00f0d2", core: "#efffff", dark: "#071c21", projectile: "#7ffff0" };
+  if (kind === "furnace") return { color: "#ff8a00", core: "#fff0a4", dark: "#25130e", projectile: "#ffb52e" };
+  if (kind === "overseer") return { color: "#58e07a", core: "#f3ff91", dark: "#102915", projectile: "#9dff67" };
+  return { color: "#b78cff", core: "#ff6ec7", dark: "#010105", projectile: "#cf9cff" };
+}
+
 function damageBoss(boss, amount) {
   if (!boss || boss.hp <= 0) return 0;
   const phase = getBossPhase(boss);
@@ -499,6 +506,25 @@ function damageBoss(boss, amount) {
   boss.hp = Math.max(0, boss.hp - dealt);
   boss.hitFlash = 160;
   return dealt;
+}
+
+function spawnBossProjectile(game, boss, angle, speed, damage, extras = {}) {
+  const palette = getBossPalette(boss.kind);
+  game.bullets.push({
+    x: boss.x,
+    y: boss.y,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    life: extras.life || 2600,
+    owner: "enemy",
+    damage,
+    color: palette.projectile,
+    bossKind: boss.kind,
+    radius: extras.radius || 5,
+    projectile: extras.projectile || "orb",
+    homing: extras.homing || 0,
+    turnRate: extras.turnRate || 0.035
+  });
 }
 
 function getHighestClearedRoom(progress = {}) {
@@ -963,7 +989,7 @@ function makeLevel(index = 0) {
     {
       name: "Dual Drone Relay",
       objective: { type: "boss" },
-      boss: { name: "Calibration Warden", kind: "warden", x: 965, y: 360, hp: 14, cooldown: 900, pulse: 0 },
+      boss: { name: "Calibration Warden", kind: "warden", x: 965, y: 360, hp: 16, cooldown: 900, pulse: 0 },
       walls: [wall(360, 90, 42, 245), wall(360, 385, 42, 245), wall(760, 90, 42, 245), wall(760, 385, 42, 245)],
       coinCrates: [coin(585, 360, 24), coin(1015, 205, 18)],
       plates: [plate("A", 235, 205), plate("B", 235, 520)],
@@ -1154,7 +1180,7 @@ function makeLevel(index = 0) {
     {
       name: "Sweeper Plate Loom",
       objective: { type: "boss" },
-      boss: { name: "Breach Furnace", kind: "furnace", x: 980, y: 360, hp: 18, cooldown: 760, pulse: 0 },
+      boss: { name: "Breach Furnace", kind: "furnace", x: 980, y: 360, hp: 25, cooldown: 760, pulse: 0 },
       player: { x: 160, y: 185 },
       exit: { x: 585, y: 585, w: 116, h: 58 },
       walls: [wall(260, 230, 270, 42), wall(420, 448, 270, 42), wall(650, 230, 270, 42), wall(815, 448, 270, 42), wall(530, 272, 42, 176), wall(690, 272, 42, 176)],
@@ -1280,7 +1306,7 @@ function makeLevel(index = 0) {
     {
       name: "Salvage Singularity Core",
       objective: { type: "boss" },
-      boss: { name: "Verdant Overseer", kind: "overseer", x: 840, y: 420, hp: 22, cooldown: 680, pulse: 0 },
+      boss: { name: "Verdant Maw", kind: "overseer", x: 640, y: 275, hp: 37, cooldown: 680, meleeCooldown: 900, pulse: 0 },
       player: { x: 640, y: 585 },
       exit: { x: 598, y: 78, w: 100, h: 58 },
       walls: [wall(260, 500, 250, 42), wall(260, 180, 42, 320), wall(470, 180, 260, 42), wall(730, 180, 42, 185), wall(555, 365, 217, 42), wall(555, 407, 42, 135), wall(780, 500, 250, 42), wall(988, 180, 42, 320), wall(778, 180, 250, 42)],
@@ -1654,7 +1680,7 @@ function makeLevel(index = 0) {
     {
       name: "Null Shift Convergence",
       objective: { type: "boss" },
-      boss: { name: "Null Crown", kind: "crown", x: 900, y: 220, hp: 28, cooldown: 560, pulse: 0 },
+      boss: { name: "Null Crown", kind: "crown", x: 900, y: 220, hp: 52, cooldown: 560, pulse: 0 },
       player: { x: 640, y: 590 },
       exit: { x: 596, y: 80, w: 104, h: 58 },
       walls: [wall(240, 500, 250, 42), wall(240, 180, 42, 320), wall(455, 180, 42, 150), wall(455, 410, 42, 175), wall(800, 180, 42, 150), wall(800, 410, 42, 175), wall(1000, 180, 42, 320)],
@@ -2770,10 +2796,35 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
   }
 
   game.bullets.forEach((b) => {
-    ctx.fillStyle = b.owner === "enemy" ? "#ff4e41" : "#ffd52d";
+    const bulletColor = b.color || (b.owner === "enemy" ? "#ff4e41" : "#ffd52d");
+    const radius = b.radius || 4;
+    ctx.save();
+    ctx.fillStyle = bulletColor;
+    ctx.strokeStyle = bulletColor;
+    ctx.shadowColor = bulletColor;
+    ctx.shadowBlur = b.bossKind ? 13 : 0;
     ctx.beginPath();
-    ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+    if (b.projectile === "thorn") {
+      const angle = Math.atan2(b.vy, b.vx);
+      ctx.translate(b.x, b.y);
+      ctx.rotate(angle);
+      ctx.moveTo(radius * 2.2, 0);
+      ctx.lineTo(-radius, -radius * 0.75);
+      ctx.lineTo(-radius * 0.45, 0);
+      ctx.lineTo(-radius, radius * 0.75);
+      ctx.closePath();
+    } else {
+      ctx.arc(b.x, b.y, radius, 0, Math.PI * 2);
+    }
     ctx.fill();
+    if (b.projectile === "magma") {
+      ctx.globalAlpha = 0.55;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, radius + 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
   });
   game.railBeams?.forEach((beam) => {
     const alpha = clamp(beam.life / beam.maxLife, 0, 1);
@@ -3028,8 +3079,8 @@ function drawMagmaVentHostile(ctx, h) {
 function drawBoss(ctx, boss) {
   const phase = getBossPhase(boss);
   const spin = (boss.pulse || 0) * (phase === 3 ? 0.0021 : 0.00125);
-  const color = boss.kind === "warden" ? "#00f0d2" : boss.kind === "furnace" ? "#ff8a00" : boss.kind === "overseer" ? "#72ed80" : "#d38cff";
-  const core = boss.kind === "furnace" ? "#fff0a4" : boss.kind === "overseer" ? "#d7ff7c" : boss.kind === "crown" ? "#ff6ec7" : "#efffff";
+  const palette = getBossPalette(boss.kind);
+  const { color, core } = palette;
   const hit = (boss.hitFlash || 0) > 0;
   ctx.save();
   ctx.translate(boss.x, boss.y);
@@ -3117,43 +3168,85 @@ function drawBoss(ctx, boss) {
       ctx.stroke();
     }
   } else if (boss.kind === "overseer") {
-    ctx.rotate(spin);
-    for (let i = 0; i < 8; i += 1) {
+    const bite = 0.12 + (Math.sin(spin * 8) + 1) * 0.08 + ((boss.charge || boss.meleeWindup) > 0 ? 0.14 : 0);
+    ctx.strokeStyle = "#2d9b4e";
+    ctx.lineCap = "round";
+    for (let i = 0; i < 5; i += 1) {
+      const a = -1.9 + i * 0.95 + Math.sin(spin * 3 + i) * 0.12;
+      const length = i === 2 ? 62 : 82;
+      ctx.lineWidth = i === 2 ? 14 : 8;
+      ctx.beginPath();
+      ctx.moveTo(0, 36);
+      ctx.bezierCurveTo(Math.cos(a) * 24, 54, Math.cos(a) * length * 0.7, Math.sin(a) * length * 0.55, Math.cos(a) * length, Math.sin(a) * length);
+      ctx.stroke();
+      if (i !== 2) {
+        const lx = Math.cos(a) * length * 0.7;
+        const ly = Math.sin(a) * length * 0.7;
+        ctx.save();
+        ctx.translate(lx, ly);
+        ctx.rotate(a + Math.PI / 2);
+        ctx.fillStyle = i % 2 ? "#35a64b" : "#55c95f";
+        ctx.strokeStyle = "#9dff76";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 9, 22, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+    ctx.fillStyle = "#1e6d36";
+    ctx.strokeStyle = "#8cff72";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(0, 30, 43, 33, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    for (let i = 0; i < 9; i += 1) {
       ctx.save();
-      ctx.rotate(i * Math.PI / 4);
-      ctx.fillStyle = i % 2 ? "#275f38" : "#397b45";
-      ctx.strokeStyle = color;
+      ctx.rotate(-1.15 + i * Math.PI * 2 / 9);
+      ctx.translate(0, -43);
+      ctx.fillStyle = i % 2 ? "#3eae4e" : "#64d360";
+      ctx.strokeStyle = "#aaff79";
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(15, -11);
-      ctx.bezierCurveTo(38, -31, 65, -20, 74, 0);
-      ctx.bezierCurveTo(65, 20, 38, 31, 15, 11);
+      ctx.moveTo(-8, 9);
+      ctx.lineTo(0, -18);
+      ctx.lineTo(9, 9);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
-      ctx.strokeStyle = "#c8ff86";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(25, 0);
-      ctx.lineTo(64, 0);
-      ctx.stroke();
       ctx.restore();
     }
-    ctx.rotate(-spin * 1.7);
-    ctx.fillStyle = "#101d11";
-    ctx.strokeStyle = "#d7ff7c";
-    ctx.lineWidth = 5;
+    ctx.fillStyle = "#51bd57";
+    ctx.strokeStyle = "#b9ff7b";
+    ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.arc(0, 0, 31, 0, Math.PI * 2);
+    ctx.arc(0, -16, 45, Math.PI + bite, Math.PI * 2 - bite);
+    ctx.quadraticCurveTo(54, -7, 42, 11);
+    ctx.quadraticCurveTo(0, 29, -42, 11);
+    ctx.quadraticCurveTo(-54, -7, -45, -16);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = core;
-    for (let i = 0; i < 6; i += 1) {
-      const a = i * Math.PI / 3 + spin * 2;
+    ctx.fillStyle = "#e86285";
+    ctx.beginPath();
+    ctx.ellipse(0, 7, 35, 17, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#f8ef9b";
+    for (let i = -3; i <= 3; i += 1) {
+      const tx = i * 9;
       ctx.beginPath();
-      ctx.arc(Math.cos(a) * 17, Math.sin(a) * 17, 4, 0, Math.PI * 2);
+      ctx.moveTo(tx - 4, -2);
+      ctx.lineTo(tx, 11 + (Math.abs(i) % 2) * 5);
+      ctx.lineTo(tx + 4, -2);
+      ctx.closePath();
       ctx.fill();
     }
+    ctx.fillStyle = "#071d0d";
+    ctx.beginPath();
+    ctx.arc(-18, -25, 6, 0, Math.PI * 2);
+    ctx.arc(18, -25, 6, 0, Math.PI * 2);
+    ctx.fill();
   } else {
     ctx.rotate(spin);
     for (let ring = 0; ring < 3; ring += 1) {
@@ -3188,7 +3281,7 @@ function drawBoss(ctx, boss) {
   }
 
   if (phase > 1) {
-    ctx.strokeStyle = phase === 3 ? "#ff4e41" : color;
+    ctx.strokeStyle = palette.projectile;
     ctx.globalAlpha = 0.35 + Math.sin(spin * 12) * 0.12;
     ctx.lineWidth = phase === 3 ? 4 : 2;
     ctx.setLineDash(phase === 3 ? [7, 7] : [16, 10]);
@@ -3198,13 +3291,36 @@ function drawBoss(ctx, boss) {
     ctx.setLineDash([]);
   }
   if ((boss.charge || 0) > 0) {
+    ctx.globalAlpha = 1;
     const chargeRatio = 1 - clamp(boss.charge / (boss.chargeMax || 850), 0, 1);
     ctx.globalAlpha = 0.9;
-    ctx.strokeStyle = "#ff4e41";
+    ctx.strokeStyle = palette.projectile;
     ctx.lineWidth = 5;
     ctx.beginPath();
     ctx.arc(0, 0, 102, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * chargeRatio);
     ctx.stroke();
+  }
+  if ((boss.meleeWindup || 0) > 0) {
+    const windupRatio = 1 - clamp(boss.meleeWindup / (boss.meleeWindupMax || 720), 0, 1);
+    const angle = boss.meleeAngle || 0;
+    ctx.globalAlpha = 0.35 + windupRatio * 0.45;
+    ctx.strokeStyle = palette.projectile;
+    ctx.fillStyle = "rgba(88,224,122,.12)";
+    ctx.lineWidth = 4;
+    ctx.setLineDash([10, 8]);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, 165, angle - 0.72, angle + 0.72);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+    for (const offset of [-0.55, 0, 0.55]) {
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(Math.cos(angle + offset * 0.45) * 80, Math.sin(angle + offset * 0.45) * 80, Math.cos(angle + offset) * 155 * windupRatio, Math.sin(angle + offset) * 155 * windupRatio);
+      ctx.stroke();
+    }
   }
   ctx.restore();
   drawLabel(ctx, `${boss.name.toUpperCase()} · PHASE ${phase}`, boss.x - 68, boss.y - 96, color);
@@ -4291,9 +4407,40 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         boss.pulse = (boss.pulse || 0) + dt;
         boss.hitFlash = Math.max(0, (boss.hitFlash || 0) - dt);
         boss.cooldown -= dt;
+        boss.originX = boss.originX ?? boss.x;
+        boss.originY = boss.originY ?? boss.y;
+        const phase = getBossPhase(boss);
+        const movementScale = boss.kind === "warden" ? 5 : boss.kind === "furnace" ? 8 : boss.kind === "overseer" ? 18 : 32;
+        boss.x = boss.originX + Math.sin(boss.pulse * (boss.kind === "crown" ? 0.0012 : 0.00065)) * movementScale;
+        boss.y = boss.originY + Math.cos(boss.pulse * (boss.kind === "overseer" ? 0.0011 : 0.0008)) * movementScale * 0.55;
         const gap = dist(boss, g.player);
-        if (!playerHidden && boss.cooldown <= 0 && gap < 760 && !boss.charge) {
-          boss.chargeMax = getBossPhase(boss) === 3 ? 620 : 850;
+        boss.meleeCooldown = Math.max(0, (boss.meleeCooldown || 0) - dt);
+        if (boss.kind === "overseer" && !playerHidden && gap < 205 && boss.meleeCooldown <= 0 && !boss.meleeWindup) {
+          boss.meleeWindupMax = phase === 3 ? 520 : 720;
+          boss.meleeWindup = boss.meleeWindupMax;
+          boss.meleeAngle = Math.atan2(g.player.y - boss.y, g.player.x - boss.x);
+          boss.charge = 0;
+        }
+        const wasMeleeWinding = boss.meleeWindup > 0;
+        if (wasMeleeWinding) boss.meleeWindup -= dt;
+        if (wasMeleeWinding && boss.meleeWindup <= 0) {
+          boss.meleeWindup = 0;
+          const playerAngle = Math.atan2(g.player.y - boss.y, g.player.x - boss.x);
+          let delta = playerAngle - boss.meleeAngle;
+          while (delta > Math.PI) delta -= Math.PI * 2;
+          while (delta < -Math.PI) delta += Math.PI * 2;
+          if (dist(boss, g.player) < 172 && Math.abs(delta) < 0.78) {
+            damagePlayer(g, 22 + phase * 8);
+            tryMove(g.player, Math.cos(boss.meleeAngle) * 82, Math.sin(boss.meleeAngle) * 82, level, false);
+          }
+          boss.meleeCooldown = (phase === 3 ? 900 : 1350) * (tuning.hostileCooldown || 1);
+          boss.cooldown = Math.max(boss.cooldown, 650);
+          if (settings.shake && !settings.reduced) g.shake = Math.max(g.shake, 12);
+        }
+        const allowsRangedAttack = boss.kind !== "overseer" || gap >= 175;
+        if (!playerHidden && allowsRangedAttack && boss.cooldown <= 0 && gap < 760 && !boss.charge && !boss.meleeWindup) {
+          boss.chargeMax = boss.kind === "warden" ? 920 : boss.kind === "furnace" ? 800 : boss.kind === "overseer" ? 720 : 580;
+          if (phase === 3) boss.chargeMax *= 0.82;
           boss.charge = boss.chargeMax;
         }
         const wasCharging = boss.charge > 0;
@@ -4301,20 +4448,38 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         if (wasCharging && boss.charge <= 0) {
           boss.charge = 0;
           const baseAngle = Math.atan2(g.player.y - boss.y, g.player.x - boss.x);
-          const phase = getBossPhase(boss);
-          const shotCount = (boss.kind === "crown" ? 7 : boss.kind === "furnace" ? 5 : 3) + (phase - 1) * 2;
-          const spread = boss.kind === "warden" ? 0.15 : 0.24;
-          for (let shot = 0; shot < shotCount; shot += 1) {
-            const a = baseAngle + (shot - (shotCount - 1) / 2) * spread;
-            g.bullets.push({ x: boss.x, y: boss.y, vx: Math.cos(a) * (280 + phase * 28) * hostileSpeed, vy: Math.sin(a) * (280 + phase * 28) * hostileSpeed, life: 2400, owner: "enemy", damage: 12 + phase * 3 });
-          }
-          if (phase === 3) {
-            for (let shot = 0; shot < 10; shot += 1) {
-              const a = shot * Math.PI * 2 / 10 + boss.pulse * 0.001;
-              g.bullets.push({ x: boss.x, y: boss.y, vx: Math.cos(a) * 245 * hostileSpeed, vy: Math.sin(a) * 245 * hostileSpeed, life: 2500, owner: "enemy", damage: 13 });
+          if (boss.kind === "warden") {
+            const count = 3 + phase * 2;
+            for (let shot = 0; shot < count; shot += 1) {
+              const a = baseAngle + (shot - (count - 1) / 2) * 0.15;
+              spawnBossProjectile(g, boss, a, (300 + phase * 24) * hostileSpeed, 10 + phase * 2);
             }
+            if (phase === 3) {
+              for (let shot = 0; shot < 8; shot += 1) spawnBossProjectile(g, boss, shot * Math.PI / 4 + boss.pulse * 0.001, 245 * hostileSpeed, 11);
+            }
+          } else if (boss.kind === "furnace") {
+            const count = 5 + phase * 2;
+            for (let shot = 0; shot < count; shot += 1) {
+              const a = baseAngle + (shot - (count - 1) / 2) * 0.2;
+              spawnBossProjectile(g, boss, a, (245 + phase * 18) * hostileSpeed, 13 + phase * 2, { radius: 7, projectile: "magma", life: 3200 });
+            }
+            for (const side of [-1, 1]) spawnBossProjectile(g, boss, baseAngle + side * 0.65, 175 * hostileSpeed, 22, { radius: 11, projectile: "magma", life: 3900 });
+          } else if (boss.kind === "overseer") {
+            const count = 8 + phase * 2;
+            for (let shot = 0; shot < count; shot += 1) {
+              const a = shot * Math.PI * 2 / count + boss.pulse * 0.0007;
+              spawnBossProjectile(g, boss, a, (210 + phase * 18) * hostileSpeed, 12 + phase * 2, { projectile: "thorn", radius: 6, homing: phase >= 2 ? 900 + phase * 300 : 0, turnRate: 0.024 });
+            }
+            for (let shot = -1; shot <= 1; shot += 1) spawnBossProjectile(g, boss, baseAngle + shot * 0.18, 355 * hostileSpeed, 18 + phase * 2, { projectile: "thorn", radius: 7 });
+          } else {
+            const count = 12 + phase * 4;
+            for (let shot = 0; shot < count; shot += 1) {
+              const a = shot * Math.PI * 2 / count + boss.pulse * 0.0013;
+              spawnBossProjectile(g, boss, a, (235 + phase * 20) * hostileSpeed, 14 + phase * 2, { radius: 5, homing: phase === 3 ? 800 : 0, turnRate: 0.017 });
+            }
+            for (let shot = -2; shot <= 2; shot += 1) spawnBossProjectile(g, boss, baseAngle + shot * 0.09, 420 * hostileSpeed, 18 + phase * 3, { projectile: "thorn", radius: 6 });
           }
-          boss.cooldown = (boss.kind === "crown" ? 820 : boss.kind === "furnace" ? 1020 : 1220) * (tuning.hostileCooldown || 1);
+          boss.cooldown = (boss.kind === "warden" ? 1320 : boss.kind === "furnace" ? 1080 : boss.kind === "overseer" ? 880 : 660) * (tuning.hostileCooldown || 1);
           if (settings.shake && !settings.reduced) g.shake = Math.max(g.shake, phase === 3 ? 10 : 6);
         }
       }
@@ -4344,6 +4509,18 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       });
 
       g.bullets.forEach((b) => {
+        if (b.homing > 0 && b.owner === "enemy" && !playerHidden) {
+          b.homing -= dt;
+          const speed = Math.hypot(b.vx, b.vy);
+          const current = Math.atan2(b.vy, b.vx);
+          const target = Math.atan2(g.player.y - b.y, g.player.x - b.x);
+          let delta = target - current;
+          while (delta > Math.PI) delta -= Math.PI * 2;
+          while (delta < -Math.PI) delta += Math.PI * 2;
+          const next = current + clamp(delta, -(b.turnRate || 0.035), b.turnRate || 0.035);
+          b.vx = Math.cos(next) * speed;
+          b.vy = Math.sin(next) * speed;
+        }
         const dx = b.vx * dt / 1000;
         const dy = b.vy * dt / 1000;
         b.x += dx;
@@ -4351,7 +4528,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         b.traveled = (b.traveled || 0) + Math.hypot(dx, dy);
         b.life -= dt;
         if (b.traveled > (b.maxRange || 9999)) b.life = 0;
-        if (getSolidBlocks(level).some((w) => rectsTouch({ x: b.x - 3, y: b.y - 3, w: 6, h: 6 }, w))) b.life = 0;
+        const bulletRadius = b.radius || 3;
+        if (getSolidBlocks(level).some((w) => rectsTouch({ x: b.x - bulletRadius, y: b.y - bulletRadius, w: bulletRadius * 2, h: bulletRadius * 2 }, w))) b.life = 0;
         level.turrets.forEach((t) => {
           if (b.owner !== "enemy" && t.hp > 0 && dist(b, t) < 25) {
             t.hp -= isShielded(level, t) ? 0 : b.damage || 1;
@@ -4390,7 +4568,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
           damageBoss(level.boss, b.damage || 1);
           b.life = 0;
         }
-        if (b.owner === "enemy" && dist(b, g.player) < 18) {
+        if (b.owner === "enemy" && dist(b, g.player) < 14 + (b.radius || 4)) {
           damagePlayer(g, b.damage || 10);
           b.life = 0;
           if (settings.shake && !settings.reduced) g.shake = 7;
