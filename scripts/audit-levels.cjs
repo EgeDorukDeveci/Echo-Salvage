@@ -55,6 +55,7 @@ function supportDistance(level, support) {
     ...(level.turrets || []),
     ...(level.drones || []),
     ...(level.missileSentries || []),
+    ...(level.boss ? [level.boss] : []),
     ...SPECIAL_HOSTILE_KEYS.filter((key) => key !== "shieldDrones" && key !== "repairBots").flatMap((key) => level[key] || [])
   ].filter((hostile) => hostile.hp > 0);
   return targets.reduce((best, hostile) => Math.min(best, dist(support, hostile)), Infinity);
@@ -62,6 +63,7 @@ function supportDistance(level, support) {
 
 function pointEntityRect(label, entity) {
   const radius = label === "core" ? 34 :
+    label === "boss" ? 54 :
     label === "plate" ? entity.r || 34 :
     label === "switch" ? entity.r || 25 :
     label === "scrap" ? 12 :
@@ -144,6 +146,7 @@ function auditLevel(level, index) {
     ["missile sentry", level.missileSentries || []],
     ...SPECIAL_HOSTILE_KEYS.map((key) => [key, level[key] || []]),
     ["scrap", level.scrap || []],
+    ["boss", level.boss ? [level.boss] : []],
     ["core", level.core ? [level.core] : []]
   ];
   const entityBarriers = [...(level.walls || []), ...(level.movingWalls || []), ...(level.doors || [])];
@@ -215,6 +218,7 @@ function auditLevel(level, index) {
     ...(level.turrets || []),
     ...(level.drones || []),
     ...(level.missileSentries || []),
+    ...(level.boss ? [level.boss] : []),
     ...SPECIAL_HOSTILE_KEYS.flatMap((key) => level[key] || [])
   ].filter((hostile) => hostile.hp > 0);
   if (index >= 4 && liveThreats.length === 0 && !level.core) {
@@ -223,6 +227,13 @@ function auditLevel(level, index) {
 
   if ((level.crates || []).some((crate) => crate.role !== "plate-weight")) {
     issues.push("cargo crate missing plate-weight role");
+  }
+
+  if (level.objective?.type === "boss" && (!level.boss || level.boss.hp <= 0)) {
+    issues.push("boss objective has no live boss");
+  }
+  if (level.boss && !level.objective) {
+    issues.push("boss room missing objective metadata");
   }
 
   const rewards = (level.coinCrates || []).length + (level.scrap || []).length;

@@ -455,6 +455,52 @@ function getRoomMechanicHint(level) {
   return "Use Echo timing, cargo, switches, and cover.";
 }
 
+function getObjectiveText(level, game) {
+  const objective = level?.objective || { type: "secure" };
+  if (objective.type === "salvage") {
+    const remaining = (level.scrap || []).filter((item) => !item.taken).length;
+    return remaining ? `Recover all salvage · ${remaining} remaining` : "Salvage recovered · reach extraction";
+  }
+  if (objective.type === "terminals") {
+    const remaining = (level.switches || []).filter((item) => !item.on).length;
+    return remaining ? `Stabilize every terminal · ${remaining} remaining` : "Terminals stabilized · reach extraction";
+  }
+  if (objective.type === "boss") {
+    if (level.boss?.hp > 0) {
+      const phase = getBossPhase(level.boss);
+      const state = phase === 1 ? "heavy armor" : phase === 2 ? "armor breaking" : "core exposed";
+      return `Defeat ${level.boss.name} · phase ${phase} · ${state}`;
+    }
+    return `${level.boss?.name || "Boss"} defeated · reach extraction`;
+  }
+  if (objective.type === "core") return level.core?.alive ? "Destroy the station core" : "Core destroyed · reach extraction";
+  return "Break the lock chain and extract.";
+}
+
+function isRoomObjectiveComplete(level) {
+  const objective = level.objective || { type: "secure" };
+  if (objective.type === "salvage") return (level.scrap || []).every((item) => item.taken);
+  if (objective.type === "terminals") return (level.switches || []).every((item) => item.on);
+  if (objective.type === "boss") return !level.boss || level.boss.hp <= 0;
+  if (objective.type === "core") return !level.core || !level.core.alive;
+  return true;
+}
+
+function getBossPhase(boss) {
+  const ratio = clamp((boss?.hp || 0) / (boss?.maxHp || boss?.baseHp || boss?.hp || 1), 0, 1);
+  return ratio > 0.66 ? 1 : ratio > 0.33 ? 2 : 3;
+}
+
+function damageBoss(boss, amount) {
+  if (!boss || boss.hp <= 0) return 0;
+  const phase = getBossPhase(boss);
+  const armor = phase === 1 ? 0.42 : phase === 2 ? 0.68 : 1;
+  const dealt = amount * armor;
+  boss.hp = Math.max(0, boss.hp - dealt);
+  boss.hitFlash = 160;
+  return dealt;
+}
+
 function getHighestClearedRoom(progress = {}) {
   let highest = -1;
   Object.entries(normalizeProgress(progress)).forEach(([rawIndex, stars]) => {
@@ -757,6 +803,8 @@ function makeLevel(index = 0) {
     repairBots: [],
     movingWalls: [],
     echoCorruptionZones: [],
+    boss: null,
+    objective: { type: "secure" },
     lasers: [],
     scrap: scrap([470, 180], [710, 560], [980, 520]),
     core: null
@@ -914,6 +962,8 @@ function makeLevel(index = 0) {
     },
     {
       name: "Dual Drone Relay",
+      objective: { type: "boss" },
+      boss: { name: "Calibration Warden", kind: "warden", x: 965, y: 360, hp: 14, cooldown: 900, pulse: 0 },
       walls: [wall(360, 90, 42, 245), wall(360, 385, 42, 245), wall(760, 90, 42, 245), wall(760, 385, 42, 245)],
       coinCrates: [coin(585, 360, 24), coin(1015, 205, 18)],
       plates: [plate("A", 235, 205), plate("B", 235, 520)],
@@ -1103,6 +1153,8 @@ function makeLevel(index = 0) {
     },
     {
       name: "Sweeper Plate Loom",
+      objective: { type: "boss" },
+      boss: { name: "Breach Furnace", kind: "furnace", x: 980, y: 360, hp: 18, cooldown: 760, pulse: 0 },
       player: { x: 160, y: 185 },
       exit: { x: 585, y: 585, w: 116, h: 58 },
       walls: [wall(260, 230, 270, 42), wall(420, 448, 270, 42), wall(650, 230, 270, 42), wall(815, 448, 270, 42), wall(530, 272, 42, 176), wall(690, 272, 42, 176)],
@@ -1227,6 +1279,8 @@ function makeLevel(index = 0) {
     },
     {
       name: "Salvage Singularity Core",
+      objective: { type: "boss" },
+      boss: { name: "Verdant Overseer", kind: "overseer", x: 840, y: 420, hp: 22, cooldown: 680, pulse: 0 },
       player: { x: 640, y: 585 },
       exit: { x: 598, y: 78, w: 100, h: 58 },
       walls: [wall(260, 500, 250, 42), wall(260, 180, 42, 320), wall(470, 180, 260, 42), wall(730, 180, 42, 185), wall(555, 365, 217, 42), wall(555, 407, 42, 135), wall(780, 500, 250, 42), wall(988, 180, 42, 320), wall(778, 180, 250, 42)],
@@ -1249,6 +1303,7 @@ function makeLevel(index = 0) {
     },
     {
       name: "Cargo Switch Observatory",
+      objective: { type: "salvage" },
       player: { x: 160, y: 555 },
       exit: { x: 1048, y: 84, w: 96, h: 58 },
       walls: [wall(300, 500, 260, 42), wall(300, 180, 42, 320), wall(520, 180, 230, 42), wall(520, 500, 230, 42), wall(750, 250, 42, 250), wall(930, 160, 42, 180), wall(930, 420, 42, 180)],
@@ -1317,6 +1372,7 @@ function makeLevel(index = 0) {
     },
     {
       name: "Jammer Timing Cloister",
+      objective: { type: "terminals" },
       player: { x: 640, y: 590 },
       exit: { x: 592, y: 80, w: 112, h: 58 },
       walls: [wall(275, 300, 250, 42), wall(755, 300, 250, 42), wall(420, 125, 42, 175), wall(420, 342, 42, 185), wall(835, 125, 42, 175), wall(835, 342, 42, 185), wall(560, 430, 160, 42), wall(560, 215, 160, 42)],
@@ -1502,6 +1558,7 @@ function makeLevel(index = 0) {
     },
     {
       name: "Corruption Repair Cathedral",
+      objective: { type: "salvage" },
       player: { x: 1035, y: 560 },
       exit: { x: 110, y: 90, w: 58, h: 104 },
       walls: [wall(250, 500, 250, 42), wall(250, 178, 42, 322), wall(480, 178, 42, 160), wall(480, 420, 42, 160), wall(700, 140, 42, 235), wall(700, 430, 42, 170), wall(900, 245, 42, 255), wall(560, 305, 150, 42), wall(560, 385, 150, 42)],
@@ -1596,6 +1653,8 @@ function makeLevel(index = 0) {
     },
     {
       name: "Null Shift Convergence",
+      objective: { type: "boss" },
+      boss: { name: "Null Crown", kind: "crown", x: 900, y: 220, hp: 28, cooldown: 560, pulse: 0 },
       player: { x: 640, y: 590 },
       exit: { x: 596, y: 80, w: 104, h: 58 },
       walls: [wall(240, 500, 250, 42), wall(240, 180, 42, 320), wall(455, 180, 42, 150), wall(455, 410, 42, 175), wall(800, 180, 42, 150), wall(800, 410, 42, 175), wall(1000, 180, 42, 320)],
@@ -1642,7 +1701,9 @@ function makeLevel(index = 0) {
     shieldDrones: layout.shieldDrones || [],
     repairBots: layout.repairBots || [],
     movingWalls: layout.movingWalls || [],
-    echoCorruptionZones: layout.echoCorruptionZones || [],
+    echoCorruptionZones: (layout.echoCorruptionZones || []).map((zone) => ({ ...zone, r: Math.round(zone.r * 1.35) })),
+    boss: layout.boss || null,
+    objective: layout.objective || fallback.objective,
     lasers: layout.lasers || [],
     scrap: layout.scrap || fallback.scrap,
     core: layout.core || null
@@ -1753,6 +1814,7 @@ function ensurePlayableSpawn(level) {
 
 function getPointEntityRadius(key, entity) {
   if (key === "core") return 34;
+  if (key === "boss") return 54;
   if (key === "plates") return entity.r || 34;
   if (key === "switches") return entity.r || 25;
   if (key === "scrap") return 12;
@@ -1770,6 +1832,7 @@ function movePointEntitiesOutOfWalls(level) {
     "scrap"
   ];
   if (level.core) groups.push("core");
+  if (level.boss) groups.push("boss");
   const barriers = [...(level.walls || []), ...(level.movingWalls || []), ...(level.doors || [])];
   const isOpen = (key, entity, x, y) => {
     const radius = getPointEntityRadius(key, entity);
@@ -1781,7 +1844,7 @@ function movePointEntitiesOutOfWalls(level) {
       !barriers.some((barrier) => rectsTouch(rect, barrier));
   };
   groups.forEach((key) => {
-    const entities = key === "core" ? [level.core] : level[key] || [];
+    const entities = key === "core" ? [level.core] : key === "boss" ? [level.boss] : level[key] || [];
     entities.forEach((entity) => {
       if (isOpen(key, entity, entity.x, entity.y)) return;
       const candidates = [];
@@ -2593,6 +2656,10 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
   });
   level.repairBots?.forEach((h) => h.hp > 0 && drawSpecialHostile(ctx, h, "REPAIR BOT", "#58e07a", "circle"));
 
+  if (level.boss?.hp > 0) {
+    drawBoss(ctx, level.boss);
+  }
+
   level.turrets.forEach((t) => {
     if (t.hp <= 0) return;
     if (t.seesPlayer) {
@@ -2956,6 +3023,192 @@ function drawMagmaVentHostile(ctx, h) {
   ctx.restore();
   drawLabel(ctx, "MAGMA VENT", h.x - 42, h.y - 42, "#ff9d3c");
   drawHealthBar(ctx, h.x, h.y - 54, h.hp, h.maxHp || 4, "#ff6b34");
+}
+
+function drawBoss(ctx, boss) {
+  const phase = getBossPhase(boss);
+  const spin = (boss.pulse || 0) * (phase === 3 ? 0.0021 : 0.00125);
+  const color = boss.kind === "warden" ? "#00f0d2" : boss.kind === "furnace" ? "#ff8a00" : boss.kind === "overseer" ? "#72ed80" : "#d38cff";
+  const core = boss.kind === "furnace" ? "#fff0a4" : boss.kind === "overseer" ? "#d7ff7c" : boss.kind === "crown" ? "#ff6ec7" : "#efffff";
+  const hit = (boss.hitFlash || 0) > 0;
+  ctx.save();
+  ctx.translate(boss.x, boss.y);
+  ctx.shadowColor = color;
+  ctx.shadowBlur = hit ? 42 : 24 + phase * 4;
+
+  if (boss.kind === "warden") {
+    ctx.rotate(spin);
+    for (let i = 0; i < 4; i += 1) {
+      ctx.save();
+      ctx.rotate(i * Math.PI / 2);
+      ctx.fillStyle = i % 2 ? "#143f45" : "#1c5960";
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(18, -14);
+      ctx.lineTo(67, -9);
+      ctx.lineTo(78, 0);
+      ctx.lineTo(67, 9);
+      ctx.lineTo(18, 14);
+      ctx.lineTo(30, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = core;
+      ctx.fillRect(50, -3, 17, 6);
+      ctx.restore();
+    }
+    ctx.rotate(-spin * 1.8);
+    ctx.strokeStyle = "#a8fff5";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 34, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = "#071c21";
+    ctx.beginPath();
+    ctx.arc(0, 0, 25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = core;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-15, 0);
+    ctx.lineTo(15, 0);
+    ctx.moveTo(0, -15);
+    ctx.lineTo(0, 15);
+    ctx.stroke();
+  } else if (boss.kind === "furnace") {
+    ctx.rotate(Math.sin(spin) * 0.035);
+    ctx.fillStyle = "#25130e";
+    ctx.strokeStyle = "#ffbd42";
+    ctx.lineWidth = 4;
+    ctx.fillRect(-58, -45, 116, 90);
+    ctx.strokeRect(-58, -45, 116, 90);
+    for (const side of [-1, 1]) {
+      ctx.fillStyle = "#4a2314";
+      ctx.strokeStyle = color;
+      ctx.fillRect(side * 58 - (side < 0 ? 20 : 0), -31, 20, 62);
+      ctx.strokeRect(side * 58 - (side < 0 ? 20 : 0), -31, 20, 62);
+      for (let i = -1; i <= 1; i += 1) {
+        ctx.strokeStyle = "#ffcf5e";
+        ctx.beginPath();
+        ctx.moveTo(side * 62, i * 16 - 5);
+        ctx.lineTo(side * 77, i * 16);
+        ctx.stroke();
+      }
+    }
+    ctx.fillStyle = "#080605";
+    ctx.strokeStyle = "#ffdf73";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, 29, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = core;
+    ctx.beginPath();
+    ctx.arc(0, 0, 14 + Math.sin(spin * 8) * 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#6c3219";
+    ctx.lineWidth = 6;
+    for (let i = 0; i < 4; i += 1) {
+      const a = i * Math.PI / 2 + spin;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * 31, Math.sin(a) * 31);
+      ctx.lineTo(Math.cos(a) * 48, Math.sin(a) * 48);
+      ctx.stroke();
+    }
+  } else if (boss.kind === "overseer") {
+    ctx.rotate(spin);
+    for (let i = 0; i < 8; i += 1) {
+      ctx.save();
+      ctx.rotate(i * Math.PI / 4);
+      ctx.fillStyle = i % 2 ? "#275f38" : "#397b45";
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(15, -11);
+      ctx.bezierCurveTo(38, -31, 65, -20, 74, 0);
+      ctx.bezierCurveTo(65, 20, 38, 31, 15, 11);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = "#c8ff86";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(25, 0);
+      ctx.lineTo(64, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.rotate(-spin * 1.7);
+    ctx.fillStyle = "#101d11";
+    ctx.strokeStyle = "#d7ff7c";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 31, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = core;
+    for (let i = 0; i < 6; i += 1) {
+      const a = i * Math.PI / 3 + spin * 2;
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * 17, Math.sin(a) * 17, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    ctx.rotate(spin);
+    for (let ring = 0; ring < 3; ring += 1) {
+      ctx.save();
+      ctx.rotate(ring * Math.PI / 3 + spin * (ring % 2 ? -1 : 1));
+      ctx.strokeStyle = ring === 1 ? "#ff6ec7" : "#a88cff";
+      ctx.lineWidth = 5 - ring;
+      ctx.setLineDash([26 - ring * 4, 10 + ring * 5]);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 72 - ring * 13, 28 + ring * 8, ring * 0.7, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#010105";
+    ctx.strokeStyle = "#f1c6ff";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, 27, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    for (let i = 0; i < 6; i += 1) {
+      const a = spin * -2 + i * Math.PI / 3;
+      ctx.fillStyle = i % 2 ? "#ff6ec7" : "#b78cff";
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * 52, Math.sin(a) * 52);
+      ctx.lineTo(Math.cos(a + 0.13) * 67, Math.sin(a + 0.13) * 67);
+      ctx.lineTo(Math.cos(a - 0.13) * 67, Math.sin(a - 0.13) * 67);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  if (phase > 1) {
+    ctx.strokeStyle = phase === 3 ? "#ff4e41" : color;
+    ctx.globalAlpha = 0.35 + Math.sin(spin * 12) * 0.12;
+    ctx.lineWidth = phase === 3 ? 4 : 2;
+    ctx.setLineDash(phase === 3 ? [7, 7] : [16, 10]);
+    ctx.beginPath();
+    ctx.arc(0, 0, 87 + Math.sin(spin * 9) * 5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  if ((boss.charge || 0) > 0) {
+    const chargeRatio = 1 - clamp(boss.charge / (boss.chargeMax || 850), 0, 1);
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = "#ff4e41";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 102, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * chargeRatio);
+    ctx.stroke();
+  }
+  ctx.restore();
+  drawLabel(ctx, `${boss.name.toUpperCase()} · PHASE ${phase}`, boss.x - 68, boss.y - 96, color);
+  drawHealthBar(ctx, boss.x, boss.y - 110, boss.hp, boss.maxHp || boss.baseHp || boss.hp, color);
 }
 
 function drawDrone(ctx, p, echo, cosmetic = COSMETIC_DEFAULTS) {
@@ -3354,6 +3607,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     });
     level.movingWalls = level.movingWalls || [];
     level.echoCorruptionZones = level.echoCorruptionZones || [];
+    if (level.boss) tuneHostileHp(level.boss, level.boss.hp || 14);
     level.movingWalls.forEach((wall) => {
       wall.originX = wall.originX ?? wall.x;
       wall.originY = wall.originY ?? wall.y;
@@ -3371,6 +3625,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         maxEnergy: tuning.maxEnergy,
         shield: maxShield,
         maxShield,
+        corruption: 0,
         scrap: 0,
         coinsEarned: 0,
         weaponId: weapon.id,
@@ -3582,6 +3837,9 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         level.core.hp -= damage;
         if (level.core.hp <= 0) level.core.alive = false;
       }
+      if (level.boss?.hp > 0 && pointToSegmentDistance(level.boss, line, end) < 48 && hasLineOfSight(line, level.boss, blockers)) {
+        damageBoss(level.boss, damage);
+      }
       return;
     }
     g.bullets.push({
@@ -3655,6 +3913,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       targets.forEach((target) => {
         if (target.hp > 0 && pointToSegmentDistance(target, start, end) < 72) target.hp -= isShielded(g.level, target) ? 0 : 3;
       });
+      if (g.level.boss?.hp > 0 && pointToSegmentDistance(g.level.boss, start, end) < 90) damageBoss(g.level.boss, 3);
       if (g.level.core?.alive && pointToSegmentDistance(g.level.core, start, end) < 78) {
         g.level.core.hp -= 3;
         if (g.level.core.hp <= 0) g.level.core.alive = false;
@@ -4027,6 +4286,38 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         if (h.hp <= 0) return;
         h.pulse = (h.pulse || 0) + dt;
       });
+      if (level.boss?.hp > 0) {
+        const boss = level.boss;
+        boss.pulse = (boss.pulse || 0) + dt;
+        boss.hitFlash = Math.max(0, (boss.hitFlash || 0) - dt);
+        boss.cooldown -= dt;
+        const gap = dist(boss, g.player);
+        if (!playerHidden && boss.cooldown <= 0 && gap < 760 && !boss.charge) {
+          boss.chargeMax = getBossPhase(boss) === 3 ? 620 : 850;
+          boss.charge = boss.chargeMax;
+        }
+        const wasCharging = boss.charge > 0;
+        if (wasCharging) boss.charge -= dt;
+        if (wasCharging && boss.charge <= 0) {
+          boss.charge = 0;
+          const baseAngle = Math.atan2(g.player.y - boss.y, g.player.x - boss.x);
+          const phase = getBossPhase(boss);
+          const shotCount = (boss.kind === "crown" ? 7 : boss.kind === "furnace" ? 5 : 3) + (phase - 1) * 2;
+          const spread = boss.kind === "warden" ? 0.15 : 0.24;
+          for (let shot = 0; shot < shotCount; shot += 1) {
+            const a = baseAngle + (shot - (shotCount - 1) / 2) * spread;
+            g.bullets.push({ x: boss.x, y: boss.y, vx: Math.cos(a) * (280 + phase * 28) * hostileSpeed, vy: Math.sin(a) * (280 + phase * 28) * hostileSpeed, life: 2400, owner: "enemy", damage: 12 + phase * 3 });
+          }
+          if (phase === 3) {
+            for (let shot = 0; shot < 10; shot += 1) {
+              const a = shot * Math.PI * 2 / 10 + boss.pulse * 0.001;
+              g.bullets.push({ x: boss.x, y: boss.y, vx: Math.cos(a) * 245 * hostileSpeed, vy: Math.sin(a) * 245 * hostileSpeed, life: 2500, owner: "enemy", damage: 13 });
+            }
+          }
+          boss.cooldown = (boss.kind === "crown" ? 820 : boss.kind === "furnace" ? 1020 : 1220) * (tuning.hostileCooldown || 1);
+          if (settings.shake && !settings.reduced) g.shake = Math.max(g.shake, phase === 3 ? 10 : 6);
+        }
+      }
       level.repairBots?.forEach((h) => {
         if (h.hp <= 0) return;
         h.cooldown -= dt;
@@ -4095,8 +4386,12 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
           b.life = 0;
           if (level.core.hp <= 0) level.core.alive = false;
         }
+        if (b.owner !== "enemy" && level.boss?.hp > 0 && dist(b, level.boss) < 48) {
+          damageBoss(level.boss, b.damage || 1);
+          b.life = 0;
+        }
         if (b.owner === "enemy" && dist(b, g.player) < 18) {
-          damagePlayer(g, 10);
+          damagePlayer(g, b.damage || 10);
           b.life = 0;
           if (settings.shake && !settings.reduced) g.shake = 7;
         }
@@ -4130,6 +4425,13 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         const near = vertical ? Math.abs(g.player.x - l.x1) < 14 && g.player.y > Math.min(l.y1, l.y2) && g.player.y < Math.max(l.y1, l.y2) : Math.abs(g.player.y - l.y1) < 14 && g.player.x > Math.min(l.x1, l.x2) && g.player.x < Math.max(l.x1, l.x2);
         if (near) damagePlayer(g, dt * 0.018 * (perks.laserResist || 1) * (tuning.laserDamage || 1));
       });
+
+      const insideCorruption = level.echoCorruptionZones?.some((zone) => dist(g.player, zone) < zone.r);
+      g.player.corruption = clamp((g.player.corruption || 0) + (insideCorruption ? dt * 0.012 : -dt * 0.006), 0, 100);
+      if (g.player.corruption > 65) {
+        g.player.energy = clamp(g.player.energy - dt * 0.0045, 0, g.player.maxEnergy || MAX_ENERGY);
+      }
+      if (g.player.corruption >= 100) damagePlayer(g, dt * 0.012);
 
       g.player.energy = clamp(g.player.energy + (perks.energyRegen || 0) * dt / 1000, 0, g.player.maxEnergy || MAX_ENERGY);
       g.player.hp = clamp(g.player.hp + (perks.hullRegen || 0) * dt / 1000, 0, 100);
@@ -4196,11 +4498,12 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       }
       const roomSecured =
         (!level.core || !level.core.alive || levelIndex < 4) &&
+        (!level.boss || level.boss.hp <= 0) &&
         level.turrets.every((t) => t.hp <= 0) &&
         (level.drones || []).every((d) => d.hp <= 0) &&
         (level.missileSentries || []).every((m) => m.hp <= 0) &&
         SPECIAL_HOSTILE_KEYS.every((key) => (level[key] || []).every((h) => h.hp <= 0));
-      if (rectsTouch(playerRect(g.player), level.exit) && level.doors.every((d) => d.open) && roomSecured) {
+      if (rectsTouch(playerRect(g.player), level.exit) && level.doors.every((d) => d.open) && roomSecured && isRoomObjectiveComplete(level)) {
         finishRun("Extracted");
       }
 
@@ -4322,10 +4625,11 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
           <Meter label="Hull" value={g?.player.hp ?? 100} color="#ffd52d" />
           <Meter label="Energy" value={g?.player.energy ?? MAX_ENERGY} max={g?.player.maxEnergy ?? MAX_ENERGY} color="#ffd52d" />
           {(g?.player.maxShield ?? 0) > 0 && <Meter label="Shield" value={g?.player.shield ?? 0} max={g?.player.maxShield ?? 1} color="#00f0d2" />}
+          {(g?.level.echoCorruptionZones?.length ?? 0) > 0 && <Meter label="Corruption" value={g?.player.corruption ?? 0} color="#ff6ec7" />}
         </div>
         <div className="hud-card objective-card">
           <strong>Objective</strong>
-          <span>Break the lock chain and extract.</span>
+          <span>{getObjectiveText(g?.level, g)}</span>
           <small>{getRoomMechanicHint(g?.level)}</small>
         </div>
         <div className="hud-cluster stat-grid">
