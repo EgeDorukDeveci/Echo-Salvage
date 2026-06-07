@@ -2,7 +2,7 @@
 
 Echo Salvage is a top-down browser action-puzzle game set inside abandoned orbital stations. You pilot a salvage drone, solve locked rooms, fight hostile station systems, collect scrap and coins, and use your main power: an **Echo** that replays your recent actions.
 
-The Echo records an eight-second window of movement, shooting, dashing, and interactions. When released, it replays that window and keeps following the next recorded action sequence, letting you coordinate with your own past and future movement patterns.
+The Echo records up to eight seconds of movement, shooting, and interactions. Deploying an Echo closes that action segment and starts a fresh recording for the next Echo. Each Echo replays its own segment, then remains at its final position so multiple Echoes can hold different jobs.
 
 ## Current Features
 

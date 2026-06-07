@@ -3329,14 +3329,12 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     }
     const usedSlots = new Set(g.echoes.map((echo) => echo.slot));
     const slot = Array.from({ length: MAX_ECHOES }, (_, i) => i).find((i) => !usedSlots.has(i)) ?? 0;
-    const replayFrames = ECHO_MS / ECHO_FRAME_MS;
-    if (g.recording.length < replayFrames) {
-      const remainingSeconds = Math.ceil((replayFrames - g.recording.length) * ECHO_FRAME_MS / 1000);
-      blockEcho(`Recording ${remainingSeconds}s more history`);
+    if (g.recording.length < 8) {
+      blockEcho("Record a short action first");
       return;
     }
     g.player.energy -= echoCost;
-    const frames = g.recording.slice(-replayFrames).map((frame) => ({ ...frame }));
+    const frames = g.recording.slice(-(ECHO_MS / ECHO_FRAME_MS)).map((frame) => ({ ...frame }));
     const id = g.nextEchoId ?? 0;
     g.nextEchoId = id + 1;
     g.echoes.push({
@@ -3351,7 +3349,15 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       echoColor: ECHO_COLORS[slot] || ECHO_COLORS[0],
       echoFill: ECHO_FILLS[slot] || ECHO_FILLS[0]
     });
-    g.echoStatus = `Echo ${slot + 1} replaying captured history`;
+    g.recording = [{
+      x: g.player.x,
+      y: g.player.y,
+      angle: g.player.angle,
+      fire: false,
+      interact: false
+    }];
+    g.recordTimer = 0;
+    g.echoStatus = `Echo ${slot + 1} captured · new recording started`;
     g.echoStatusUntil = performance.now() + 1100;
     if (settings.shake && !settings.reduced) g.shake = 8;
   }
@@ -3700,18 +3706,19 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
 
       g.echoes.forEach((e) => {
         e.age += dt;
-        const frame = e.frames[Math.floor(e.age / ECHO_FRAME_MS)];
+        const frameIndex = Math.floor(e.age / ECHO_FRAME_MS);
+        const replaying = frameIndex < e.frames.length;
+        const frame = e.frames[Math.min(frameIndex, e.frames.length - 1)];
         if (!frame) return;
         e.x = frame.x;
         e.y = frame.y;
         e.angle = frame.angle;
-        if (frame.interact) interact(e);
-        if (frame.fire && e.age - e.fired > 210) {
+        if (replaying && frame.interact) interact(e);
+        if (replaying && frame.fire && e.age - e.fired > 210) {
           e.fired = e.age;
           shoot(e);
         }
       });
-      g.echoes = g.echoes.filter((e) => e.age < e.frames.length * ECHO_FRAME_MS);
       updateCargoTether(g, dt);
 
       const bodies = [g.player, ...g.echoes, ...level.crates.map((c) => ({ x: c.x + c.w / 2, y: c.y + c.h / 2 }))];
@@ -4181,7 +4188,7 @@ function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSett
             </button>
           </div>
           <h1 className="title">Echo Salvage</h1>
-          <p className="lead">Pilot a drone through locked station rooms. Each time you deploy an Echo, it captures and replays the eight seconds immediately before you pressed the button.</p>
+          <p className="lead">Pilot a drone through locked station rooms. Deploying an Echo closes the current recording, replays it as a separate drone, then starts a fresh recording for your next Echo.</p>
           <div className="campaign-status" style={{ "--section-accent": currentSection.accent }}>
             <span>{currentSection.label}</span>
             <strong>{totalStars} stars banked</strong>
@@ -4315,7 +4322,7 @@ function Briefing({ setScreen, startRun }) {
         <section className="panel">
           <div className="panel-header"><span className="badge">First Boot</span><span className="status-pill">Echo Link Unstable</span></div>
           <h1 className="title" style={{ fontSize: "clamp(46px, 6vw, 70px)" }}>Your past self is the tool.</h1>
-          <p className="lead">Create Echoes after doing something useful. Every deployment captures its own eight-second recording, so each Echo can repeat a different job.</p>
+          <p className="lead">Create Echoes after doing something useful. Every deployment captures its own action segment, then stays at the segment's final position while you record the next job.</p>
           <div className="button-grid">
             <Button primary onClick={startRun}><Play size={22} /> Start Run</Button>
             <Button onClick={() => setScreen("menu")}>Main Menu</Button>
@@ -4323,7 +4330,7 @@ function Briefing({ setScreen, startRun }) {
         </section>
         <section className="panel">
           <Brief icon={<Boxes />} title="Read the labels" text="Plate cargo is pushable weight for pressure plates. Switches latch, plates need bodies or cargo, and gates require the whole lock chain." />
-          <Brief icon={<Zap />} title="Capture, then replay" text="Press Echo to capture the eight seconds immediately before that moment. Move somewhere else and deploy again to create a different recording." />
+          <Brief icon={<Zap />} title="Capture separate jobs" text="Press Echo to close the current recording and begin a fresh one. A finished Echo stays at its final position, letting you hold A before recording a route to B." />
           <Brief icon={<Shield />} title="Clear the lock chain" text="Locked gates show how many requirements remain. Solve the room, survive the hazards, and extract." />
         </section>
       </div>
