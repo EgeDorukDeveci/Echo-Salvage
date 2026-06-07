@@ -4,6 +4,10 @@ const vm = require("vm");
 
 const appPath = path.join(process.cwd(), "src", "App.jsx");
 const source = fs.readFileSync(appPath, "utf8");
+const AUDIT_W = 1280;
+const AUDIT_H = 720;
+const AUDIT_PLAYER_MARGIN = 80;
+const AUDIT_CARGO_MARGIN = 64;
 
 function extractBetween(startNeedle, endNeedle) {
   const start = source.indexOf(startNeedle);
@@ -20,8 +24,9 @@ const H = 720;
 const ECHO_MS = 8000;
 const ECHO_FRAME_MS = 100;
 const MAX_ECHOES = 3;
+const CELL = 40;
 const PLAYER_MARGIN = 80;
-const CARGO_MARGIN = 58;
+const CARGO_MARGIN = 64;
 `;
 
 const snippet = [
@@ -64,6 +69,38 @@ function pointEntityRect(label, entity) {
   return { x: entity.x - radius, y: entity.y - radius, w: radius * 2, h: radius * 2 };
 }
 
+function cargoHasPushDirection(level, crate, crateIndex) {
+  const blockers = [
+    ...(level.walls || []),
+    ...(level.movingWalls || []),
+    ...(level.doors || []),
+    ...(level.crates || []).filter((_, index) => index !== crateIndex)
+  ];
+  const cargoFits = (candidate) => candidate.x >= AUDIT_CARGO_MARGIN &&
+    candidate.y >= AUDIT_CARGO_MARGIN &&
+    candidate.x + candidate.w <= AUDIT_W - AUDIT_CARGO_MARGIN &&
+    candidate.y + candidate.h <= AUDIT_H - AUDIT_CARGO_MARGIN;
+  return [
+    { x: 1, y: 0 },
+    { x: -1, y: 0 },
+    { x: 0, y: 1 },
+    { x: 0, y: -1 }
+  ].some((direction) => {
+    const player = {
+      x: crate.x + crate.w / 2 - direction.x * (crate.w / 2 + 24),
+      y: crate.y + crate.h / 2 - direction.y * (crate.h / 2 + 24)
+    };
+    const pushed = { ...crate, x: crate.x + direction.x * 14, y: crate.y + direction.y * 14 };
+    const playerFits = player.x >= AUDIT_PLAYER_MARGIN &&
+      player.x <= AUDIT_W - AUDIT_PLAYER_MARGIN &&
+      player.y >= AUDIT_PLAYER_MARGIN &&
+      player.y <= AUDIT_H - AUDIT_PLAYER_MARGIN;
+    return playerFits &&
+      cargoFits(pushed) &&
+      !blockers.some((block) => rectsTouch(playerRect(player), block) || rectsTouch(pushed, block));
+  });
+}
+
 function auditLevel(level, index) {
   const issues = [];
   const plateIds = new Set((level.plates || []).map((plate) => plate.id));
@@ -94,7 +131,7 @@ function auditLevel(level, index) {
   }
 
   const exitRect = level.exit;
-  const permanentSolids = [...(level.walls || []), ...(level.crates || [])];
+  const permanentSolids = [...(level.walls || []), ...(level.movingWalls || []), ...(level.crates || [])];
   if (permanentSolids.some((block) => rectsTouch(exitRect, block))) {
     issues.push("exit overlaps permanent geometry");
   }
@@ -109,13 +146,61 @@ function auditLevel(level, index) {
     ["scrap", level.scrap || []],
     ["core", level.core ? [level.core] : []]
   ];
-  const entityBarriers = [...(level.walls || []), ...(level.doors || [])];
+  const entityBarriers = [...(level.walls || []), ...(level.movingWalls || []), ...(level.doors || [])];
   wallEmbeddedGroups.forEach(([label, entities]) => {
     entities.forEach((entity, entityIndex) => {
       if (entityBarriers.some((barrier) => rectsTouch(pointEntityRect(label, entity), barrier))) {
         issues.push(`${label} ${entity.id || entityIndex + 1} is embedded in a wall or door`);
       }
     });
+  });
+
+  (level.crates || []).forEach((crate, crateIndex) => {
+    const blockers = [
+      ...(level.walls || []),
+      ...(level.movingWalls || []),
+      ...(level.doors || []),
+      ...(level.crates || []).filter((_, index) => index !== crateIndex)
+    ];
+    const outsideBounds = crate.x < AUDIT_CARGO_MARGIN ||
+      crate.y < AUDIT_CARGO_MARGIN ||
+      crate.x + crate.w > AUDIT_W - AUDIT_CARGO_MARGIN ||
+      crate.y + crate.h > AUDIT_H - AUDIT_CARGO_MARGIN;
+    if (outsideBounds) {
+      issues.push(`cargo weight ${crateIndex + 1} is outside usable bounds`);
+    } else if (blockers.some((block) => rectsTouch(crate, block))) {
+      issues.push(`cargo weight ${crateIndex + 1} overlaps a wall, door, or cargo weight`);
+    } else if (!cargoHasPushDirection(level, crate, crateIndex)) {
+      issues.push(`cargo weight ${crateIndex + 1} has no usable push direction`);
+    }
+  });
+
+  (level.movingWalls || []).forEach((wall, wallIndex) => {
+    if (!["x", "y"].includes(wall.axis) || !Number.isFinite(wall.range) || wall.range <= 0 || !Number.isFinite(wall.speed) || wall.speed <= 0) {
+      issues.push(`shift wall ${wallIndex + 1} has invalid rail settings`);
+      return;
+    }
+    const endpoints = [-wall.range, wall.range].map((offset) => ({
+      ...wall,
+      x: wall.axis === "x" ? wall.x + offset : wall.x,
+      y: wall.axis === "y" ? wall.y + offset : wall.y
+    }));
+    const staticGeometry = [...(level.walls || []), ...(level.doors || [])];
+    if (endpoints.some((endpoint) =>
+      endpoint.x < AUDIT_CARGO_MARGIN ||
+      endpoint.y < AUDIT_CARGO_MARGIN ||
+      endpoint.x + endpoint.w > AUDIT_W - AUDIT_CARGO_MARGIN ||
+      endpoint.y + endpoint.h > AUDIT_H - AUDIT_CARGO_MARGIN ||
+      staticGeometry.some((block) => rectsTouch(endpoint, block))
+    )) {
+      issues.push(`shift wall ${wallIndex + 1} rail intersects permanent geometry or room bounds`);
+    }
+  });
+
+  (level.echoCorruptionZones || []).forEach((zone, zoneIndex) => {
+    if (!Number.isFinite(zone.r) || zone.r < 60 || zone.x - zone.r < 60 || zone.x + zone.r > AUDIT_W - 60 || zone.y - zone.r < 60 || zone.y + zone.r > AUDIT_H - 60) {
+      issues.push(`echo corruption field ${zoneIndex + 1} is invalid or outside usable bounds`);
+    }
   });
 
   const supportBots = [...(level.shieldDrones || []), ...(level.repairBots || [])];
@@ -179,6 +264,14 @@ function auditCampaignPacing(levels) {
   const firstCore = levels.findIndex((level) => level.core);
   if (firstCore !== -1 && firstCore + 1 < 21) {
     issues.push(`Reactor core first appears in room ${firstCore + 1}, expected room 21 or later`);
+  }
+  const firstCorruption = levels.findIndex((level) => (level.echoCorruptionZones || []).length > 0);
+  if (firstCorruption !== -1 && firstCorruption + 1 < 43) {
+    issues.push(`Echo Corruption first appears in room ${firstCorruption + 1}, expected room 43 or later`);
+  }
+  const firstMovingRoom = levels.findIndex((level) => (level.movingWalls || []).length > 0);
+  if (firstMovingRoom !== -1 && firstMovingRoom + 1 < 46) {
+    issues.push(`Shift Walls first appear in room ${firstMovingRoom + 1}, expected room 46 or later`);
   }
 
   return issues;
