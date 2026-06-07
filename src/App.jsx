@@ -154,7 +154,7 @@ const rooms = [
   "Drone Fork Hangar",
   "Missile Dash Parabola",
   "Gravity Plate Crucible",
-  "Jammer Timing Cloister",
+  "Verdant Maw Cloister",
   "Sweeper Corruption Weave",
   "Shield Drone Bastion",
   "Repair Turret Depot",
@@ -1305,8 +1305,7 @@ function makeLevel(index = 0) {
     },
     {
       name: "Salvage Singularity Core",
-      objective: { type: "boss" },
-      boss: { name: "Verdant Maw", kind: "overseer", x: 640, y: 275, hp: 37, cooldown: 680, meleeCooldown: 900, pulse: 0 },
+      objective: { type: "core" },
       player: { x: 640, y: 585 },
       exit: { x: 598, y: 78, w: 100, h: 58 },
       walls: [wall(260, 500, 250, 42), wall(260, 180, 42, 320), wall(470, 180, 260, 42), wall(730, 180, 42, 185), wall(555, 365, 217, 42), wall(555, 407, 42, 135), wall(780, 500, 250, 42), wall(988, 180, 42, 320), wall(778, 180, 250, 42)],
@@ -1397,11 +1396,12 @@ function makeLevel(index = 0) {
       scrap: scrap([385, 360], [610, 535], [845, 185], [1015, 360])
     },
     {
-      name: "Jammer Timing Cloister",
-      objective: { type: "terminals" },
+      name: "Verdant Maw Cloister",
+      objective: { type: "boss" },
+      boss: { name: "Verdant Maw", kind: "overseer", x: 640, y: 250, hp: 37, cooldown: 680, meleeCooldown: 900, pulse: 0 },
       player: { x: 640, y: 590 },
       exit: { x: 592, y: 80, w: 112, h: 58 },
-      walls: [wall(275, 300, 250, 42), wall(755, 300, 250, 42), wall(420, 125, 42, 175), wall(420, 342, 42, 185), wall(835, 125, 42, 175), wall(835, 342, 42, 185), wall(560, 430, 160, 42), wall(560, 215, 160, 42)],
+      walls: [wall(275, 300, 250, 42), wall(755, 300, 250, 42), wall(420, 125, 42, 175), wall(420, 342, 42, 185), wall(835, 125, 42, 175), wall(835, 342, 42, 185), wall(560, 430, 160, 42)],
       crates: [crate(385, 520), crate(905, 520)],
       coinCrates: [coin(385, 185, 92), coin(905, 185, 76)],
       plates: [plate("A", 215, 185), plate("B", 215, 535), plate("C", 1015, 535)],
@@ -2789,6 +2789,7 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
 
   game.dashBursts?.forEach((burst) => drawDashBurst(ctx, burst, cosmetic));
   game.abilityBursts?.forEach((burst) => drawAbilityBurst(ctx, burst));
+  drawGrapple(ctx, game.grapple, game.player);
   game.coinPopups?.forEach((popup) => {
     const life = popup.life / popup.maxLife;
     const drift = (1 - life) * 24;
@@ -2987,6 +2988,56 @@ function drawAbilityBurst(ctx, burst) {
   ctx.beginPath();
   ctx.arc(0, 0, radius, 0, Math.PI * 2);
   ctx.stroke();
+  ctx.restore();
+}
+
+function drawGrapple(ctx, grapple, player) {
+  if (!grapple) return;
+  const launchProgress = clamp(grapple.age / grapple.launchMs, 0, 1);
+  const hookX = lerp(grapple.startX, grapple.targetX, launchProgress);
+  const hookY = lerp(grapple.startY, grapple.targetY, launchProgress);
+  const cableEndX = grapple.age < grapple.launchMs ? hookX : grapple.targetX;
+  const cableEndY = grapple.age < grapple.launchMs ? hookY : grapple.targetY;
+  const angle = Math.atan2(grapple.targetY - grapple.startY, grapple.targetX - grapple.startX);
+  const fade = clamp(grapple.life / 180, 0, 1);
+  ctx.save();
+  ctx.globalAlpha = fade;
+  ctx.strokeStyle = "#ffd52d";
+  ctx.shadowColor = "#ffd52d";
+  ctx.shadowBlur = 14;
+  ctx.lineWidth = 3;
+  ctx.setLineDash([8, 5]);
+  ctx.lineDashOffset = -grapple.age * 0.08;
+  ctx.beginPath();
+  ctx.moveTo(player.x, player.y);
+  ctx.lineTo(cableEndX, cableEndY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = "#fff1a3";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(player.x, player.y);
+  ctx.lineTo(cableEndX, cableEndY);
+  ctx.stroke();
+  ctx.translate(cableEndX, cableEndY);
+  ctx.rotate(angle);
+  ctx.fillStyle = "#ffd52d";
+  ctx.strokeStyle = "#fff1a3";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(12, 0);
+  ctx.lineTo(-4, -7);
+  ctx.lineTo(-1, 0);
+  ctx.lineTo(-4, 7);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  if (grapple.age >= grapple.launchMs) {
+    ctx.globalAlpha = 0.35 * fade;
+    ctx.beginPath();
+    ctx.arc(0, 0, 15 + Math.sin(grapple.age * 0.025) * 4, 0, Math.PI * 2);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -3829,6 +3880,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       dashBursts: [],
       railBeams: [],
       cargoTether: null,
+      grapple: null,
       coinPopups: [],
       abilityBursts: [],
       spawnFlash: 1200,
@@ -4109,8 +4161,16 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       const dy = targetY - g.player.y;
       const gap = Math.hypot(dx, dy) || 1;
       const pull = Math.min(390, gap);
-      tryMove(g.player, (dx / gap) * pull, (dy / gap) * pull, g.level, false);
-      g.abilityBursts.push({ x: targetX, y: targetY, type: ability.id, life: 440, maxLife: 440 });
+      g.grapple = {
+        startX: g.player.x,
+        startY: g.player.y,
+        targetX: g.player.x + (dx / gap) * pull,
+        targetY: g.player.y + (dy / gap) * pull,
+        launchMs: 190,
+        pullMs: 360,
+        age: 0,
+        life: 700
+      };
     }
     if (settings.shake && !settings.reduced) g.shake = Math.max(g.shake, 6);
   }
@@ -4304,7 +4364,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         mx = mobileMove.current.x;
         my = mobileMove.current.y;
       }
-      if (mx || my) {
+      const grapplePulling = g.grapple && g.grapple.age >= g.grapple.launchMs;
+      if ((mx || my) && !grapplePulling) {
         const len = Math.hypot(mx, my);
         const nx = mx / len;
         const ny = my / len;
@@ -4328,6 +4389,25 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         resolvePlayerAfterPhase(g.player, level);
         g.abilityBursts.push({ x: g.player.x, y: g.player.y, type: "teleport", life: 620, maxLife: 620 });
         g.player.pendingTeleport = null;
+      }
+      if (g.grapple) {
+        const grapple = g.grapple;
+        grapple.age += dt;
+        grapple.life -= dt;
+        if (grapple.age >= grapple.launchMs && grapple.life > 0) {
+          const dx = grapple.targetX - g.player.x;
+          const dy = grapple.targetY - g.player.y;
+          const gap = Math.hypot(dx, dy);
+          if (gap > 8) {
+            const pullSpeed = 760;
+            const step = Math.min(gap, pullSpeed * dt / 1000);
+            tryMove(g.player, (dx / gap) * step, (dy / gap) * step, level, false);
+            g.player.angle = Math.atan2(dy, dx);
+          } else {
+            grapple.life = Math.min(grapple.life, 160);
+          }
+        }
+        if (grapple.life <= 0) g.grapple = null;
       }
       const playerHidden = now < (g.player.cloakUntil || 0);
       if (mobileAim.current.active && (Math.abs(mobileAim.current.x) > 0.05 || Math.abs(mobileAim.current.y) > 0.05)) {
