@@ -2427,6 +2427,41 @@ function drawSectionWall(ctx, wall, visual) {
   ctx.restore();
 }
 
+function drawCorruptionGlitch(ctx, amount, now) {
+  const strength = clamp(amount / 100, 0, 1);
+  if (strength < 0.08) return;
+  const tearCount = Math.floor(2 + strength * 8);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = "screen";
+  for (let i = 0; i < tearCount; i += 1) {
+    const seed = Math.sin(now * 0.009 + i * 41.73) * 43758.5453;
+    const random = seed - Math.floor(seed);
+    const y = Math.floor(random * H);
+    const height = 2 + Math.floor(((i * 17) % 13) * strength);
+    const offset = (i % 2 ? 1 : -1) * (3 + strength * 20) * Math.sin(now * 0.018 + i);
+    ctx.globalAlpha = 0.04 + strength * 0.11;
+    ctx.drawImage(ctx.canvas, 0, y, W, height, offset, y, W, height);
+    ctx.fillStyle = i % 3 === 0 ? "#ff3dba" : i % 3 === 1 ? "#8a7dff" : "#00f0d2";
+    ctx.globalAlpha = 0.025 + strength * 0.075;
+    ctx.fillRect(0, y, W, Math.max(1, height * 0.35));
+  }
+  ctx.globalAlpha = 0.035 + strength * 0.07;
+  ctx.fillStyle = "#ff3dba";
+  for (let y = Math.floor((now * 0.08) % 7); y < H; y += 7) ctx.fillRect(0, y, W, 1);
+  if (strength > 0.55) {
+    const blockCount = Math.floor((strength - 0.45) * 15);
+    for (let i = 0; i < blockCount; i += 1) {
+      const x = Math.abs(Math.sin(now * 0.004 + i * 9.1)) * W;
+      const y = Math.abs(Math.cos(now * 0.006 + i * 4.7)) * H;
+      ctx.globalAlpha = 0.035 + strength * 0.08;
+      ctx.fillStyle = i % 2 ? "#ff3dba" : "#8d73ff";
+      ctx.fillRect(x, y, 18 + (i % 4) * 17, 2 + (i % 3) * 3);
+    }
+  }
+  ctx.restore();
+}
+
 function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, uiTheme = "station") {
   ctx.save();
   ctx.clearRect(0, 0, W, H);
@@ -2488,6 +2523,19 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
     ctx.arc(zone.x, zone.y, zone.r, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
+    ctx.globalAlpha = 0.2 + pulse * 0.2;
+    ctx.strokeStyle = "#00f0d2";
+    ctx.lineWidth = 1;
+    for (let slice = -2; slice <= 2; slice += 1) {
+      const sliceY = zone.y + slice * zone.r * 0.24;
+      const halfWidth = Math.sqrt(Math.max(0, zone.r ** 2 - (sliceY - zone.y) ** 2));
+      const offset = Math.sin(now * 0.012 + slice * 2.4) * (5 + pulse * 8);
+      ctx.beginPath();
+      ctx.moveTo(zone.x - halfWidth + offset, sliceY);
+      ctx.lineTo(zone.x + halfWidth + offset, sliceY);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
     drawLabel(ctx, "ECHO CORRUPTION", zone.x - 58, zone.y - zone.r - 13, "#ff6ec7");
     ctx.restore();
   });
@@ -2858,6 +2906,23 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
     ctx.fillRect(m.x - 11, m.y - 2, 6, 4);
     ctx.restore();
   });
+  if ((game.player?.corruption || 0) > 0) {
+    const corruption = game.player.corruption;
+    const chroma = clamp(corruption / 100, 0, 1) * 8;
+    ctx.save();
+    ctx.globalAlpha = 0.08 + corruption / 900;
+    ctx.globalCompositeOperation = "screen";
+    ctx.fillStyle = "#ff3dba";
+    ctx.beginPath();
+    ctx.arc(game.player.x - chroma, game.player.y, 19, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#00f0d2";
+    ctx.beginPath();
+    ctx.arc(game.player.x + chroma, game.player.y, 19, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    drawCorruptionGlitch(ctx, corruption, now);
+  }
   ctx.restore();
 }
 
@@ -4605,7 +4670,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       });
 
       const insideCorruption = level.echoCorruptionZones?.some((zone) => dist(g.player, zone) < zone.r);
-      g.player.corruption = clamp((g.player.corruption || 0) + (insideCorruption ? dt * 0.012 : -dt * 0.006), 0, 100);
+      g.player.corruption = clamp((g.player.corruption || 0) + (insideCorruption ? dt * 0.036 : -dt * 0.006), 0, 100);
       if (g.player.corruption > 65) {
         g.player.energy = clamp(g.player.energy - dt * 0.0045, 0, g.player.maxEnergy || MAX_ENERGY);
       }
@@ -4792,7 +4857,10 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
     setMobileShooting(false);
   };
   return (
-    <div className={`game-shell ${isMobile ? "mobile-layout" : ""}`}>
+    <div
+      className={`game-shell ${isMobile ? "mobile-layout" : ""} ${(g?.player.corruption ?? 0) >= 45 ? "corruption-active" : ""} ${(g?.player.corruption ?? 0) >= 80 ? "corruption-critical" : ""}`}
+      style={{ "--corruption-strength": `${Math.min(1, (g?.player.corruption ?? 0) / 100)}` }}
+    >
       <canvas ref={canvas} className="game-canvas" width={W} height={H} />
       <div className="hud">
         <div className="hud-cluster vitals-card">

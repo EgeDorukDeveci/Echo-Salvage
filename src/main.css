@@ -133,6 +133,45 @@ textarea {
   position: absolute;
   inset: 0;
 }
+.game-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 5px, rgba(255, 61, 186, 0.08) 5px 6px),
+    linear-gradient(90deg, rgba(255, 61, 186, 0.04), transparent 28%, transparent 72%, rgba(0, 240, 210, 0.035));
+  mix-blend-mode: screen;
+}
+.game-shell.corruption-active::after {
+  opacity: calc(var(--corruption-strength) * 0.72);
+  animation: corruption-interference 620ms steps(2, end) infinite;
+}
+.game-shell.corruption-active .hud {
+  animation: corruption-hud-slip 1100ms steps(2, end) infinite;
+}
+.game-shell.corruption-critical .hud-cluster,
+.game-shell.corruption-critical .hud-card {
+  border-color: rgba(255, 61, 186, 0.58);
+  box-shadow:
+    calc(var(--corruption-strength) * -5px) 0 rgba(255, 61, 186, 0.12),
+    calc(var(--corruption-strength) * 5px) 0 rgba(0, 240, 210, 0.1),
+    0 12px 32px rgba(0, 0, 0, 0.3);
+}
+@keyframes corruption-interference {
+  0%, 100% { transform: translate(0, 0); clip-path: inset(0 0 0 0); }
+  35% { transform: translate(calc(var(--corruption-strength) * 4px), -1px); clip-path: inset(8% 0 24% 0); }
+  36% { transform: translate(calc(var(--corruption-strength) * -7px), 2px); clip-path: inset(56% 0 10% 0); }
+  72% { transform: translate(2px, 0); clip-path: inset(30% 0 42% 0); }
+}
+@keyframes corruption-hud-slip {
+  0%, 86%, 100% { transform: translate(0, 0); filter: none; }
+  87% { transform: translate(calc(var(--corruption-strength) * -5px), 1px); filter: hue-rotate(28deg); }
+  89% { transform: translate(calc(var(--corruption-strength) * 7px), -1px); filter: hue-rotate(-24deg); }
+  91% { transform: translate(0, 0); filter: none; }
+}
 .mode-chip {
   border: 1px solid var(--line);
   background: rgba(255, 213, 45, 0.12);
@@ -145,6 +184,13 @@ textarea {
 }
 .mobile-layout .game-canvas {
   height: calc(100% - 150px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-shell.corruption-active::after,
+  .game-shell.corruption-active .hud {
+    animation: none;
+  }
 }
 .mobile-dock {
   position: absolute;
