@@ -30,7 +30,7 @@ const CARGO_MARGIN = 64;
 `;
 
 const snippet = [
-  extractBetween("const rooms = [", "const CAMPAIGN_SECTIONS"),
+  extractBetween("const rooms = [", "const AUTH_USERS_KEY"),
   extractBetween("function makeLevel(index = 0) {", "const segmentIntersectsRect"),
   extractBetween("const segmentIntersectsRect", "function glowRect")
 ].join("\n\n");
@@ -42,9 +42,9 @@ const context = {
   Set
 };
 vm.createContext(context);
-vm.runInContext(`${boot}\n${snippet}\nthis.auditApi = { rooms, makeLevel, hasLineOfSight, getSolidBlocks, rectsTouch, playerRect, dist, SPECIAL_HOSTILE_KEYS };`, context);
+vm.runInContext(`${boot}\n${snippet}\nthis.auditApi = { rooms, CAMPAIGN_SECTIONS, CAMPAIGN_ROUTE_POINTS, makeLevel, hasLineOfSight, getSolidBlocks, rectsTouch, playerRect, dist, SPECIAL_HOSTILE_KEYS };`, context);
 
-const { rooms, makeLevel, getSolidBlocks, rectsTouch, playerRect, dist, SPECIAL_HOSTILE_KEYS } = context.auditApi;
+const { rooms, CAMPAIGN_SECTIONS, CAMPAIGN_ROUTE_POINTS, makeLevel, getSolidBlocks, rectsTouch, playerRect, dist, SPECIAL_HOSTILE_KEYS } = context.auditApi;
 
 function centerOf(rect) {
   return { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 };
@@ -245,6 +245,10 @@ const pacingRules = [
 
 function auditCampaignPacing(levels) {
   const issues = [];
+  const longestSection = Math.max(...CAMPAIGN_SECTIONS.map((section) => section.range[1] - section.range[0] + 1));
+  if (CAMPAIGN_ROUTE_POINTS.length < longestSection) {
+    issues.push(`Campaign map has ${CAMPAIGN_ROUTE_POINTS.length} route points but needs ${longestSection}`);
+  }
   levels.slice(0, 14).forEach((level, index) => {
     pacingRules.forEach((rule) => {
       if ((level[rule.key] || []).length > 0) {

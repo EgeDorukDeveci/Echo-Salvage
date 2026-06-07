@@ -227,9 +227,13 @@ const CAMPAIGN_SECTIONS = [
 
 const CAMPAIGN_ROUTE_POINTS = [
   [10, 70], [19, 53], [30, 65], [39, 43], [50, 58], [61, 38], [73, 54],
-  [86, 34], [76, 18], [62, 24], [50, 14], [37, 27], [23, 18], [11, 31]
+  [86, 34], [76, 18], [62, 24], [50, 14], [37, 27], [23, 18], [11, 31],
+  [18, 76], [47, 72], [78, 68]
 ];
-const CAMPAIGN_ROUTE_PATH = CAMPAIGN_ROUTE_POINTS.map(([x, y], index) => `${index ? "L" : "M"} ${x} ${y}`).join(" ");
+const getCampaignRoutePath = (count) => CAMPAIGN_ROUTE_POINTS
+  .slice(0, count)
+  .map(([x, y], index) => `${index ? "L" : "M"} ${x} ${y}`)
+  .join(" ");
 
 const AUTH_USERS_KEY = "echo-salvage-users";
 const AUTH_SESSION_KEY = "echo-salvage-session";
@@ -514,6 +518,7 @@ async function verifyStoredPassword(user, password) {
 }
 
 function normalizeEconomy(data = {}) {
+  data = data || {};
   const devMode = data.devMode || data.nickname?.toLowerCase() === DEV_LOGIN.nickname;
   const validAbilityIds = new Set(ABILITIES.map((ability) => ability.id));
   const legacyAbilityMap = { emp: "teleport", shield: "cloak", phase: "grapple", overdrive: "blastDash" };
@@ -4475,7 +4480,7 @@ function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSett
                       <strong>{section.directive}</strong>
                     </div>
                     <svg className="map-route-line" viewBox="0 0 100 82" preserveAspectRatio="none" aria-hidden="true">
-                      <path d={CAMPAIGN_ROUTE_PATH} />
+                      <path d={getCampaignRoutePath(sectionRooms.length)} />
                     </svg>
                     {sectionRooms.map((r, offset) => {
                       const i = start + offset;
