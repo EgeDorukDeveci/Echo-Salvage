@@ -353,6 +353,32 @@ const ABILITIES = [
   { id: "cloak", label: "Invisibility Cloak", price: 185, energyCost: 28, cooldownMs: 10000, perk: "Become invisible to enemy targeting for 5 seconds." },
   { id: "grapple", label: "Grappling Hook", price: 210, energyCost: 18, cooldownMs: 4800, perk: "Pull yourself rapidly toward the aimed point, stopping at solid walls." }
 ];
+const EXPEDITION_UPGRADES = [
+  { id: "echoArsenal", label: "Echo Arsenal", icon: "ECHO", detail: "Echoes fire stronger copies of your equipped weapon.", color: "#00f0d2" },
+  { id: "echoConvergence", label: "Echo Convergence", icon: "SYNC", detail: "Your newest Echo fuses with the signal lattice and becomes a stronger combat Echo.", color: "#7ef9ff" },
+  { id: "phaseWake", label: "Phase Wake", icon: "DASH", detail: "Dashes and grapples leave a damaging energy wake.", color: "#ffd52d" },
+  { id: "volatileRounds", label: "Volatile Rounds", icon: "AMMO", detail: "Player rounds deal extra damage and travel farther.", color: "#ff8a00" },
+  { id: "corruptionDrive", label: "Corruption Drive", icon: "NULL", detail: "High corruption increases damage instead of only weakening you.", color: "#ff6ec7" },
+  { id: "salvageHeart", label: "Salvage Heart", icon: "CORE", detail: "Scrap restores additional hull, energy, and shield.", color: "#58e07a" }
+];
+const STATION_MUTATIONS = [
+  { id: "blackout", label: "Emergency Blackout", detail: "The station dims. Hostiles become harder to read, but their attacks glow.", color: "#8aa0ff" },
+  { id: "corruptionBloom", label: "Corruption Bloom", detail: "Corruption zones expand and recovery slows.", color: "#ff6ec7" },
+  { id: "overclocked", label: "Hostile Overclock", detail: "Enemies move and attack faster.", color: "#ff4e41" },
+  { id: "unstableHull", label: "Unstable Hull", detail: "Moving station rails accelerate.", color: "#ffd52d" },
+  { id: "echoRevenants", label: "Echo Revenants", detail: "Destroyed hunter drones leave a final hostile signal burst.", color: "#b78cff" }
+];
+const STATION_EVENTS = [
+  { id: "quiet", label: "Quiet Orbit", detail: "Systems remain nominal.", color: "#00f0d2" },
+  { id: "hullBreach", label: "Hull Breach", detail: "Loose pressure currents drag the drone toward the breach.", color: "#8aa0ff" },
+  { id: "reactorSurge", label: "Reactor Surge", detail: "Energy recharges, but laser systems hit harder.", color: "#ffd52d" },
+  { id: "lockdown", label: "Security Lockdown", detail: "A roaming Pursuer has entered the room.", color: "#ff4e41" }
+];
+const SALVAGE_MODS = [
+  { id: "piercingCoil", label: "Piercing Coil", cost: 4, detail: "Weapons deal +1 damage." },
+  { id: "capacitorMesh", label: "Capacitor Mesh", cost: 3, detail: "Maximum energy increases by 20." },
+  { id: "echoLens", label: "Echo Lens", cost: 5, detail: "Echo weapon damage is doubled." }
+];
 const DEFAULT_OWNED = {
   colors: [COSMETIC_DEFAULTS.body, COSMETIC_DEFAULTS.accent, COSMETIC_DEFAULTS.trail],
   bodies: ["#dfe9e8"],
@@ -500,11 +526,16 @@ function getBossPalette(kind) {
 
 function damageBoss(boss, amount) {
   if (!boss || boss.hp <= 0) return 0;
+  if (boss.execution > 0) return 0;
   const phase = getBossPhase(boss);
   const armor = phase === 1 ? 0.42 : phase === 2 ? 0.68 : 1;
   const dealt = amount * armor;
-  boss.hp = Math.max(0, boss.hp - dealt);
+  boss.hp = Math.max(0.001, boss.hp - dealt);
   boss.hitFlash = 160;
+  if (boss.hp <= 0.001) {
+    boss.execution = 1450;
+    boss.executionMax = 1450;
+  }
   return dealt;
 }
 
@@ -2469,6 +2500,10 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
   const now = performance.now();
   const visual = getSectionVisual(game, uiTheme);
   drawSpaceBackdrop(ctx, visual, now);
+  if (game.expedition?.event === "blackout" || game.expedition?.mutation === "blackout") {
+    ctx.fillStyle = "rgba(0,0,8,.42)";
+    ctx.fillRect(0, 0, W, H);
+  }
   const globalTheme = {
     station: { grid: "rgba(0,240,210,.09)", wallEdge: "rgba(131, 176, 185, 0.72)", wallFill: "rgba(24, 42, 47, 0.9)", laser: "#ff4e41", laserGlow: "#ff4e41" },
     hazard: { grid: "rgba(255,170,86,.14)", wallEdge: "rgba(255, 184, 94, 0.82)", wallFill: "rgba(54, 32, 14, 0.9)", laser: "#ff6b34", laserGlow: "#ff8a00" },
@@ -2504,6 +2539,10 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
     ctx.stroke();
   }
   drawSectionDecor(ctx, visual, now);
+  if (game.expedition?.event && game.expedition.event !== "quiet") {
+    const event = STATION_EVENTS.find((item) => item.id === game.expedition.event);
+    drawLabel(ctx, `STATION EVENT · ${event?.label || game.expedition.event}`, 72, H - 52, event?.color || "#ffd52d");
+  }
 
   level.echoCorruptionZones?.forEach((zone) => {
     const pulse = 0.5 + Math.sin(now * 0.006 + zone.x) * 0.5;
@@ -3045,10 +3084,11 @@ function drawHostileDrone(ctx, d) {
   ctx.save();
   ctx.translate(d.x, d.y);
   ctx.rotate(d.angle || 0);
-  ctx.shadowColor = "#ff4e41";
-  ctx.shadowBlur = 16;
-  ctx.fillStyle = "rgba(58, 23, 24, 0.92)";
-  ctx.strokeStyle = "#ff4e41";
+  const color = d.pursuer ? "#ff6ec7" : "#ff4e41";
+  ctx.shadowColor = color;
+  ctx.shadowBlur = d.pursuer ? 28 : 16;
+  ctx.fillStyle = d.pursuer ? "rgba(42, 10, 38, 0.96)" : "rgba(58, 23, 24, 0.92)";
+  ctx.strokeStyle = color;
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(18, 0);
@@ -3063,8 +3103,16 @@ function drawHostileDrone(ctx, d) {
   ctx.shadowBlur = 0;
   ctx.fillStyle = "#ffd52d";
   ctx.fillRect(0, -4, 10, 8);
+  if (d.pursuer) {
+    ctx.strokeStyle = "#ff6ec7";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(-5, 0, 29, 0, Math.PI * 2);
+    ctx.stroke();
+  }
   ctx.restore();
-  drawLabel(ctx, "HUNTER DRONE", d.x - 38, d.y - 34, "#ff7c72");
+  drawLabel(ctx, d.pursuer ? "ROAMING PURSUER" : "HUNTER DRONE", d.x - (d.pursuer ? 54 : 38), d.y - 34, d.pursuer ? "#ff9ee0" : "#ff7c72");
+  if (d.pursuer) drawHealthBar(ctx, d.x, d.y - 48, d.hp, d.maxHp || d.baseHp || d.hp, "#ff6ec7");
 }
 
 function drawSpecialHostile(ctx, h, label, color, shape = "circle") {
@@ -3202,6 +3250,12 @@ function drawBoss(ctx, boss) {
   ctx.translate(boss.x, boss.y);
   ctx.shadowColor = color;
   ctx.shadowBlur = hit ? 42 : 24 + phase * 4;
+  if ((boss.execution || 0) > 0) {
+    const executionProgress = 1 - boss.execution / (boss.executionMax || 1450);
+    ctx.globalAlpha = 1 - executionProgress * 0.55;
+    ctx.rotate(Math.sin(boss.pulse * 0.02) * executionProgress * 0.18);
+    ctx.scale(1 + executionProgress * 0.22, 1 - executionProgress * 0.14);
+  }
 
   if (boss.kind === "warden") {
     ctx.rotate(spin);
@@ -3438,6 +3492,19 @@ function drawBoss(ctx, boss) {
       ctx.stroke();
     }
   }
+  if ((boss.execution || 0) > 0) {
+    const progress = 1 - boss.execution / (boss.executionMax || 1450);
+    ctx.globalAlpha = 0.8;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 8; i += 1) {
+      const a = i * Math.PI / 4 + boss.pulse * 0.006;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * 28, Math.sin(a) * 28);
+      ctx.lineTo(Math.cos(a) * (55 + progress * 90), Math.sin(a) * (55 + progress * 90));
+      ctx.stroke();
+    }
+  }
   ctx.restore();
   drawLabel(ctx, `${boss.name.toUpperCase()} · PHASE ${phase}`, boss.x - 68, boss.y - 96, color);
   drawHealthBar(ctx, boss.x, boss.y - 110, boss.hp, boss.maxHp || boss.baseHp || boss.hp, color);
@@ -3449,6 +3516,7 @@ function drawDrone(ctx, p, echo, cosmetic = COSMETIC_DEFAULTS) {
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.rotate(p.angle || 0);
+  if (p.fused) ctx.scale(1.28, 1.28);
   ctx.globalAlpha = echo ? 0.48 : p.cloakUntil > performance.now() ? 0.22 : 1;
   if (p.dashTrail && !echo) {
     ctx.globalAlpha = 0.35;
@@ -3463,7 +3531,7 @@ function drawDrone(ctx, p, echo, cosmetic = COSMETIC_DEFAULTS) {
     ctx.globalAlpha = 1;
   }
   ctx.shadowColor = echo ? echoColor : skin.accent;
-  ctx.shadowBlur = echo ? 16 : p.dashTrail ? 22 : 12;
+  ctx.shadowBlur = p.fused ? 32 : echo ? 16 : p.dashTrail ? 22 : 12;
   ctx.fillStyle = skin.body;
   ctx.strokeStyle = echo ? echoColor : skin.accent;
   ctx.lineWidth = 3;
@@ -3782,7 +3850,7 @@ function getRunTuning(levelIndex, customLevel, settings) {
   return getCampaignTuning(levelIndex);
 }
 
-function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, onRunComplete, cosmetic, awardCoins, keybinds }) {
+function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, onRunComplete, cosmetic, awardCoins, keybinds, expedition }) {
   const canvas = useRef(null);
   const game = useRef(null);
   const runInstance = useRef(0);
@@ -3811,6 +3879,13 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     const weapon = getWeaponById(cosmetic.weapon);
     const ability = getAbilityById(cosmetic.ability);
     const tuning = getRunTuning(levelIndex, customLevel, settings);
+    const upgrades = new Set(expedition?.upgrades || []);
+    const mods = new Set(expedition?.mods || []);
+    const mutation = customLevel ? null : expedition?.mutation;
+    const event = customLevel ? null : expedition?.event;
+    if (mutation === "corruptionBloom") level.echoCorruptionZones.forEach((zone) => { zone.r = Math.round(zone.r * 1.28); });
+    if (mutation === "unstableHull") level.movingWalls.forEach((wall) => { wall.speed = (wall.speed || 0.0007) * 1.55; });
+    if (event === "lockdown" && !level.boss) level.drones.push({ x: W - 170, y: H / 2, hp: 9 + Math.floor(levelIndex / 12), cooldown: 520, pursuer: true, angle: 0 });
     const maxShield = perks.maxShield || 0;
     const hostileHpBonus = tuning.hostileHpBonus || 0;
     const tuneHostileHp = (h, fallback = 2) => {
@@ -3853,8 +3928,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         y: level.player.y,
         angle: 0,
         hp: 100,
-        energy: tuning.maxEnergy,
-        maxEnergy: tuning.maxEnergy,
+        energy: tuning.maxEnergy + (mods.has("capacitorMesh") ? 20 : 0),
+        maxEnergy: tuning.maxEnergy + (mods.has("capacitorMesh") ? 20 : 0),
         shield: maxShield,
         maxShield,
         corruption: 0,
@@ -3895,11 +3970,12 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       runId: runInstance.current,
       shake: 0,
       campaignSection: getCampaignSection(levelIndex),
-      tuning
+      tuning,
+      expedition: { upgrades, mods, mutation, event }
     };
   };
 
-  useEffect(reset, [levelIndex, customLevel, settings.difficulty]);
+  useEffect(reset, [levelIndex, customLevel, settings.difficulty, expedition]);
 
   useEffect(() => {
     if (screen !== "playing") clearInputState();
@@ -4012,7 +4088,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     const frames = g.recording.slice(-replayFrames).map((frame) => ({ ...frame }));
     const id = g.nextEchoId ?? 0;
     g.nextEchoId = id + 1;
-    g.echoes.push({
+    const echo = {
       id,
       slot,
       frames,
@@ -4023,7 +4099,13 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       fired: 0,
       echoColor: ECHO_COLORS[slot] || ECHO_COLORS[0],
       echoFill: ECHO_FILLS[slot] || ECHO_FILLS[0]
-    });
+    };
+    if (g.expedition?.upgrades?.has("echoConvergence") && g.echoes.length > 0) {
+      echo.fused = true;
+      echo.echoColor = "#f4ffff";
+      echo.echoFill = "rgba(126,249,255,.38)";
+    }
+    g.echoes.push(echo);
     g.echoStatus = `Echo ${slot + 1} captured · replaying last 8s`;
     g.echoStatusUntil = performance.now() + 1100;
     if (settings.shake && !settings.reduced) g.shake = 8;
@@ -4038,10 +4120,15 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     const g = game.current;
     const angle = from.angle || 0;
     const perks = owner === "player" ? getPetPerks(cosmetic) : {};
-    const weapon = owner === "player" ? getWeaponById(g.player.weaponId || cosmetic.weapon) : null;
+    const weapon = owner === "player" || owner === "echo" ? getWeaponById(g.player.weaponId || cosmetic.weapon) : null;
     const level = g.level;
     const speed = weapon?.bulletSpeed || 620;
-    const damage = (weapon?.damage || 1) + (perks.bulletDamage || 0);
+    const upgrades = g.expedition?.upgrades || new Set();
+    const mods = g.expedition?.mods || new Set();
+    const echoMultiplier = owner === "echo" ? (from.fused ? 2.25 : mods.has("echoLens") ? 2 : upgrades.has("echoArsenal") ? 1.5 : 1) : 1;
+    const corruptionBonus = owner === "player" && upgrades.has("corruptionDrive") ? Math.floor((g.player.corruption || 0) / 34) : 0;
+    const convergenceBonus = owner === "player" && upgrades.has("echoConvergence") ? Math.min(2, g.echoes.length * 0.35) : 0;
+    const damage = ((weapon?.damage || 1) + (perks.bulletDamage || 0) + (mods.has("piercingCoil") ? 1 : 0) + (upgrades.has("volatileRounds") ? 0.75 : 0) + corruptionBonus + convergenceBonus) * echoMultiplier;
     if (owner === "player" && weapon?.id === "needle") {
       const range = weapon.maxRange || 880;
       const x1 = from.x + Math.cos(angle) * 18;
@@ -4083,7 +4170,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       life: 900,
       owner,
       damage,
-      maxRange: weapon?.maxRange || 9999,
+      maxRange: (weapon?.maxRange || 9999) * (upgrades.has("volatileRounds") ? 1.25 : 1),
       traveled: 0
     });
   }
@@ -4127,6 +4214,12 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     if (ability.id === "dash") {
       g.dashBursts.push({ x: g.player.x, y: g.player.y, angle: directionAngle, life: 260, maxLife: 260 });
       phaseMove(g.player, nx * 132, ny * 132);
+      if (g.expedition?.upgrades?.has("phaseWake")) {
+        [...g.level.turrets, ...(g.level.drones || []), ...(g.level.missileSentries || []), ...SPECIAL_HOSTILE_KEYS.flatMap((key) => g.level[key] || [])]
+          .forEach((target) => { if (target.hp > 0 && dist(target, g.player) < 92 && !isShielded(g.level, target)) target.hp -= 2; });
+        if (g.level.boss?.hp > 0 && dist(g.level.boss, g.player) < 110) damageBoss(g.level.boss, 2);
+        g.abilityBursts.push({ x: g.player.x, y: g.player.y, type: "blastDash", life: 520, maxLife: 520 });
+      }
       g.player.dashTrail = 190;
       g.player.phaseUntil = now + 320;
       g.player.phaseVector = { x: nx, y: ny };
@@ -4329,7 +4422,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       const level = g.level;
       const perks = getPetPerks(cosmetic);
       const tuning = g.tuning || getDifficultyTuning(settings.difficulty);
-      const hostileSpeed = tuning.hostileSpeed || 1;
+      const hostileSpeed = (tuning.hostileSpeed || 1) * (g.expedition?.mutation === "overclocked" ? 1.28 : 1);
       const maxShield = perks.maxShield || 0;
       g.player.maxShield = maxShield;
       g.player.shield = clamp(g.player.shield || 0, 0, maxShield);
@@ -4378,6 +4471,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
           tryMove(g.player, moveX, moveY, level, true);
         }
       }
+      if (g.expedition?.event === "hullBreach") tryMove(g.player, -42 * dt / 1000, Math.sin(now * 0.004) * 16 * dt / 1000, level, false);
       if (abilityQueued.current) {
         useAbility(now);
         abilityQueued.current = false;
@@ -4437,7 +4531,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         if (replaying && !e.corrupted && frame.interact) interact(e);
         if (replaying && !e.corrupted && frame.fire && e.age - e.fired > 210) {
           e.fired = e.age;
-          shoot(e);
+          shoot(e, "echo");
         }
       });
       updateCargoTether(g, dt);
@@ -4455,7 +4549,12 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         if (!s.taken && dist(g.player, s) < 28) {
           s.taken = true;
           g.player.scrap += 1;
-          g.player.energy = clamp(g.player.energy + 24, 0, g.player.maxEnergy || MAX_ENERGY);
+          const salvageHeart = g.expedition?.upgrades?.has("salvageHeart");
+          g.player.energy = clamp(g.player.energy + (salvageHeart ? 38 : 24), 0, g.player.maxEnergy || MAX_ENERGY);
+          if (salvageHeart) {
+            g.player.hp = clamp(g.player.hp + 9, 0, 100);
+            g.player.shield = clamp((g.player.shield || 0) + 8, 0, g.player.maxShield || 0);
+          }
         }
       });
 
@@ -4551,6 +4650,20 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         const boss = level.boss;
         boss.pulse = (boss.pulse || 0) + dt;
         boss.hitFlash = Math.max(0, (boss.hitFlash || 0) - dt);
+        if (boss.execution > 0) {
+          boss.execution -= dt;
+          g.shake = Math.max(g.shake, settings.reduced ? 0 : 8);
+          if (boss.execution <= 0) {
+            boss.hp = 0;
+            g.abilityBursts.push({ x: boss.x, y: boss.y, type: "blastDash", life: 1000, maxLife: 1000 });
+          }
+        }
+        if (boss.execution > 0) {
+          const ctx = canvas.current?.getContext("2d");
+          if (ctx) drawLevel(ctx, level, g, g.shake, cosmetic, settings.uiTheme);
+          raf = requestAnimationFrame(loop);
+          return;
+        }
         boss.cooldown -= dt;
         boss.originX = boss.originX ?? boss.x;
         boss.originY = boss.originY ?? boss.y;
@@ -4750,13 +4863,15 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       });
 
       const insideCorruption = level.echoCorruptionZones?.some((zone) => dist(g.player, zone) < zone.r);
-      g.player.corruption = clamp((g.player.corruption || 0) + (insideCorruption ? dt * 0.036 : -dt * 0.006), 0, 100);
+      const corruptionRecovery = g.expedition?.mutation === "corruptionBloom" ? 0.0025 : 0.006;
+      g.player.corruption = clamp((g.player.corruption || 0) + (insideCorruption ? dt * 0.036 : -dt * corruptionRecovery), 0, 100);
       if (g.player.corruption > 65) {
         g.player.energy = clamp(g.player.energy - dt * 0.0045, 0, g.player.maxEnergy || MAX_ENERGY);
       }
       if (g.player.corruption >= 100) damagePlayer(g, dt * 0.012);
 
-      g.player.energy = clamp(g.player.energy + (perks.energyRegen || 0) * dt / 1000, 0, g.player.maxEnergy || MAX_ENERGY);
+      const eventEnergy = g.expedition?.event === "reactorSurge" ? 3.2 : 0;
+      g.player.energy = clamp(g.player.energy + ((perks.energyRegen || 0) + eventEnergy) * dt / 1000, 0, g.player.maxEnergy || MAX_ENERGY);
       g.player.hp = clamp(g.player.hp + (perks.hullRegen || 0) * dt / 1000, 0, 100);
       if (g.player.maxShield > 0) g.player.shield = clamp((g.player.shield || 0) + (perks.shieldRegen || 0) * dt / 1000, 0, g.player.maxShield);
       g.recordTimer += dt;
@@ -4865,8 +4980,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
   return { canvas, game, reset, spawnEcho, mobileInput, mobileAction, setMobileMove, setMobileAim, setMobileShooting };
 }
 
-function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSummary, onRunComplete, cosmetic, awardCoins, keybinds }) {
-  const { canvas, game, reset, spawnEcho, mobileInput, mobileAction, setMobileMove, setMobileAim, setMobileShooting } = useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, onRunComplete, cosmetic, awardCoins, keybinds });
+function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSummary, onRunComplete, cosmetic, awardCoins, keybinds, expedition }) {
+  const { canvas, game, reset, spawnEcho, mobileInput, mobileAction, setMobileMove, setMobileAim, setMobileShooting } = useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, onRunComplete, cosmetic, awardCoins, keybinds, expedition });
   const [tick, setTick] = useState(0);
   const [controlMode, setControlMode] = useState(() => localStorage.getItem("echo-salvage-control-mode") || "pc");
   const [leftStick, setLeftStick] = useState({ x: 0, y: 0 });
@@ -4948,6 +5063,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
             <span>{g?.level.name ?? "Training Bay"}</span>
             <strong>Deck {levelIndex + 1}/{rooms.length}</strong>
           </div>
+          {g?.expedition?.mutation && <div className="expedition-hud-line"><span>Mutation</span><strong>{STATION_MUTATIONS.find((item) => item.id === g.expedition.mutation)?.label}</strong></div>}
           <Meter label="Hull" value={g?.player.hp ?? 100} color="#ffd52d" />
           <Meter label="Energy" value={g?.player.energy ?? MAX_ENERGY} max={g?.player.maxEnergy ?? MAX_ENERGY} color="#ffd52d" />
           {(g?.player.maxShield ?? 0) > 0 && <Meter label="Shield" value={g?.player.shield ?? 0} max={g?.player.maxShield ?? 1} color="#00f0d2" />}
@@ -5659,17 +5775,48 @@ function PauseMenu({ setScreen, retryLevel, openSettings, openControls, abandonR
   );
 }
 
-function Summary({ summary, next, returnToMenu }) {
+function Summary({ summary, next, returnToMenu, expedition, chooseUpgrade, craftMod }) {
+  const [upgradeChosen, setUpgradeChosen] = useState(false);
   const earnedStars = getStarsForRoom(summary.levelIndex, summary);
   const isCustomRun = Boolean(summary.isCustom);
   const atFinalRoom = isCustomRun || summary.levelIndex >= rooms.length - 1;
+  const choices = EXPEDITION_UPGRADES.filter((item) => !expedition.upgrades.includes(item.id)).slice(summary.levelIndex % 3, summary.levelIndex % 3 + 3);
   return (
     <div className="overlay">
-      <section className="panel modal">
+      <section className="panel modal expedition-summary">
         <span className="badge">Run Summary</span>
         <h1 className="title" style={{ fontSize: 58 }}>{summary.result}</h1>
         <p className="lead">{summary.room} | {Math.round(summary.time)}s | Scrap recovered: {Math.round(summary.scrap)} | Hull {Math.round(summary.hull ?? 0)}%</p>
         <div className="summary-stars">{"★".repeat(earnedStars)}{"☆".repeat(3 - earnedStars)}</div>
+        {!isCustomRun && !atFinalRoom && summary.result === "Extracted" && (
+          <div className="expedition-grid">
+            <section className="expedition-choice-panel">
+              <div className="expedition-section-head"><span>Flight Recorder Upgrade</span><strong>Choose One</strong></div>
+              <div className="upgrade-choice-grid">
+                {choices.map((item) => (
+                  <button key={item.id} className="upgrade-choice" style={{ "--upgrade-color": item.color }} data-owned={expedition.upgrades.includes(item.id)} disabled={upgradeChosen} onClick={() => { chooseUpgrade(item.id); setUpgradeChosen(true); }}>
+                    <span>{item.icon}</span><strong>{item.label}</strong><small>{item.detail}</small>
+                  </button>
+                ))}
+              </div>
+            </section>
+            <section className="workshop-panel">
+              <div className="expedition-section-head"><span>Salvage Workshop</span><strong>{expedition.salvage} Parts</strong></div>
+              <div className="workshop-list">
+                {SALVAGE_MODS.map((mod) => (
+                  <button key={mod.id} data-owned={expedition.mods.includes(mod.id)} disabled={expedition.mods.includes(mod.id) || expedition.salvage < mod.cost} onClick={() => craftMod(mod)}>
+                    <strong>{mod.label}</strong><small>{mod.detail}</small><span>{expedition.mods.includes(mod.id) ? "Installed" : `${mod.cost} parts`}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+            <section className="incoming-mutation">
+              <span>Incoming Station Mutation</span>
+              <strong style={{ color: STATION_MUTATIONS.find((item) => item.id === expedition.mutation)?.color }}>{STATION_MUTATIONS.find((item) => item.id === expedition.mutation)?.label}</strong>
+              <small>{STATION_MUTATIONS.find((item) => item.id === expedition.mutation)?.detail}</small>
+            </section>
+          </div>
+        )}
         <div className="button-grid">
           <Button primary onClick={next}><DoorOpen /> {isCustomRun ? "Return To Menu" : atFinalRoom ? "Return To Menu" : "Next Room"}</Button>
           <Button onClick={returnToMenu}><BookOpen /> Main Menu</Button>
@@ -5996,6 +6143,7 @@ function App() {
   const [keybinds, setKeybinds] = useState(() => getStoredKeybinds());
   const [overlayReturnScreen, setOverlayReturnScreen] = useState("menu");
   const [summary, setSummary] = useState(createInitialSummaryState);
+  const [expedition, setExpedition] = useState({ upgrades: [], mods: [], salvage: 0, mutation: "blackout", event: "quiet" });
   const activeCosmetic = useMemo(() => ({ ...COSMETIC_DEFAULTS, ...normalizeEconomy(user).cosmetic }), [user]);
   const deckTheme = customLevel ? settings.uiTheme : getCampaignTheme(levelIndex);
   const menuTheme = getCampaignTheme(getNextCampaignRoomIndex(user?.progress));
@@ -6013,6 +6161,13 @@ function App() {
   const startCampaignRoom = (index = 0) => {
     setCustomLevel(null);
     setLevelIndex(index);
+    setExpedition({
+      upgrades: [],
+      mods: [],
+      salvage: 0,
+      mutation: STATION_MUTATIONS[index % STATION_MUTATIONS.length].id,
+      event: STATION_EVENTS[index % STATION_EVENTS.length].id
+    });
     setScreen("playing");
   };
   const next = () => {
@@ -6026,8 +6181,15 @@ function App() {
     }
     setCustomLevel(null);
     setLevelIndex((v) => Math.min(v + 1, rooms.length - 1));
+    setExpedition((current) => ({
+      ...current,
+      mutation: STATION_MUTATIONS[(levelIndex + 1) % STATION_MUTATIONS.length].id,
+      event: STATION_EVENTS[(levelIndex + 1) % STATION_EVENTS.length].id
+    }));
     setScreen("playing");
   };
+  const chooseUpgrade = (id) => setExpedition((current) => current.upgrades.includes(id) ? current : { ...current, upgrades: [...current.upgrades, id] });
+  const craftMod = (mod) => setExpedition((current) => current.mods.includes(mod.id) || current.salvage < mod.cost ? current : { ...current, salvage: current.salvage - mod.cost, mods: [...current.mods, mod.id] });
   const retryLevel = () => {
     setRunSeed((v) => v + 1);
     setScreen("playing");
@@ -6056,6 +6218,7 @@ function App() {
     setScreen("controls");
   };
   const recordCampaignProgress = (resolvedSummary) => {
+    if (resolvedSummary.result === "Extracted" && !resolvedSummary.isCustom) setExpedition((current) => ({ ...current, salvage: current.salvage + Math.max(1, resolvedSummary.scrap || 0) }));
     if (resolvedSummary.result !== "Extracted" || resolvedSummary.isCustom || user?.devMode || !user?.id) return;
     const current = getStoredUsers().find((entry) => entry.id === user.id) || user;
     const earnedStars = getStarsForRoom(resolvedSummary.levelIndex, resolvedSummary);
@@ -6067,7 +6230,7 @@ function App() {
   return (
     <div className="app" data-theme={appTheme}>
       <div className="frame" />
-      {(screen === "playing" || screen === "paused" || screen === "summary") && <GameView key={`${levelIndex}-${runSeed}-${customLevel ? "custom" : "stock"}`} levelIndex={levelIndex} customLevel={customLevel} screen={screen === "playing" ? "playing" : "idle"} setScreen={setScreen} settings={settings} setSummary={setSummary} onRunComplete={recordCampaignProgress} cosmetic={activeCosmetic} keybinds={keybinds} awardCoins={(amount) => {
+      {(screen === "playing" || screen === "paused" || screen === "summary") && <GameView key={`${levelIndex}-${runSeed}-${customLevel ? "custom" : "stock"}`} levelIndex={levelIndex} customLevel={customLevel} screen={screen === "playing" ? "playing" : "idle"} setScreen={setScreen} settings={settings} setSummary={setSummary} onRunComplete={recordCampaignProgress} cosmetic={activeCosmetic} keybinds={keybinds} expedition={expedition} awardCoins={(amount) => {
         if (!user?.id) return;
         const session = updateUserEconomy(user, (current) => ({ ...current, coins: normalizeEconomy(current).coins + amount }));
         setUser(session);
@@ -6080,7 +6243,7 @@ function App() {
       {screen === "settings" && <SettingsDrawer settings={settings} setSettings={setSettings} setScreen={setScreen} returnScreen={overlayReturnScreen} />}
       {screen === "controls" && <Controls setScreen={setScreen} keybinds={keybinds} setKeybinds={setKeybinds} returnScreen={overlayReturnScreen} />}
       {screen === "paused" && <PauseMenu setScreen={setScreen} retryLevel={retryLevel} abandonRun={returnToMenu} openSettings={() => openSettingsFrom("paused")} openControls={() => openControlsFrom("paused")} />}
-      {screen === "summary" && <Summary summary={summary} next={next} returnToMenu={returnToMenu} />}
+      {screen === "summary" && <Summary summary={summary} next={next} returnToMenu={returnToMenu} expedition={expedition} chooseUpgrade={chooseUpgrade} craftMod={craftMod} />}
       {screen === "community" && <CommunityLevels returnToMenu={returnToMenu} setScreen={setScreen} playLevel={playCommunityLevel} />}
       {screen === "editor" && <Editor returnToMenu={returnToMenu} user={user} setScreen={setScreen} setCustomLevel={setCustomLevel} settings={settings} />}
     </div>
