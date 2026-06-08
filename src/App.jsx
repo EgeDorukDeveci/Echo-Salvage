@@ -386,6 +386,32 @@ const SALVAGE_MODS = [
   { id: "capacitorMesh", label: "Capacitor Mesh", cost: 3, detail: "Maximum energy increases by 20." },
   { id: "echoLens", label: "Echo Lens", cost: 5, detail: "Echo weapon damage is doubled." }
 ];
+const STATION_EXPEDITION_NODES = [
+  { id: "dock", label: "Docking Spine", type: "start", x: 10, y: 51, links: ["salvage", "power"], detail: "Expedition insertion point." },
+  { id: "salvage", label: "Cargo Reliquary", type: "salvage", x: 28, y: 25, levelIndex: 11, links: ["dock", "workshop", "security"], detail: "Recover parts and stabilize supply cargo.", reward: "parts" },
+  { id: "power", label: "Power Relay", type: "power", x: 29, y: 72, levelIndex: 16, links: ["dock", "security", "reactor"], detail: "Reroute station power into drone systems.", reward: "power" },
+  { id: "workshop", label: "Machine Chapel", type: "workshop", x: 48, y: 12, links: ["salvage", "security"], detail: "Install modifications without entering combat." },
+  { id: "security", label: "Security Nexus", type: "security", x: 52, y: 48, levelIndex: 27, links: ["salvage", "power", "workshop", "reactor", "archive"], detail: "Lower alert or fight through reinforced defenses.", reward: "alert" },
+  { id: "reactor", label: "Verdant Reactor", type: "reactor", x: 73, y: 72, levelIndex: 41, links: ["power", "security", "archive", "core"], detail: "Restore energy at the cost of spreading corruption.", reward: "energy" },
+  { id: "archive", label: "Null Archive", type: "corruption", x: 75, y: 27, levelIndex: 54, links: ["security", "reactor", "core"], detail: "Purge persistent corruption and recover recorder fragments.", reward: "purge" },
+  { id: "core", label: "Command Singularity", type: "boss", x: 92, y: 49, levelIndex: 58, links: ["reactor", "archive"], detail: "Final station guardian. Requires four secured sectors." }
+];
+
+const createStationExpedition = () => ({
+  active: true,
+  currentNode: "dock",
+  cleared: ["dock"],
+  upgrades: [],
+  mods: [],
+  salvage: 0,
+  hull: 100,
+  energy: 128,
+  corruption: 0,
+  power: 1,
+  alert: 0,
+  mutation: "blackout",
+  event: "quiet"
+});
 const DEFAULT_OWNED = {
   colors: [COSMETIC_DEFAULTS.body, COSMETIC_DEFAULTS.accent, COSMETIC_DEFAULTS.trail],
   bodies: ["#dfe9e8"],
@@ -3951,6 +3977,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       wall.originY = wall.originY ?? wall.y;
       wall.motion = wall.motion || 0;
     });
+    const expeditionPowerBonus = expedition?.active ? (expedition.power || 0) * 8 : 0;
+    const maxEnergy = tuning.maxEnergy + (mods.has("capacitorMesh") ? 20 : 0) + expeditionPowerBonus;
     game.current = {
       level,
       activeIds: new Set(),
@@ -3958,12 +3986,12 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         x: level.player.x,
         y: level.player.y,
         angle: 0,
-        hp: 100,
-        energy: tuning.maxEnergy + (mods.has("capacitorMesh") ? 20 : 0),
-        maxEnergy: tuning.maxEnergy + (mods.has("capacitorMesh") ? 20 : 0),
+        hp: expedition?.active ? clamp(expedition.hull ?? 100, 1, 100) : 100,
+        energy: expedition?.active ? clamp(expedition.energy ?? maxEnergy, 0, maxEnergy) : maxEnergy,
+        maxEnergy,
         shield: maxShield,
         maxShield,
-        corruption: 0,
+        corruption: expedition?.active ? clamp(expedition.corruption || 0, 0, 100) : 0,
         scrap: 0,
         coinsEarned: 0,
         weaponId: weapon.id,
@@ -4002,7 +4030,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       shake: 0,
       campaignSection: getCampaignSection(levelIndex),
       tuning,
-      expedition: { upgrades, mods, mutation, event }
+      expedition: { upgrades, mods, mutation, event, active: Boolean(expedition?.active), alert: expedition?.alert || 0, power: expedition?.power || 0 }
     };
   };
 
@@ -4453,7 +4481,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       const level = g.level;
       const perks = getPetPerks(cosmetic);
       const tuning = g.tuning || getDifficultyTuning(settings.difficulty);
-      const hostileSpeed = (tuning.hostileSpeed || 1) * (g.expedition?.mutation === "overclocked" ? 1.28 : 1);
+      const hostileSpeed = (tuning.hostileSpeed || 1) * (g.expedition?.mutation === "overclocked" ? 1.28 : 1) * (1 + (g.expedition?.alert || 0) * 0.055);
       const maxShield = perks.maxShield || 0;
       g.player.maxShield = maxShield;
       g.player.shield = clamp(g.player.shield || 0, 0, maxShield);
@@ -4982,10 +5010,14 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
           result,
           scrap: g.player.scrap,
           hull: Math.max(0, Math.round(g.player.hp)),
+          energy: Math.max(0, Math.round(g.player.energy)),
+          corruption: Math.max(0, Math.round(g.player.corruption || 0)),
           time: Math.round((now - g.started) / 1000),
           room: level.name,
           levelIndex,
-          isCustom: Boolean(customLevel)
+          isCustom: Boolean(customLevel),
+          stationExpedition: Boolean(expedition?.active),
+          stationNode: expedition?.currentNode || null
         };
         onRunComplete?.(resolvedSummary);
         setSummary(resolvedSummary);
@@ -5124,11 +5156,11 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
             <span>{g?.level.name ?? "Training Bay"}</span>
             <strong>Deck {levelIndex + 1}/{rooms.length}</strong>
           </div>
-          {g?.expedition?.mutation && <div className="expedition-hud-line"><span>Mutation</span><strong>{STATION_MUTATIONS.find((item) => item.id === g.expedition.mutation)?.label}</strong></div>}
+          {g?.expedition?.mutation && <div className="expedition-hud-line"><span>{g.expedition.active ? `Power ${g.expedition.power} · Alert ${g.expedition.alert}` : "Mutation"}</span><strong>{STATION_MUTATIONS.find((item) => item.id === g.expedition.mutation)?.label}</strong></div>}
           <Meter label="Hull" value={g?.player.hp ?? 100} color="#ffd52d" />
           <Meter label="Energy" value={g?.player.energy ?? MAX_ENERGY} max={g?.player.maxEnergy ?? MAX_ENERGY} color="#ffd52d" />
           {(g?.player.maxShield ?? 0) > 0 && <Meter label="Shield" value={g?.player.shield ?? 0} max={g?.player.maxShield ?? 1} color="#00f0d2" />}
-          {(g?.level.echoCorruptionZones?.length ?? 0) > 0 && <Meter label="Corruption" value={g?.player.corruption ?? 0} color="#ff6ec7" />}
+          {((g?.level.echoCorruptionZones?.length ?? 0) > 0 || g?.expedition?.active) && <Meter label="Corruption" value={g?.player.corruption ?? 0} color="#ff6ec7" />}
         </div>
         <div className="hud-card objective-card">
           <strong>Objective</strong>
@@ -5179,7 +5211,102 @@ function Meter({ label, value, max = 100, color }) {
   );
 }
 
-function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSettings, openControls }) {
+function StationMap({ expedition, enterNode, abandon }) {
+  const [selectedId, setSelectedId] = useState(expedition.currentNode);
+  const current = STATION_EXPEDITION_NODES.find((node) => node.id === expedition.currentNode) || STATION_EXPEDITION_NODES[0];
+  const selected = STATION_EXPEDITION_NODES.find((node) => node.id === selectedId) || current;
+  const maxEnergy = 120 + (expedition.mods.includes("capacitorMesh") ? 20 : 0) + expedition.power * 8;
+  const cleared = new Set(expedition.cleared || []);
+  const securedSectors = Math.max(0, cleared.size - 1);
+  const bossReady = securedSectors >= 4;
+  const stationConquered = cleared.has("core");
+  const isAdjacent = current.links.includes(selected.id);
+  const canEnter = selected.id !== current.id && isAdjacent && (selected.type !== "boss" || bossReady);
+  const typeLabel = {
+    start: "Insertion",
+    salvage: "Salvage",
+    power: "Power",
+    workshop: "Workshop",
+    security: "Security",
+    reactor: "Reactor",
+    corruption: "Null Zone",
+    boss: "Finale"
+  };
+  return (
+    <div className="overlay station-expedition-overlay">
+      <section className="panel station-expedition-map">
+        <header className="station-map-header">
+          <div>
+            <span className="badge">{stationConquered ? "Station Conquered" : "Connected Station Expedition"}</span>
+            <h1>Derelict Khepri</h1>
+            <p>{stationConquered ? "Command Singularity defeated. The station is yours to revisit or abandon with its recovered systems." : "Choose an adjacent route. Damage, energy, corruption, alert, and installed systems persist until the station is conquered or abandoned."}</p>
+          </div>
+          <Button danger onClick={abandon}><X size={18} /> Abandon</Button>
+        </header>
+        <div className="station-systems">
+          <div><span>Hull</span><strong>{Math.round(expedition.hull)}%</strong><i style={{ width: `${clamp(expedition.hull, 0, 100)}%` }} /></div>
+          <div><span>Energy</span><strong>{Math.round(expedition.energy)}</strong><i style={{ width: `${clamp((expedition.energy / maxEnergy) * 100, 0, 100)}%` }} /></div>
+          <div><span>Corruption</span><strong>{Math.round(expedition.corruption)}%</strong><i style={{ width: `${clamp(expedition.corruption, 0, 100)}%` }} /></div>
+          <div><span>Power</span><strong>{expedition.power}</strong><i style={{ width: `${clamp(expedition.power * 20, 0, 100)}%` }} /></div>
+          <div><span>Alert</span><strong>{expedition.alert}</strong><i style={{ width: `${clamp(expedition.alert * 20, 0, 100)}%` }} /></div>
+          <div><span>Parts</span><strong>{expedition.salvage}</strong><i style={{ width: `${clamp(expedition.salvage * 5, 0, 100)}%` }} /></div>
+        </div>
+        <div className="station-map-body">
+          <div className="station-route">
+            <svg className="station-route-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              {STATION_EXPEDITION_NODES.flatMap((node) => node.links
+                .filter((link) => node.id < link)
+                .map((link) => {
+                  const target = STATION_EXPEDITION_NODES.find((item) => item.id === link);
+                  const active = node.id === current.id || target.id === current.id;
+                  const complete = cleared.has(node.id) && cleared.has(target.id);
+                  return <line key={`${node.id}-${link}`} x1={node.x} y1={node.y} x2={target.x} y2={target.y} data-active={active} data-complete={complete} />;
+                }))}
+            </svg>
+            {STATION_EXPEDITION_NODES.map((node) => {
+              const available = current.links.includes(node.id) && (node.type !== "boss" || bossReady);
+              return (
+                <button
+                  key={node.id}
+                  className="station-node"
+                  data-type={node.type}
+                  data-current={node.id === current.id}
+                  data-selected={node.id === selected.id}
+                  data-cleared={cleared.has(node.id)}
+                  data-available={available}
+                  style={{ "--node-x": `${node.x}%`, "--node-y": `${node.y}%` }}
+                  onClick={() => setSelectedId(node.id)}
+                >
+                  <span>{node.type === "boss" && !bossReady ? <Lock size={15} /> : node.type === "workshop" ? <Wrench size={15} /> : node.type === "power" ? <Zap size={15} /> : node.type === "security" ? <Shield size={15} /> : <Radio size={15} />}</span>
+                  <strong>{node.label}</strong>
+                  <small>{cleared.has(node.id) ? "Secured" : typeLabel[node.type]}</small>
+                </button>
+              );
+            })}
+          </div>
+          <aside className="station-route-brief">
+            <span>{typeLabel[selected.type]}</span>
+            <h2>{selected.label}</h2>
+            <p>{selected.detail}</p>
+            {selected.type === "boss" && <div className="station-finale-lock"><strong>{securedSectors}/4 sectors secured</strong><small>{bossReady ? "Command Singularity route unlocked." : "Secure more station sectors before the final assault."}</small></div>}
+            {selected.id === current.id ? (
+              <Button disabled>Current Position</Button>
+            ) : (
+              <Button primary disabled={!canEnter} onClick={() => enterNode(selected)}>{selected.type === "workshop" ? <Wrench size={18} /> : <DoorOpen size={18} />} {selected.type === "workshop" ? "Enter Workshop" : cleared.has(selected.id) ? "Re-enter Sector" : "Commit To Route"}</Button>
+            )}
+            <div className="station-route-status">
+              <strong>Active Conditions</strong>
+              <span>{STATION_MUTATIONS.find((item) => item.id === expedition.mutation)?.label || "Stable Signal"}</span>
+              <span>{STATION_EVENTS.find((item) => item.id === expedition.event)?.label || "Quiet Orbit"}</span>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function MainMenu({ openBriefing, startRoom, startStationExpedition, setScreen, user, onLogout, openSettings, openControls }) {
   const safeProgress = normalizeProgress(user?.progress);
   const totalStars = getTotalStars(safeProgress);
   const currentSection = CAMPAIGN_SECTIONS[getCurrentSectionIndex(user)];
@@ -5206,6 +5333,7 @@ function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSett
           </div>
           <div className="button-grid">
             <Button primary onClick={openBriefing}><Play size={22} /> Begin Training</Button>
+            <Button onClick={startStationExpedition}><Radio size={20} /> Station Expedition</Button>
             <Button onClick={() => setScreen("editor")}><Wand2 size={20} /> Level Creator</Button>
             <Button className="construction-tab" onClick={() => setScreen("community")}><Globe2 size={20} /> Community Levels <span>In Construction</span></Button>
             <Button onClick={() => setScreen("profile")}><UserRound size={20} /> Customization Bay</Button>
@@ -5841,6 +5969,7 @@ function Summary({ summary, next, returnToMenu, expedition, chooseUpgrade, craft
   const [upgradeChosen, setUpgradeChosen] = useState(false);
   const earnedStars = getStarsForRoom(summary.levelIndex, summary);
   const isCustomRun = Boolean(summary.isCustom);
+  const isStationExpedition = Boolean(summary.stationExpedition);
   const atFinalRoom = isCustomRun || summary.levelIndex >= rooms.length - 1;
   const choices = EXPEDITION_UPGRADES.filter((item) => !expedition.upgrades.includes(item.id)).slice(summary.levelIndex % 3, summary.levelIndex % 3 + 3);
   return (
@@ -5848,9 +5977,9 @@ function Summary({ summary, next, returnToMenu, expedition, chooseUpgrade, craft
       <section className="panel modal expedition-summary">
         <span className="badge">Run Summary</span>
         <h1 className="title" style={{ fontSize: 58 }}>{summary.result}</h1>
-        <p className="lead">{summary.room} | {Math.round(summary.time)}s | Scrap recovered: {Math.round(summary.scrap)} | Hull {Math.round(summary.hull ?? 0)}%</p>
-        <div className="summary-stars">{"★".repeat(earnedStars)}{"☆".repeat(3 - earnedStars)}</div>
-        {!isCustomRun && !atFinalRoom && summary.result === "Extracted" && (
+        <p className="lead">{summary.room} | {Math.round(summary.time)}s | Scrap recovered: {Math.round(summary.scrap)} | Hull {Math.round(summary.hull ?? 0)}%{isStationExpedition ? ` | Energy ${Math.round(summary.energy ?? 0)} | Corruption ${Math.round(summary.corruption ?? 0)}%` : ""}</p>
+        {!isStationExpedition && <div className="summary-stars">{"★".repeat(earnedStars)}{"☆".repeat(3 - earnedStars)}</div>}
+        {!isCustomRun && (!atFinalRoom || isStationExpedition) && summary.result === "Extracted" && (
           <div className="expedition-grid">
             <section className="expedition-choice-panel">
               <div className="expedition-section-head"><span>Flight Recorder Upgrade</span><strong>Choose One</strong></div>
@@ -5880,7 +6009,7 @@ function Summary({ summary, next, returnToMenu, expedition, chooseUpgrade, craft
           </div>
         )}
         <div className="button-grid">
-          <Button primary onClick={next}><DoorOpen /> {isCustomRun ? "Return To Menu" : atFinalRoom ? "Return To Menu" : "Next Room"}</Button>
+          <Button primary onClick={next}><DoorOpen /> {isStationExpedition ? "Station Map" : isCustomRun ? "Return To Menu" : atFinalRoom ? "Return To Menu" : "Next Room"}</Button>
           <Button onClick={returnToMenu}><BookOpen /> Main Menu</Button>
         </div>
       </section>
@@ -5888,7 +6017,7 @@ function Summary({ summary, next, returnToMenu, expedition, chooseUpgrade, craft
   );
 }
 
-function SalvageWorkshop({ expedition, craftMod, setScreen }) {
+function SalvageWorkshop({ expedition, craftMod, setScreen, returnScreen = "menu" }) {
   return (
     <div className="overlay">
       <section className="panel dedicated-workshop">
@@ -5898,7 +6027,7 @@ function SalvageWorkshop({ expedition, craftMod, setScreen }) {
             <h2>Salvage Workshop</h2>
             <p className="small-copy">Recovered room scrap becomes expedition parts. Install permanent modifications for the current expedition.</p>
           </div>
-          <Button onClick={() => setScreen("menu")}><X /></Button>
+          <Button onClick={() => setScreen(returnScreen)}><X /></Button>
         </div>
         <div className="workshop-balance"><Wrench size={24} /><span>Available Parts</span><strong>{expedition.salvage}</strong></div>
         <div className="workshop-blueprints">
@@ -5974,11 +6103,19 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
     { id: "blinkHunter", label: "Blink Hunter", hint: "Teleports close then rushes" },
     { id: "shieldDrone", label: "Shield Drone", hint: "Protects nearby hostiles" },
     { id: "repairBot", label: "Repair Bot", hint: "Repairs damaged enemies" },
+    { id: "miniMirror", label: "Mirror Marshal", hint: "Training miniboss with precision spread volleys" },
+    { id: "miniRam", label: "Forge Ram", hint: "Breach miniboss with aggressive melee charges" },
+    { id: "miniThorn", label: "Thorn Stalker", hint: "Reactor miniboss with radial thorn attacks" },
+    { id: "miniHarrier", label: "Null Harrier", hint: "Corruption miniboss that blinks and barrages" },
+    { id: "bossWarden", label: "Calibration Warden", hint: "Training section boss" },
+    { id: "bossFurnace", label: "Breach Furnace", hint: "Breach section boss" },
+    { id: "bossMaw", label: "Verdant Maw", hint: "Reactor melee section boss" },
+    { id: "bossCrown", label: "Null Crown", hint: "Corruption section boss" },
     { id: "scrap", label: "Scrap", hint: "Restores energy" },
     { id: "exit", label: "Exit Gate", hint: "Extraction target" },
   ];
   const activeTool = tools.find((item) => item.id === tool) || tools[0];
-  const selectedObject = selected?.key === "exit" ? level.exit : selected ? level[selected.key]?.[selected.index] : null;
+  const selectedObject = selected?.key === "exit" ? level.exit : selected?.key === "boss" ? level.boss : selected ? level[selected.key]?.[selected.index] : null;
 
   const getObjectRect = (obj, key) => {
     if (!obj) return null;
@@ -6009,6 +6146,7 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
         if (rectsTouch(cursor, getObjectRect(list[index], key))) return { key, index };
       }
     }
+    if (source.boss && rectsTouch(cursor, getObjectRect(source.boss, "boss"))) return { key: "boss", index: 0 };
     if (source.exit && rectsTouch(cursor, getObjectRect(source.exit, "exit"))) return { key: "exit", index: 0 };
     return null;
   };
@@ -6060,6 +6198,26 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
     if (toolId === "blinkHunter") next.blinkHunters.push({ x: x + 20, y: y + 20, hp: 3, cooldown: 1200, blink: 900 });
     if (toolId === "shieldDrone") next.shieldDrones.push({ x: x + 20, y: y + 20, hp: 4, cooldown: 700 });
     if (toolId === "repairBot") next.repairBots.push({ x: x + 20, y: y + 20, hp: 3, cooldown: 900 });
+    const miniToolMap = {
+      miniMirror: SECTION_MINIBOSSES["training-deck"],
+      miniRam: SECTION_MINIBOSSES["breach-deck"],
+      miniThorn: SECTION_MINIBOSSES["reactor-deck"],
+      miniHarrier: SECTION_MINIBOSSES["singularity-deck"]
+    };
+    if (miniToolMap[toolId]) {
+      const spec = miniToolMap[toolId];
+      next.drones.push({ x: x + 20, y: y + 20, hp: spec.hp, cooldown: 520, pursuer: true, miniKind: spec.kind, miniName: spec.name, miniColor: spec.color, angle: 0 });
+    }
+    const bossToolMap = {
+      bossWarden: { name: "Calibration Warden", kind: "warden", hp: 16, cooldown: 900 },
+      bossFurnace: { name: "Breach Furnace", kind: "furnace", hp: 25, cooldown: 760 },
+      bossMaw: { name: "Verdant Maw", kind: "overseer", hp: 37, cooldown: 680, meleeCooldown: 900 },
+      bossCrown: { name: "Null Crown", kind: "crown", hp: 52, cooldown: 560 }
+    };
+    if (bossToolMap[toolId]) {
+      next.boss = { ...bossToolMap[toolId], x: x + 20, y: y + 20, pulse: 0 };
+      next.objective = { type: "boss" };
+    }
     if (toolId === "scrap") next.scrap.push({ x: x + 20, y: y + 20, taken: false });
     if (toolId === "exit") next.exit = { x, y, w: 58, h: 114 };
     setLevel(next);
@@ -6068,6 +6226,11 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
   const removeSelection = (target = selected) => {
     if (!target) return;
     if (target.key === "exit") return;
+    if (target.key === "boss") {
+      setLevel((current) => ({ ...structuredClone(current), boss: null, objective: { type: "secure" } }));
+      setSelected(null);
+      return;
+    }
     setLevel((current) => {
       const next = structuredClone(current);
       next[target.key] = (next[target.key] || []).filter((_, index) => index !== target.index);
@@ -6080,7 +6243,7 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
     if (!selected) return;
     setLevel((current) => {
       const next = structuredClone(current);
-      const obj = selected.key === "exit" ? next.exit : next[selected.key]?.[selected.index];
+      const obj = selected.key === "exit" ? next.exit : selected.key === "boss" ? next.boss : next[selected.key]?.[selected.index];
       if (!obj) return current;
       patcher(obj);
       return next;
@@ -6237,7 +6400,7 @@ function App() {
   const [keybinds, setKeybinds] = useState(() => getStoredKeybinds());
   const [overlayReturnScreen, setOverlayReturnScreen] = useState("menu");
   const [summary, setSummary] = useState(createInitialSummaryState);
-  const [expedition, setExpedition] = useState({ upgrades: [], mods: [], salvage: 0, mutation: "blackout", event: "quiet" });
+  const [expedition, setExpedition] = useState({ active: false, currentNode: null, cleared: [], upgrades: [], mods: [], salvage: 0, hull: 100, energy: 120, corruption: 0, power: 0, alert: 0, mutation: "blackout", event: "quiet" });
   const activeCosmetic = useMemo(() => ({ ...COSMETIC_DEFAULTS, ...normalizeEconomy(user).cosmetic }), [user]);
   const deckTheme = customLevel ? settings.uiTheme : getCampaignTheme(levelIndex);
   const menuTheme = getCampaignTheme(getNextCampaignRoomIndex(user?.progress));
@@ -6245,6 +6408,7 @@ function App() {
   useAmbient(settings);
   const returnToMenu = () => {
     setCustomLevel(null);
+    setExpedition((current) => ({ ...current, active: false }));
     setOverlayReturnScreen("menu");
     setScreen("menu");
   };
@@ -6256,15 +6420,55 @@ function App() {
     setCustomLevel(null);
     setLevelIndex(index);
     setExpedition({
+      active: false,
+      currentNode: null,
+      cleared: [],
       upgrades: [],
       mods: [],
       salvage: 0,
+      hull: 100,
+      energy: 120,
+      corruption: 0,
+      power: 0,
+      alert: 0,
       mutation: STATION_MUTATIONS[index % STATION_MUTATIONS.length].id,
       event: STATION_EVENTS[index % STATION_EVENTS.length].id
     });
     setScreen("playing");
   };
+  const startStationExpedition = () => {
+    setCustomLevel(null);
+    setExpedition(createStationExpedition());
+    setScreen("stationMap");
+  };
+  const abandonStationExpedition = () => {
+    setExpedition((current) => ({ ...current, active: false }));
+    returnToMenu();
+  };
+  const enterStationNode = (node) => {
+    const currentNode = STATION_EXPEDITION_NODES.find((item) => item.id === expedition.currentNode) || STATION_EXPEDITION_NODES[0];
+    const bossReady = Math.max(0, new Set(expedition.cleared || []).size - 1) >= 4;
+    if (!currentNode.links.includes(node.id) || (node.type === "boss" && !bossReady)) return;
+    setExpedition((current) => ({
+      ...current,
+      currentNode: node.id,
+      mutation: STATION_MUTATIONS[(node.levelIndex || 0) % STATION_MUTATIONS.length].id,
+      event: STATION_EVENTS[((node.levelIndex || 0) + current.alert) % STATION_EVENTS.length].id
+    }));
+    if (node.type === "workshop") {
+      setScreen("workshop");
+      return;
+    }
+    setCustomLevel(null);
+    setLevelIndex(node.levelIndex);
+    setRunSeed((value) => value + 1);
+    setScreen("playing");
+  };
   const next = () => {
+    if (summary.stationExpedition) {
+      setScreen("stationMap");
+      return;
+    }
     if (summary.isCustom) {
       returnToMenu();
       return;
@@ -6312,6 +6516,46 @@ function App() {
     setScreen("controls");
   };
   const recordCampaignProgress = (resolvedSummary) => {
+    if (resolvedSummary.stationExpedition) {
+      setExpedition((current) => {
+        const node = STATION_EXPEDITION_NODES.find((item) => item.id === current.currentNode);
+        const maxEnergy = 120 + (current.mods.includes("capacitorMesh") ? 20 : 0) + current.power * 8;
+        if (resolvedSummary.result !== "Extracted") {
+          return {
+            ...current,
+            hull: 60,
+            energy: Math.max(65, Math.round(maxEnergy * 0.5)),
+            corruption: clamp((resolvedSummary.corruption || current.corruption) + 8, 0, 100),
+            alert: clamp(current.alert + 1, 0, 5)
+          };
+        }
+        const firstClear = node && !current.cleared.includes(node.id);
+        const nextCleared = node ? [...new Set([...current.cleared, node.id])] : current.cleared;
+        let nextState = {
+          ...current,
+          cleared: nextCleared,
+          hull: clamp(resolvedSummary.hull, 1, 100),
+          energy: clamp(resolvedSummary.energy, 0, maxEnergy),
+          corruption: clamp(resolvedSummary.corruption, 0, 100),
+          salvage: current.salvage + Math.max(1, resolvedSummary.scrap || 0),
+          alert: clamp(current.alert + (node?.type === "boss" ? -2 : 1), 0, 5)
+        };
+        if (!firstClear) return nextState;
+        if (node.reward === "parts") nextState.salvage += 5;
+        if (node.reward === "power") {
+          nextState.power = clamp(current.power + 1, 0, 5);
+          nextState.energy = Math.min(120 + (current.mods.includes("capacitorMesh") ? 20 : 0) + nextState.power * 8, nextState.energy + 28);
+        }
+        if (node.reward === "alert") nextState.alert = Math.max(0, nextState.alert - 3);
+        if (node.reward === "energy") {
+          nextState.energy = Math.min(maxEnergy, nextState.energy + 55);
+          nextState.corruption = clamp(nextState.corruption + 18, 0, 100);
+        }
+        if (node.reward === "purge") nextState.corruption = Math.max(0, nextState.corruption - 48);
+        return nextState;
+      });
+      return;
+    }
     if (resolvedSummary.result === "Extracted" && !resolvedSummary.isCustom) setExpedition((current) => ({ ...current, salvage: current.salvage + Math.max(1, resolvedSummary.scrap || 0) }));
     if (resolvedSummary.result !== "Extracted" || resolvedSummary.isCustom || user?.devMode || !user?.id) return;
     const current = getStoredUsers().find((entry) => entry.id === user.id) || user;
@@ -6331,11 +6575,12 @@ function App() {
       }} />}
       <div className="interface-scale" data-visible={screen === "auth" || screen === "menu"}>
         {screen === "auth" && <AuthScreen onAuth={(session) => { setUser(session); setScreen("menu"); }} />}
-        {screen === "menu" && <MainMenu user={user} onLogout={logout} setScreen={setScreen} openBriefing={openBriefing} startRoom={startCampaignRoom} openSettings={() => openSettingsFrom("menu")} openControls={() => openControlsFrom("menu")} />}
+        {screen === "menu" && <MainMenu user={user} onLogout={logout} setScreen={setScreen} openBriefing={openBriefing} startRoom={startCampaignRoom} startStationExpedition={startStationExpedition} openSettings={() => openSettingsFrom("menu")} openControls={() => openControlsFrom("menu")} />}
       </div>
+      {screen === "stationMap" && <StationMap expedition={expedition} enterNode={enterStationNode} abandon={abandonStationExpedition} />}
       {screen === "profile" && <ProfileScreen user={user} setUser={setUser} setScreen={setScreen} />}
       {screen === "shop" && <ShopScreen user={user} setUser={setUser} setScreen={setScreen} />}
-      {screen === "workshop" && <SalvageWorkshop expedition={expedition} craftMod={craftMod} setScreen={setScreen} />}
+      {screen === "workshop" && <SalvageWorkshop expedition={expedition} craftMod={craftMod} setScreen={setScreen} returnScreen={expedition.active ? "stationMap" : "menu"} />}
       {screen === "briefing" && <Briefing setScreen={setScreen} startRun={() => startCampaignRoom(0)} />}
       {screen === "settings" && <SettingsDrawer settings={settings} setSettings={setSettings} setScreen={setScreen} returnScreen={overlayReturnScreen} />}
       {screen === "controls" && <Controls setScreen={setScreen} keybinds={keybinds} setKeybinds={setKeybinds} returnScreen={overlayReturnScreen} />}
