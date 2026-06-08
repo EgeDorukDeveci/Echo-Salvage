@@ -115,6 +115,27 @@ textarea {
   mask-image: linear-gradient(to bottom, rgba(0,0,0,.7), transparent 78%);
 }
 
+.interface-scale {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.interface-scale[data-visible="true"] {
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.interface-scale > .overlay {
+  width: calc(100% / 0.85);
+  height: calc(100% / 0.85);
+  transform: scale(0.85);
+  transform-origin: top left;
+  padding: clamp(16px, 3vw, 40px);
+}
+
 .frame {
   position: absolute;
   inset: clamp(10px, 2.4vw, 34px);
@@ -463,6 +484,87 @@ textarea {
 .incoming-mutation strong {
   font-size: 18px;
   text-transform: uppercase;
+}
+
+.dedicated-workshop {
+  width: min(1080px, 94vw);
+  min-height: min(680px, 88vh);
+  display: grid;
+  align-content: start;
+  gap: 18px;
+}
+
+.workshop-balance {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(255, 213, 45, 0.42);
+  background: rgba(255, 213, 45, 0.08);
+  color: var(--yellow);
+  padding: 14px 16px;
+  text-transform: uppercase;
+  font-weight: 900;
+}
+
+.workshop-balance strong {
+  font-size: 28px;
+}
+
+.workshop-blueprints {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.workshop-blueprints button {
+  display: grid;
+  min-height: 240px;
+  align-content: end;
+  gap: 7px;
+  border: 1px solid rgba(255, 213, 45, 0.34);
+  background:
+    linear-gradient(rgba(255, 213, 45, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 213, 45, 0.05) 1px, transparent 1px),
+    rgba(7, 16, 19, 0.9);
+  background-size: 22px 22px;
+  color: var(--text);
+  padding: 18px;
+  text-align: left;
+}
+
+.workshop-blueprints button:hover:not(:disabled) {
+  border-color: var(--yellow);
+  box-shadow: inset 0 0 38px rgba(255, 213, 45, 0.08);
+}
+
+.workshop-blueprints button:disabled {
+  opacity: 0.48;
+}
+
+.workshop-blueprints span,
+.installed-mods span {
+  color: var(--yellow);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.workshop-blueprints strong {
+  font-size: 24px;
+  text-transform: uppercase;
+}
+
+.workshop-blueprints p {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.installed-mods {
+  display: grid;
+  gap: 4px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
 }
 
 .hud-card {
@@ -2415,6 +2517,19 @@ textarea {
   .overlay {
     position: relative;
     min-height: 100vh;
+  }
+
+  .interface-scale {
+    position: relative;
+    min-height: 100vh;
+    overflow: auto;
+  }
+
+  .interface-scale > .overlay {
+    width: 100%;
+    height: auto;
+    min-height: 100vh;
+    transform: none;
   }
 
   .button-grid,

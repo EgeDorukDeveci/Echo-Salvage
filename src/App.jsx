@@ -24,6 +24,7 @@ import {
   UserPlus,
   Volume2,
   Wand2,
+  Wrench,
   X,
   Zap
 } from "lucide-react";
@@ -374,6 +375,12 @@ const STATION_EVENTS = [
   { id: "reactorSurge", label: "Reactor Surge", detail: "Energy recharges, but laser systems hit harder.", color: "#ffd52d" },
   { id: "lockdown", label: "Security Lockdown", detail: "A roaming Pursuer has entered the room.", color: "#ff4e41" }
 ];
+const SECTION_MINIBOSSES = {
+  "training-deck": { name: "Mirror Marshal", kind: "mirror", color: "#00f0d2", hp: 10 },
+  "breach-deck": { name: "Forge Ram", kind: "ram", color: "#ff8a00", hp: 14 },
+  "reactor-deck": { name: "Thorn Stalker", kind: "thorn", color: "#58e07a", hp: 18 },
+  "singularity-deck": { name: "Null Harrier", kind: "harrier", color: "#b78cff", hp: 23 }
+};
 const SALVAGE_MODS = [
   { id: "piercingCoil", label: "Piercing Coil", cost: 4, detail: "Weapons deal +1 damage." },
   { id: "capacitorMesh", label: "Capacitor Mesh", cost: 3, detail: "Maximum energy increases by 20." },
@@ -3084,7 +3091,7 @@ function drawHostileDrone(ctx, d) {
   ctx.save();
   ctx.translate(d.x, d.y);
   ctx.rotate(d.angle || 0);
-  const color = d.pursuer ? "#ff6ec7" : "#ff4e41";
+  const color = d.miniColor || (d.pursuer ? "#ff6ec7" : "#ff4e41");
   ctx.shadowColor = color;
   ctx.shadowBlur = d.pursuer ? 28 : 16;
   ctx.fillStyle = d.pursuer ? "rgba(42, 10, 38, 0.96)" : "rgba(58, 23, 24, 0.92)";
@@ -3104,15 +3111,33 @@ function drawHostileDrone(ctx, d) {
   ctx.fillStyle = "#ffd52d";
   ctx.fillRect(0, -4, 10, 8);
   if (d.pursuer) {
-    ctx.strokeStyle = "#ff6ec7";
+    ctx.strokeStyle = color;
     ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(-5, 0, 29, 0, Math.PI * 2);
-    ctx.stroke();
+    if (d.miniKind === "ram") {
+      ctx.beginPath();
+      ctx.moveTo(24, 0);
+      ctx.lineTo(42, -13);
+      ctx.lineTo(35, 0);
+      ctx.lineTo(42, 13);
+      ctx.closePath();
+      ctx.stroke();
+    } else if (d.miniKind === "thorn") {
+      for (let i = 0; i < 6; i += 1) {
+        const a = i * Math.PI / 3;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * 18, Math.sin(a) * 18);
+        ctx.lineTo(Math.cos(a) * 36, Math.sin(a) * 36);
+        ctx.stroke();
+      }
+    } else {
+      ctx.beginPath();
+      ctx.arc(-5, 0, d.miniKind === "harrier" ? 35 : 29, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
   ctx.restore();
-  drawLabel(ctx, d.pursuer ? "ROAMING PURSUER" : "HUNTER DRONE", d.x - (d.pursuer ? 54 : 38), d.y - 34, d.pursuer ? "#ff9ee0" : "#ff7c72");
-  if (d.pursuer) drawHealthBar(ctx, d.x, d.y - 48, d.hp, d.maxHp || d.baseHp || d.hp, "#ff6ec7");
+  drawLabel(ctx, d.pursuer ? d.miniName || "ROAMING PURSUER" : "HUNTER DRONE", d.x - (d.pursuer ? 54 : 38), d.y - 34, d.pursuer ? color : "#ff7c72");
+  if (d.pursuer) drawHealthBar(ctx, d.x, d.y - 48, d.hp, d.maxHp || d.baseHp || d.hp, color);
 }
 
 function drawSpecialHostile(ctx, h, label, color, shape = "circle") {
@@ -3884,8 +3909,14 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     const mutation = customLevel ? null : expedition?.mutation;
     const event = customLevel ? null : expedition?.event;
     if (mutation === "corruptionBloom") level.echoCorruptionZones.forEach((zone) => { zone.r = Math.round(zone.r * 1.28); });
-    if (mutation === "unstableHull") level.movingWalls.forEach((wall) => { wall.speed = (wall.speed || 0.0007) * 1.55; });
-    if (event === "lockdown" && !level.boss) level.drones.push({ x: W - 170, y: H / 2, hp: 9 + Math.floor(levelIndex / 12), cooldown: 520, pursuer: true, angle: 0 });
+    if (mutation === "unstableHull") {
+      if (!level.movingWalls.length) level.movingWalls.push({ x: W / 2 - 70, y: H / 2 - 18, w: 140, h: 36, axis: levelIndex % 2 ? "x" : "y", range: 130, speed: 0.00115, phase: 0 });
+      level.movingWalls.forEach((wall) => { wall.speed = (wall.speed || 0.0007) * 1.55; });
+    }
+    if (event === "lockdown" && !level.boss) {
+      const spec = SECTION_MINIBOSSES[getCampaignSection(levelIndex).id];
+      level.drones.push({ x: W - 170, y: H / 2, hp: spec.hp, cooldown: 520, pursuer: true, miniKind: spec.kind, miniName: spec.name, miniColor: spec.color, angle: 0 });
+    }
     const maxShield = perks.maxShield || 0;
     const hostileHpBonus = tuning.hostileHpBonus || 0;
     const tuneHostileHp = (h, fallback = 2) => {
@@ -4574,19 +4605,42 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         const a = Math.atan2(g.player.y - d.y, g.player.x - d.x);
         d.angle = a;
         const gap = dist(d, g.player);
-        if (gap > 155) {
-          d.x = clamp(d.x + Math.cos(a) * 115 * hostileSpeed * dt / 1000, 58, W - 58);
-          d.y = clamp(d.y + Math.sin(a) * 115 * hostileSpeed * dt / 1000, 58, H - 58);
+        const chaseSpeed = d.miniKind === "ram" ? 165 : d.miniKind === "thorn" ? 88 : d.miniKind === "harrier" ? 135 : 115;
+        const desiredRange = d.miniKind === "thorn" ? 240 : d.miniKind === "mirror" ? 205 : 155;
+        if (gap > desiredRange) {
+          d.x = clamp(d.x + Math.cos(a) * chaseSpeed * hostileSpeed * dt / 1000, 58, W - 58);
+          d.y = clamp(d.y + Math.sin(a) * chaseSpeed * hostileSpeed * dt / 1000, 58, H - 58);
         }
         if (gap < 34) {
-          damagePlayer(g, dt * 0.035);
+          damagePlayer(g, dt * (d.miniKind === "ram" ? 0.085 : 0.035));
           if (settings.shake && !settings.reduced) g.shake = Math.max(g.shake, 4);
         }
         d.cooldown -= dt;
         if (d.cooldown <= 0 && gap < 520) {
-          g.bullets.push({ x: d.x + Math.cos(a) * 20, y: d.y + Math.sin(a) * 20, vx: Math.cos(a) * 360 * hostileSpeed, vy: Math.sin(a) * 360 * hostileSpeed, life: 1500, owner: "enemy" });
-          d.cooldown = 1050 * (tuning.hostileCooldown || 1);
+          if (d.miniKind === "thorn") {
+            for (let shot = 0; shot < 10; shot += 1) {
+              const angle = shot * Math.PI * 2 / 10 + d.pulse * 0.001;
+              g.bullets.push({ x: d.x, y: d.y, vx: Math.cos(angle) * 235 * hostileSpeed, vy: Math.sin(angle) * 235 * hostileSpeed, life: 2600, owner: "enemy", damage: 15, color: d.miniColor, projectile: "thorn", radius: 6 });
+            }
+          } else if (d.miniKind === "mirror") {
+            for (let shot = -2; shot <= 2; shot += 1) {
+              const angle = a + shot * 0.13;
+              g.bullets.push({ x: d.x, y: d.y, vx: Math.cos(angle) * 380 * hostileSpeed, vy: Math.sin(angle) * 380 * hostileSpeed, life: 1700, owner: "enemy", damage: 12, color: d.miniColor, radius: 5 });
+            }
+          } else if (d.miniKind === "harrier") {
+            const blinkAngle = a + Math.PI + Math.sin(now * 0.003) * 0.7;
+            d.x = clamp(g.player.x + Math.cos(blinkAngle) * 190, 70, W - 70);
+            d.y = clamp(g.player.y + Math.sin(blinkAngle) * 190, 70, H - 70);
+            for (let shot = -1; shot <= 1; shot += 1) {
+              const angle = Math.atan2(g.player.y - d.y, g.player.x - d.x) + shot * 0.11;
+              g.bullets.push({ x: d.x, y: d.y, vx: Math.cos(angle) * 430 * hostileSpeed, vy: Math.sin(angle) * 430 * hostileSpeed, life: 1500, owner: "enemy", damage: 18, color: d.miniColor, projectile: "thorn", radius: 6 });
+            }
+          } else if (d.miniKind !== "ram") {
+            g.bullets.push({ x: d.x + Math.cos(a) * 20, y: d.y + Math.sin(a) * 20, vx: Math.cos(a) * 360 * hostileSpeed, vy: Math.sin(a) * 360 * hostileSpeed, life: 1500, owner: "enemy" });
+          }
+          d.cooldown = (d.miniKind === "harrier" ? 720 : d.miniKind === "thorn" ? 1250 : d.miniKind === "mirror" ? 900 : 1050) * (tuning.hostileCooldown || 1);
         }
+        d.pulse = (d.pulse || 0) + dt;
       });
       level.missileSentries?.forEach((m) => {
         if (m.hp <= 0) return;
@@ -4800,6 +4854,13 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
             b.life = 0;
             if (d.hp <= 0) {
               g.player.energy = clamp(g.player.energy + 12, 0, g.player.maxEnergy || MAX_ENERGY);
+              if (g.expedition?.mutation === "echoRevenants" && !d.revenantBurst) {
+                d.revenantBurst = true;
+                for (let shot = 0; shot < 8; shot += 1) {
+                  const angle = shot * Math.PI / 4;
+                  g.bullets.push({ x: d.x, y: d.y, vx: Math.cos(angle) * 270, vy: Math.sin(angle) * 270, life: 1800, owner: "enemy", damage: 13, color: "#b78cff", radius: 5 });
+                }
+              }
             }
           }
         });
@@ -4859,7 +4920,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         if (g.activeIds.has(l.disabledBy)) return;
         const vertical = Math.abs(l.x1 - l.x2) < 2;
         const near = vertical ? Math.abs(g.player.x - l.x1) < 14 && g.player.y > Math.min(l.y1, l.y2) && g.player.y < Math.max(l.y1, l.y2) : Math.abs(g.player.y - l.y1) < 14 && g.player.x > Math.min(l.x1, l.x2) && g.player.x < Math.max(l.x1, l.x2);
-        if (near) damagePlayer(g, dt * 0.018 * (perks.laserResist || 1) * (tuning.laserDamage || 1));
+        if (near) damagePlayer(g, dt * 0.018 * (perks.laserResist || 1) * (tuning.laserDamage || 1) * (g.expedition?.event === "reactorSurge" ? 1.55 : 1));
       });
 
       const insideCorruption = level.echoCorruptionZones?.some((zone) => dist(g.player, zone) < zone.r);
@@ -5148,6 +5209,7 @@ function MainMenu({ openBriefing, startRoom, setScreen, user, onLogout, openSett
             <Button onClick={() => setScreen("editor")}><Wand2 size={20} /> Level Creator</Button>
             <Button className="construction-tab" onClick={() => setScreen("community")}><Globe2 size={20} /> Community Levels <span>In Construction</span></Button>
             <Button onClick={() => setScreen("profile")}><UserRound size={20} /> Customization Bay</Button>
+            <Button onClick={() => setScreen("workshop")}><Wrench size={20} /> Salvage Workshop</Button>
             <Button onClick={openSettings}><Settings size={20} /> Settings</Button>
             <Button onClick={openControls}><Gamepad2 size={20} /> Controls</Button>
             <Button danger onClick={onLogout}><LogOut size={20} /> Logout</Button>
@@ -5826,6 +5888,38 @@ function Summary({ summary, next, returnToMenu, expedition, chooseUpgrade, craft
   );
 }
 
+function SalvageWorkshop({ expedition, craftMod, setScreen }) {
+  return (
+    <div className="overlay">
+      <section className="panel dedicated-workshop">
+        <div className="drawer-head">
+          <div>
+            <span className="badge">Salvage Engineering</span>
+            <h2>Salvage Workshop</h2>
+            <p className="small-copy">Recovered room scrap becomes expedition parts. Install permanent modifications for the current expedition.</p>
+          </div>
+          <Button onClick={() => setScreen("menu")}><X /></Button>
+        </div>
+        <div className="workshop-balance"><Wrench size={24} /><span>Available Parts</span><strong>{expedition.salvage}</strong></div>
+        <div className="workshop-blueprints">
+          {SALVAGE_MODS.map((mod, index) => (
+            <button key={mod.id} data-owned={expedition.mods.includes(mod.id)} disabled={expedition.mods.includes(mod.id) || expedition.salvage < mod.cost} onClick={() => craftMod(mod)}>
+              <span>Blueprint 0{index + 1}</span>
+              <strong>{mod.label}</strong>
+              <p>{mod.detail}</p>
+              <small>{expedition.mods.includes(mod.id) ? "Installed" : `${mod.cost} parts required`}</small>
+            </button>
+          ))}
+        </div>
+        <div className="installed-mods">
+          <span>Installed Systems</span>
+          <strong>{expedition.mods.length ? expedition.mods.map((id) => SALVAGE_MODS.find((mod) => mod.id === id)?.label).join(" · ") : "No modifications installed"}</strong>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function CommunityLevels({ returnToMenu, setScreen, playLevel }) {
   return (
     <div className="overlay">
@@ -6235,10 +6329,13 @@ function App() {
         const session = updateUserEconomy(user, (current) => ({ ...current, coins: normalizeEconomy(current).coins + amount }));
         setUser(session);
       }} />}
-      {screen === "auth" && <AuthScreen onAuth={(session) => { setUser(session); setScreen("menu"); }} />}
-      {screen === "menu" && <MainMenu user={user} onLogout={logout} setScreen={setScreen} openBriefing={openBriefing} startRoom={startCampaignRoom} openSettings={() => openSettingsFrom("menu")} openControls={() => openControlsFrom("menu")} />}
+      <div className="interface-scale" data-visible={screen === "auth" || screen === "menu"}>
+        {screen === "auth" && <AuthScreen onAuth={(session) => { setUser(session); setScreen("menu"); }} />}
+        {screen === "menu" && <MainMenu user={user} onLogout={logout} setScreen={setScreen} openBriefing={openBriefing} startRoom={startCampaignRoom} openSettings={() => openSettingsFrom("menu")} openControls={() => openControlsFrom("menu")} />}
+      </div>
       {screen === "profile" && <ProfileScreen user={user} setUser={setUser} setScreen={setScreen} />}
       {screen === "shop" && <ShopScreen user={user} setUser={setUser} setScreen={setScreen} />}
+      {screen === "workshop" && <SalvageWorkshop expedition={expedition} craftMod={craftMod} setScreen={setScreen} />}
       {screen === "briefing" && <Briefing setScreen={setScreen} startRun={() => startCampaignRoom(0)} />}
       {screen === "settings" && <SettingsDrawer settings={settings} setSettings={setSettings} setScreen={setScreen} returnScreen={overlayReturnScreen} />}
       {screen === "controls" && <Controls setScreen={setScreen} keybinds={keybinds} setKeybinds={setKeybinds} returnScreen={overlayReturnScreen} />}
