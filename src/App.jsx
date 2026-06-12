@@ -226,12 +226,28 @@ const CAMPAIGN_SECTIONS = [
   }
 ];
 
-const CAMPAIGN_ROUTE_POINTS = [
-  [10, 70], [19, 53], [30, 65], [39, 43], [50, 58], [61, 38], [73, 54],
-  [86, 34], [76, 18], [62, 24], [50, 14], [37, 27], [23, 18], [11, 31],
-  [18, 76], [47, 72], [78, 68]
-];
-const getCampaignRoutePath = (count) => CAMPAIGN_ROUTE_POINTS
+const CAMPAIGN_SECTION_ROUTES = {
+  "training-deck": [
+    [8, 70], [15, 59], [23, 49], [32, 41], [41, 36], [51, 35], [60, 39],
+    [69, 47], [77, 57], [85, 67], [91, 56], [87, 43], [81, 31], [90, 21]
+  ],
+  "breach-deck": [
+    [8, 66], [17, 66], [26, 66], [35, 66], [38, 54], [38, 42], [43, 30],
+    [53, 27], [63, 27], [68, 39], [68, 52], [75, 64], [85, 58], [89, 42]
+  ],
+  "reactor-deck": [
+    [8, 70], [17, 58], [27, 48], [38, 39], [50, 34], [62, 38], [73, 47],
+    [82, 58], [90, 69], [80, 74], [68, 68], [58, 58], [68, 47], [84, 35]
+  ],
+  "singularity-deck": [
+    [8, 70], [20, 70], [32, 70], [45, 70], [58, 70], [72, 70], [86, 64],
+    [89, 50], [86, 35], [75, 23], [61, 16], [46, 17], [32, 24], [22, 36],
+    [26, 50], [42, 49], [62, 45]
+  ]
+};
+const CAMPAIGN_ROUTE_POINTS = CAMPAIGN_SECTION_ROUTES["singularity-deck"];
+const getCampaignRoutePoints = (sectionId, count) => (CAMPAIGN_SECTION_ROUTES[sectionId] || CAMPAIGN_SECTION_ROUTES["training-deck"]).slice(0, count);
+const getCampaignRoutePath = (sectionId, count) => getCampaignRoutePoints(sectionId, count)
   .slice(0, count)
   .map(([x, y], index) => `${index ? "L" : "M"} ${x} ${y}`)
   .join(" ");
@@ -355,12 +371,12 @@ const ABILITIES = [
   { id: "grapple", label: "Grappling Hook", price: 210, energyCost: 18, cooldownMs: 4800, perk: "Pull yourself rapidly toward the aimed point, stopping at solid walls." }
 ];
 const EXPEDITION_UPGRADES = [
-  { id: "echoArsenal", label: "Echo Arsenal", icon: "ECHO", detail: "Echoes fire stronger copies of your equipped weapon.", color: "#00f0d2" },
-  { id: "echoConvergence", label: "Echo Convergence", icon: "SYNC", detail: "Your newest Echo fuses with the signal lattice and becomes a stronger combat Echo.", color: "#7ef9ff" },
-  { id: "phaseWake", label: "Phase Wake", icon: "DASH", detail: "Dashes and grapples leave a damaging energy wake.", color: "#ffd52d" },
-  { id: "volatileRounds", label: "Volatile Rounds", icon: "AMMO", detail: "Player rounds deal extra damage and travel farther.", color: "#ff8a00" },
-  { id: "corruptionDrive", label: "Corruption Drive", icon: "NULL", detail: "High corruption increases damage instead of only weakening you.", color: "#ff6ec7" },
-  { id: "salvageHeart", label: "Salvage Heart", icon: "CORE", detail: "Scrap restores additional hull, energy, and shield.", color: "#58e07a" }
+  { id: "echoArsenal", label: "Echo Arsenal", icon: "ECHO", cost: 4, detail: "Echoes fire stronger copies of your equipped weapon.", color: "#00f0d2" },
+  { id: "echoConvergence", label: "Echo Convergence", icon: "SYNC", cost: 5, detail: "Your newest Echo fuses with the signal lattice and becomes a stronger combat Echo.", color: "#7ef9ff" },
+  { id: "phaseWake", label: "Phase Wake", icon: "DASH", cost: 4, detail: "Dashes and grapples leave a damaging energy wake.", color: "#ffd52d" },
+  { id: "volatileRounds", label: "Volatile Rounds", icon: "AMMO", cost: 5, detail: "Player rounds deal extra damage and travel farther.", color: "#ff8a00" },
+  { id: "corruptionDrive", label: "Corruption Drive", icon: "NULL", cost: 4, detail: "High corruption increases damage instead of only weakening you.", color: "#ff6ec7" },
+  { id: "salvageHeart", label: "Salvage Heart", icon: "CORE", cost: 3, detail: "Scrap restores additional hull, energy, and shield.", color: "#58e07a" }
 ];
 const STATION_MUTATIONS = [
   { id: "blackout", label: "Emergency Blackout", detail: "The station dims. Hostiles become harder to read, but their attacks glow.", color: "#8aa0ff" },
@@ -387,14 +403,14 @@ const SALVAGE_MODS = [
   { id: "echoLens", label: "Echo Lens", cost: 5, detail: "Echo weapon damage is doubled." }
 ];
 const STATION_EXPEDITION_NODES = [
-  { id: "dock", label: "Docking Spine", type: "start", x: 10, y: 51, links: ["salvage", "power"], detail: "Expedition insertion point." },
-  { id: "salvage", label: "Cargo Reliquary", type: "salvage", x: 28, y: 25, levelIndex: 11, links: ["dock", "workshop", "security"], detail: "Recover parts and stabilize supply cargo.", reward: "parts" },
-  { id: "power", label: "Power Relay", type: "power", x: 29, y: 72, levelIndex: 16, links: ["dock", "security", "reactor"], detail: "Reroute station power into drone systems.", reward: "power" },
-  { id: "workshop", label: "Machine Chapel", type: "workshop", x: 48, y: 12, links: ["salvage", "security"], detail: "Install modifications without entering combat." },
-  { id: "security", label: "Security Nexus", type: "security", x: 52, y: 48, levelIndex: 27, links: ["salvage", "power", "workshop", "reactor", "archive"], detail: "Lower alert or fight through reinforced defenses.", reward: "alert" },
-  { id: "reactor", label: "Verdant Reactor", type: "reactor", x: 73, y: 72, levelIndex: 41, links: ["power", "security", "archive", "core"], detail: "Restore energy at the cost of spreading corruption.", reward: "energy" },
-  { id: "archive", label: "Null Archive", type: "corruption", x: 75, y: 27, levelIndex: 54, links: ["security", "reactor", "core"], detail: "Purge persistent corruption and recover recorder fragments.", reward: "purge" },
-  { id: "core", label: "Command Singularity", type: "boss", x: 92, y: 49, levelIndex: 58, links: ["reactor", "archive"], detail: "Final station guardian. Requires four secured sectors." }
+  { id: "dock", label: "Docking Spine", deck: "D-01", type: "start", x: 9, y: 50, links: ["salvage", "power"], detail: "Your tether to open space. Every deeper route begins here.", rewardLabel: "Safe insertion", threat: 0, accent: "#8aa0ad" },
+  { id: "salvage", label: "Cargo Reliquary", deck: "C-12", type: "salvage", x: 27, y: 24, levelIndex: 11, links: ["dock", "workshop", "security"], detail: "A collapsed freight cathedral. Stabilize the cargo lattice and recover machine parts.", reward: "parts", rewardLabel: "+5 parts", threat: 2, accent: "#e4b84a" },
+  { id: "power", label: "Power Relay", deck: "P-17", type: "power", x: 27, y: 76, levelIndex: 16, links: ["dock", "security", "reactor"], detail: "Bring a dormant relay online to permanently widen the expedition energy reserve.", reward: "power", rewardLabel: "+1 power, +28 energy", threat: 2, accent: "#63c9e8" },
+  { id: "workshop", label: "Machine Chapel", deck: "W-03", type: "workshop", x: 49, y: 12, links: ["salvage", "security"], detail: "A quiet fabrication bay where recovered parts become persistent expedition modifications.", rewardLabel: "Install modifications", threat: 0, accent: "#f0d35b" },
+  { id: "security", label: "Security Nexus", deck: "S-28", type: "security", x: 51, y: 50, levelIndex: 27, links: ["salvage", "power", "workshop", "reactor", "archive"], detail: "Cut the station's sightlines. Securing the nexus sharply lowers hostile alert.", reward: "alert", rewardLabel: "-3 alert", threat: 3, accent: "#ef765f" },
+  { id: "reactor", label: "Verdant Reactor", deck: "R-42", type: "reactor", x: 74, y: 76, levelIndex: 41, links: ["power", "security", "archive", "core"], detail: "A living reactor with abundant energy. Drawing from it also feeds the corruption.", reward: "energy", rewardLabel: "+55 energy, +18 corruption", threat: 4, accent: "#75d26c" },
+  { id: "archive", label: "Null Archive", deck: "N-55", type: "corruption", x: 74, y: 24, levelIndex: 54, links: ["security", "reactor", "core"], detail: "A broken recorder vault where the station's corruption can be stripped from your signal.", reward: "purge", rewardLabel: "-48 corruption", threat: 4, accent: "#d67bcc" },
+  { id: "core", label: "Command Singularity", deck: "K-59", type: "boss", x: 93, y: 50, levelIndex: 58, links: ["reactor", "archive"], detail: "The final guardian controls every surviving system. Four sectors must be secured before approach.", rewardLabel: "Conquer station", threat: 5, accent: "#ff665a" }
 ];
 
 const createStationExpedition = () => ({
@@ -5017,7 +5033,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
           levelIndex,
           isCustom: Boolean(customLevel),
           stationExpedition: Boolean(expedition?.active),
-          stationNode: expedition?.currentNode || null
+          stationNode: expedition?.currentNode || null,
+          stationFirstClear: Boolean(expedition?.active && expedition?.currentNode && !(expedition.cleared || []).includes(expedition.currentNode))
         };
         onRunComplete?.(resolvedSummary);
         setSummary(resolvedSummary);
@@ -5222,6 +5239,15 @@ function StationMap({ expedition, enterNode, abandon }) {
   const stationConquered = cleared.has("core");
   const isAdjacent = current.links.includes(selected.id);
   const canEnter = selected.id !== current.id && isAdjacent && (selected.type !== "boss" || bossReady);
+  const selectedMutation = selected.id === current.id ? STATION_MUTATIONS.find((item) => item.id === expedition.mutation) : STATION_MUTATIONS[(selected.levelIndex || 0) % STATION_MUTATIONS.length];
+  const selectedEvent = selected.id === current.id ? STATION_EVENTS.find((item) => item.id === expedition.event) : STATION_EVENTS[((selected.levelIndex || 0) + expedition.alert) % STATION_EVENTS.length];
+  const routeState = selected.id === current.id
+    ? "Current position"
+    : selected.type === "boss" && !bossReady
+      ? "Finale locked"
+      : isAdjacent
+        ? "Route available"
+        : "No direct conduit";
   const typeLabel = {
     start: "Insertion",
     salvage: "Salvage",
@@ -5232,27 +5258,69 @@ function StationMap({ expedition, enterNode, abandon }) {
     corruption: "Null Zone",
     boss: "Finale"
   };
+  const nodeIcon = (node) => {
+    if (node.type === "boss") return !bossReady ? <Lock size={18} /> : <Crosshair size={18} />;
+    if (node.type === "workshop") return <Wrench size={18} />;
+    if (node.type === "power") return <Zap size={18} />;
+    if (node.type === "security") return <Shield size={18} />;
+    if (node.type === "salvage") return <Boxes size={18} />;
+    if (node.type === "reactor") return <Sparkles size={18} />;
+    if (node.type === "corruption") return <Radio size={18} />;
+    return <DoorOpen size={18} />;
+  };
+  const systemReadouts = [
+    { id: "hull", label: "Hull integrity", value: expedition.hull, max: 100, display: `${Math.round(expedition.hull)}%`, detail: expedition.hull < 35 ? "Critical" : expedition.hull < 70 ? "Damaged" : "Nominal" },
+    { id: "energy", label: "Reserve energy", value: expedition.energy, max: maxEnergy, display: `${Math.round(expedition.energy)}/${maxEnergy}`, detail: expedition.energy < 35 ? "Route carefully" : "Systems online" },
+    { id: "corruption", label: "Signal corruption", value: expedition.corruption, max: 100, display: `${Math.round(expedition.corruption)}%`, detail: expedition.corruption > 65 ? "Signal unstable" : "Contained" },
+    { id: "alert", label: "Station alert", value: expedition.alert, max: 5, display: `${expedition.alert}/5`, detail: expedition.alert > 3 ? "Hostiles overclocked" : "Tracking limited" }
+  ];
   return (
     <div className="overlay station-expedition-overlay">
       <section className="panel station-expedition-map">
         <header className="station-map-header">
-          <div>
-            <span className="badge">{stationConquered ? "Station Conquered" : "Connected Station Expedition"}</span>
+          <div className="station-title-lockup">
+            <span className="station-kicker">{stationConquered ? "Expedition Complete" : "Live Station Schematic"} · KHEPRI-7</span>
             <h1>Derelict Khepri</h1>
-            <p>{stationConquered ? "Command Singularity defeated. The station is yours to revisit or abandon with its recovered systems." : "Choose an adjacent route. Damage, energy, corruption, alert, and installed systems persist until the station is conquered or abandoned."}</p>
+            <p>{stationConquered ? "Command Singularity defeated. Remaining sectors are open for recovery." : "Pick one connected sector. Everything you spend or suffer follows you deeper."}</p>
           </div>
-          <Button danger onClick={abandon}><X size={18} /> Abandon</Button>
+          <div className="station-run-progress">
+            <span>Sector control</span>
+            <strong>{securedSectors}<small>/6</small></strong>
+            <div className="station-progress-track"><i style={{ width: `${clamp((securedSectors / 6) * 100, 0, 100)}%` }} /></div>
+            <em>{bossReady ? "Final approach open" : `${Math.max(0, 4 - securedSectors)} more for finale`}</em>
+          </div>
+          <Button className="station-abandon" danger onClick={abandon}><X size={18} /> Abandon run</Button>
         </header>
-        <div className="station-systems">
-          <div><span>Hull</span><strong>{Math.round(expedition.hull)}%</strong><i style={{ width: `${clamp(expedition.hull, 0, 100)}%` }} /></div>
-          <div><span>Energy</span><strong>{Math.round(expedition.energy)}</strong><i style={{ width: `${clamp((expedition.energy / maxEnergy) * 100, 0, 100)}%` }} /></div>
-          <div><span>Corruption</span><strong>{Math.round(expedition.corruption)}%</strong><i style={{ width: `${clamp(expedition.corruption, 0, 100)}%` }} /></div>
-          <div><span>Power</span><strong>{expedition.power}</strong><i style={{ width: `${clamp(expedition.power * 20, 0, 100)}%` }} /></div>
-          <div><span>Alert</span><strong>{expedition.alert}</strong><i style={{ width: `${clamp(expedition.alert * 20, 0, 100)}%` }} /></div>
-          <div><span>Parts</span><strong>{expedition.salvage}</strong><i style={{ width: `${clamp(expedition.salvage * 5, 0, 100)}%` }} /></div>
-        </div>
         <div className="station-map-body">
+          <aside className="station-systems">
+            <div className="station-rail-head">
+              <span>Drone telemetry</span>
+              <strong>Persistent systems</strong>
+            </div>
+            {systemReadouts.map((system) => (
+              <div className="station-system-readout" data-system={system.id} key={system.id}>
+                <span>{system.label}</span>
+                <strong>{system.display}</strong>
+                <div><i style={{ width: `${clamp((system.value / system.max) * 100, 0, 100)}%` }} /></div>
+                <small>{system.detail}</small>
+              </div>
+            ))}
+            <div className="station-inventory">
+              <span>Recovered resources</span>
+              <div><Wrench size={15} /><strong>{expedition.salvage}</strong><small>parts</small></div>
+              <div><Zap size={15} /><strong>{expedition.power}</strong><small>power relays</small></div>
+            </div>
+            <div className="station-installed">
+              <span>Installed systems</span>
+              <strong>{expedition.mods.length ? expedition.mods.map((id) => SALVAGE_MODS.find((mod) => mod.id === id)?.label).join(" · ") : "No workshop modifications"}</strong>
+            </div>
+          </aside>
           <div className="station-route">
+            <div className="station-field-label station-field-label-top"><span>Forward array</span><i /></div>
+            <div className="station-field-label station-field-label-bottom"><span>Reactor keel</span><i /></div>
+            <div className="station-hull-silhouette" aria-hidden="true">
+              <i /><i /><i /><i />
+            </div>
             <svg className="station-route-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
               {STATION_EXPEDITION_NODES.flatMap((node) => node.links
                 .filter((link) => node.id < link)
@@ -5260,7 +5328,7 @@ function StationMap({ expedition, enterNode, abandon }) {
                   const target = STATION_EXPEDITION_NODES.find((item) => item.id === link);
                   const active = node.id === current.id || target.id === current.id;
                   const complete = cleared.has(node.id) && cleared.has(target.id);
-                  return <line key={`${node.id}-${link}`} x1={node.x} y1={node.y} x2={target.x} y2={target.y} data-active={active} data-complete={complete} />;
+                  return <g key={`${node.id}-${link}`}><line className="station-route-shadow" x1={node.x} y1={node.y} x2={target.x} y2={target.y} /><line x1={node.x} y1={node.y} x2={target.x} y2={target.y} data-active={active} data-complete={complete} /></g>;
                 }))}
             </svg>
             {STATION_EXPEDITION_NODES.map((node) => {
@@ -5274,20 +5342,36 @@ function StationMap({ expedition, enterNode, abandon }) {
                   data-selected={node.id === selected.id}
                   data-cleared={cleared.has(node.id)}
                   data-available={available}
-                  style={{ "--node-x": `${node.x}%`, "--node-y": `${node.y}%` }}
+                  aria-pressed={node.id === selected.id}
+                  style={{ "--node-x": `${node.x}%`, "--node-y": `${node.y}%`, "--node-accent": node.accent }}
                   onClick={() => setSelectedId(node.id)}
                 >
-                  <span>{node.type === "boss" && !bossReady ? <Lock size={15} /> : node.type === "workshop" ? <Wrench size={15} /> : node.type === "power" ? <Zap size={15} /> : node.type === "security" ? <Shield size={15} /> : <Radio size={15} />}</span>
-                  <strong>{node.label}</strong>
-                  <small>{cleared.has(node.id) ? "Secured" : typeLabel[node.type]}</small>
+                  <span className="station-node-core">{nodeIcon(node)}<i /></span>
+                  <span className="station-node-copy"><small>{node.deck} · {cleared.has(node.id) ? "Secured" : typeLabel[node.type]}</small><strong>{node.label}</strong></span>
                 </button>
               );
             })}
+            <div className="station-route-legend"><span><i data-kind="current" /> Current</span><span><i data-kind="open" /> Open route</span><span><i data-kind="secure" /> Secured</span></div>
           </div>
           <aside className="station-route-brief">
-            <span>{typeLabel[selected.type]}</span>
-            <h2>{selected.label}</h2>
+            <div className="station-brief-head">
+              <span>{selected.deck} · {typeLabel[selected.type]}</span>
+              <strong data-open={canEnter || selected.id === current.id}>{routeState}</strong>
+            </div>
+            <div className="station-brief-title" style={{ "--brief-accent": selected.accent }}>
+              <span>{nodeIcon(selected)}</span>
+              <h2>{selected.label}</h2>
+            </div>
             <p>{selected.detail}</p>
+            <div className="station-threat">
+              <span>Threat estimate</span>
+              <div>{[1, 2, 3, 4, 5].map((value) => <i key={value} data-live={value <= selected.threat} />)}</div>
+              <strong>{selected.threat === 0 ? "Safe" : selected.threat <= 2 ? "Guarded" : selected.threat <= 4 ? "Severe" : "Command-class"}</strong>
+            </div>
+            <div className="station-reward">
+              <span>First-clear recovery</span>
+              <strong>{cleared.has(selected.id) ? "Recovery claimed" : selected.rewardLabel}</strong>
+            </div>
             {selected.type === "boss" && <div className="station-finale-lock"><strong>{securedSectors}/4 sectors secured</strong><small>{bossReady ? "Command Singularity route unlocked." : "Secure more station sectors before the final assault."}</small></div>}
             {selected.id === current.id ? (
               <Button disabled>Current Position</Button>
@@ -5295,9 +5379,10 @@ function StationMap({ expedition, enterNode, abandon }) {
               <Button primary disabled={!canEnter} onClick={() => enterNode(selected)}>{selected.type === "workshop" ? <Wrench size={18} /> : <DoorOpen size={18} />} {selected.type === "workshop" ? "Enter Workshop" : cleared.has(selected.id) ? "Re-enter Sector" : "Commit To Route"}</Button>
             )}
             <div className="station-route-status">
-              <strong>Active Conditions</strong>
-              <span>{STATION_MUTATIONS.find((item) => item.id === expedition.mutation)?.label || "Stable Signal"}</span>
-              <span>{STATION_EVENTS.find((item) => item.id === expedition.event)?.label || "Quiet Orbit"}</span>
+              <strong>Predicted conditions</strong>
+              <p><b>Mutation</b> changes a room rule. <b>Event</b> adds one temporary incident.</p>
+              <span style={{ "--condition-color": selectedMutation.color }}><i /><em>Mutation · {selectedMutation.label}</em><small>{selectedMutation.detail}</small></span>
+              <span style={{ "--condition-color": selectedEvent.color }}><i /><em>Event · {selectedEvent.label}</em><small>{selectedEvent.detail}</small></span>
             </div>
           </aside>
         </div>
@@ -5309,6 +5394,7 @@ function StationMap({ expedition, enterNode, abandon }) {
 function MainMenu({ openBriefing, startRoom, startStationExpedition, setScreen, user, onLogout, openSettings, openControls }) {
   const safeProgress = normalizeProgress(user?.progress);
   const totalStars = getTotalStars(safeProgress);
+  const isNewPilot = totalStars === 0;
   const currentSection = CAMPAIGN_SECTIONS[getCurrentSectionIndex(user)];
   const nextRoomIndex = getNextCampaignRoomIndex(safeProgress);
   const [selectedSectionId, setSelectedSectionId] = useState(null);
@@ -5325,19 +5411,29 @@ function MainMenu({ openBriefing, startRoom, startStationExpedition, setScreen, 
             </button>
           </div>
           <h1 className="title">Echo Salvage</h1>
-          <p className="lead">Pilot a drone through locked station rooms. Every Echo snapshots the complete eight seconds immediately before deployment, then remains at that recording's final position.</p>
+          <p className="lead">Record eight seconds of movement and actions, then deploy an Echo that repeats them. Coordinate with your own past to open the station.</p>
+          <div className="main-mode-launches">
+            <button className="mode-launch mode-launch-campaign" onClick={openBriefing}>
+              <span><Play size={19} /> {isNewPilot ? "Recommended first" : "Guided campaign"}</span>
+              <strong>{isNewPilot ? "Learn the Echo" : "Continue campaign"}</strong>
+              <small>Curated rooms teach one system at a time. Earn stars to unlock later sectors.</small>
+            </button>
+            <button className="mode-launch mode-launch-expedition" onClick={startStationExpedition}>
+              <span><Radio size={19} /> Advanced run</span>
+              <strong>Station Expedition</strong>
+              <small>Branching routes, persistent damage, mutations, events, and run-only upgrades.</small>
+            </button>
+          </div>
           <div className="campaign-status" style={{ "--section-accent": currentSection.accent }}>
             <span>{currentSection.label}</span>
             <strong>{totalStars} stars banked</strong>
             <small>{currentSection.blurb}</small>
           </div>
           <div className="button-grid">
-            <Button primary onClick={openBriefing}><Play size={22} /> Begin Training</Button>
-            <Button onClick={startStationExpedition}><Radio size={20} /> Station Expedition</Button>
             <Button onClick={() => setScreen("editor")}><Wand2 size={20} /> Level Creator</Button>
             <Button className="construction-tab" onClick={() => setScreen("community")}><Globe2 size={20} /> Community Levels <span>In Construction</span></Button>
             <Button onClick={() => setScreen("profile")}><UserRound size={20} /> Customization Bay</Button>
-            <Button onClick={() => setScreen("workshop")}><Wrench size={20} /> Salvage Workshop</Button>
+            <Button onClick={() => setScreen("manual")}><BookOpen size={20} /> Systems Manual</Button>
             <Button onClick={openSettings}><Settings size={20} /> Settings</Button>
             <Button onClick={openControls}><Gamepad2 size={20} /> Controls</Button>
             <Button danger onClick={onLogout}><LogOut size={20} /> Logout</Button>
@@ -5403,6 +5499,7 @@ function MainMenu({ openBriefing, startRoom, startStationExpedition, setScreen, 
                     <div>
                       <small>{section.sector}</small>
                       <h3>{section.label}</h3>
+                      <em>{section.condition} · {section.directive}</em>
                     </div>
                     <span>{cleared}/{sectionRooms.length}</span>
                   </div>
@@ -5415,20 +5512,25 @@ function MainMenu({ openBriefing, startRoom, startStationExpedition, setScreen, 
                       <small>Salvage directive</small>
                       <strong>{section.directive}</strong>
                     </div>
+                    <div className="route-chapter route-chapter-a"><span>01</span><strong>Learn</strong></div>
+                    <div className="route-chapter route-chapter-b"><span>02</span><strong>Combine</strong></div>
+                    <div className="route-chapter route-chapter-c"><span>03</span><strong>Prove</strong></div>
                     <svg className="map-route-line" viewBox="0 0 100 82" preserveAspectRatio="none" aria-hidden="true">
-                      <path d={getCampaignRoutePath(sectionRooms.length)} />
+                      <path d={getCampaignRoutePath(section.id, sectionRooms.length)} />
                     </svg>
                     {sectionRooms.map((r, offset) => {
                       const i = start + offset;
                       const unlocked = isRoomUnlocked(i, user);
                       const roomStars = safeProgress[i] || 0;
-                      const [routeX, routeY] = CAMPAIGN_ROUTE_POINTS[offset];
+                      const [routeX, routeY] = getCampaignRoutePoints(section.id, sectionRooms.length)[offset];
+                      const milestone = offset === 0 || offset === 4 || offset === 8 || offset === sectionRooms.length - 1;
                       return (
                         <button
                           className="map-node"
                           data-locked={!unlocked}
                           data-cleared={roomStars > 0}
                           data-current={i === nextRoomIndex}
+                          data-milestone={milestone}
                           disabled={!unlocked}
                           key={r}
                           style={{ "--map-x": `${routeX}%`, "--map-y": `${routeY}%` }}
@@ -5456,29 +5558,110 @@ function MainMenu({ openBriefing, startRoom, startStationExpedition, setScreen, 
 
 function Briefing({ setScreen, startRun }) {
   return (
-    <div className="overlay">
-      <div className="menu-grid">
-        <section className="panel">
-          <div className="panel-header"><span className="badge">First Boot</span><span className="status-pill">Echo Link Unstable</span></div>
-          <h1 className="title" style={{ fontSize: "clamp(46px, 6vw, 70px)" }}>Your past self is the tool.</h1>
-          <p className="lead">Create Echoes after doing something useful. Every deployment captures its own full eight-second history, then stays at the recording's final position.</p>
-          <div className="button-grid">
-            <Button primary onClick={startRun}><Play size={22} /> Start Run</Button>
-            <Button onClick={() => setScreen("menu")}>Main Menu</Button>
+    <div className="overlay onboarding-overlay">
+      <section className="panel onboarding-panel">
+        <header className="onboarding-head">
+          <div>
+            <span className="badge">Pilot Calibration</span>
+            <h1>Your past self opens the way.</h1>
+            <p>Do something useful, press Q, then move on while the Echo repeats the eight seconds before you pressed it.</p>
           </div>
-        </section>
-        <section className="panel">
-          <Brief icon={<Boxes />} title="Read the labels" text="Plate cargo is pushable weight for pressure plates. Switches latch, plates need bodies or cargo, and gates require the whole lock chain." />
-          <Brief icon={<Zap />} title="Capture the last eight seconds" text="Every press captures the complete rolling history before that moment. Finished Echoes stay at their final positions, letting separate recordings hold A and B." />
-          <Brief icon={<Shield />} title="Clear the lock chain" text="Locked gates show how many requirements remain. Solve the room, survive the hazards, and extract." />
-        </section>
-      </div>
+          <Button onClick={() => setScreen("menu")}><X size={18} /> Menu</Button>
+        </header>
+        <div className="echo-example">
+          <div className="echo-example-stage">
+            <div className="echo-path" />
+            <span className="echo-drone echo-drone-start"><i />You start here</span>
+            <span className="echo-plate echo-plate-a">Plate A</span>
+            <span className="echo-drone echo-drone-record"><i />Stand here</span>
+            <span className="echo-press">Press Q</span>
+            <span className="echo-drone echo-drone-ghost"><i />Echo repeats</span>
+            <span className="echo-plate echo-plate-b">Plate B</span>
+            <span className="echo-drone echo-drone-finish"><i />You move here</span>
+            <span className="echo-door"><i />Door opens</span>
+          </div>
+          <div className="echo-timeline">
+            <span><strong>1</strong> Move to A</span>
+            <span><strong>2</strong> Wait on A</span>
+            <span><strong>3</strong> Press Q</span>
+            <span><strong>4</strong> Move to B</span>
+          </div>
+        </div>
+        <div className="onboarding-lessons">
+          <Brief icon={<Radio />} title="Echo records backward" text="Q captures the eight seconds immediately before you press it. Each Echo has its own recording." />
+          <Brief icon={<Boxes />} title="Bodies hold plates" text="You, Echoes, and cargo can hold pressure plates. Cargo stays forever; Echoes repeat actions and then remain at their final position." />
+          <Brief icon={<Zap />} title="Energy is limited" text="Echoes, abilities, and dashes consume energy. Salvage and certain pets restore it, so spend it deliberately." />
+          <Brief icon={<DoorOpen />} title="Finish every requirement" text="Doors only open when their full lock chain is solved. Clear required hostiles and objectives, then reach extraction." />
+        </div>
+        <div className="onboarding-controls">
+          <span><strong>WASD</strong> Move</span>
+          <span><strong>Mouse</strong> Aim</span>
+          <span><strong>Click</strong> Shoot</span>
+          <span><strong>Shift</strong> Ability</span>
+          <span><strong>Q</strong> Echo</span>
+          <span><strong>E</strong> Interact / tether cargo</span>
+        </div>
+        <footer className="onboarding-actions">
+          <div><strong>Start with Training Deck</strong><span>The first rooms teach these systems one at a time. Mutations and persistent expedition systems are introduced later in Station Expedition.</span></div>
+          <Button primary onClick={startRun}><Play size={22} /> Begin Calibration</Button>
+        </footer>
+      </section>
     </div>
   );
 }
 
 function Brief({ icon, title, text }) {
   return <div className="brief-card"><div className="brief-icon">{icon}</div><div><h3>{title}</h3><p>{text}</p></div></div>;
+}
+
+function SystemsManual({ setScreen }) {
+  return (
+    <div className="overlay manual-overlay">
+      <section className="panel systems-manual">
+        <header className="drawer-head">
+          <div><span className="badge">Systems Manual</span><h2>What changes, where, and for how long</h2><p className="small-copy">Campaign teaches the rules. Expedition bends them. Your loadout follows you everywhere.</p></div>
+          <Button onClick={() => setScreen("menu")} aria-label="Close systems manual"><X /></Button>
+        </header>
+        <div className="manual-mode-strip">
+          <div><Play size={18} /><strong>Campaign</strong><span>Curated rooms, stars, and fixed difficulty. No random mutations.</span></div>
+          <div><Radio size={18} /><strong>Station Expedition</strong><span>Branching advanced run with persistent hull, energy, alert, and corruption.</span></div>
+          <div><UserRound size={18} /><strong>Customization Bay</strong><span>Permanent account unlocks. Weapons, abilities, and pets change gameplay.</span></div>
+        </div>
+        <div className="manual-system-grid">
+          <section>
+            <span className="manual-number">01</span><h3>Echoes</h3>
+            <p>Each Q press captures a separate eight-second history. Echoes repeat movement, shots, and interactions, then remain at their final position.</p>
+            <strong>Use for: plates, crossfire, distractions, and timed routes.</strong>
+          </section>
+          <section>
+            <span className="manual-number">02</span><h3>Mutations</h3>
+            <p>A mutation changes a room rule for the next expedition sector, such as faster enemies or larger corruption zones. The station map previews it before entry.</p>
+            <strong>Duration: one expedition sector.</strong>
+          </section>
+          <section>
+            <span className="manual-number">03</span><h3>Events</h3>
+            <p>An event is an immediate station incident, such as a hull breach or lockdown. It combines with the sector mutation.</p>
+            <strong>Duration: one expedition sector.</strong>
+          </section>
+          <section>
+            <span className="manual-number">04</span><h3>Workshop systems</h3>
+            <p>Spend expedition parts at the Machine Chapel. Recorder upgrades change your Echo strategy; hardware modifications strengthen the drone.</p>
+            <strong>Duration: current expedition only.</strong>
+          </section>
+          <section>
+            <span className="manual-number">05</span><h3>Loadout equipment</h3>
+            <p>Weapons, abilities, and pets are bought with coins in the Customization Bay. Their perks affect both campaign and expedition gameplay.</p>
+            <strong>Duration: permanent until unequipped.</strong>
+          </section>
+          <section>
+            <span className="manual-number">06</span><h3>Visual cosmetics</h3>
+            <p>Frames, paint, cockpit, engine, armor, decals, dash animation, and trails change appearance only. Universal colors can be reused across slots.</p>
+            <strong>Duration: permanent account unlock.</strong>
+          </section>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function createInitialSummaryState() {
@@ -5657,6 +5840,11 @@ function ProfileScreen({ user, setUser, setScreen }) {
           </div>
         </div>
         <p className="auth-message profile-message" data-visible={Boolean(message)} aria-live="polite">{message || "Customization ready."}</p>
+        <div className="bay-system-guide">
+          <div><span>Gameplay equipment</span><strong>Weapon · Ability · Pet</strong><small>These change combat, movement, or passive stats.</small></div>
+          <div><span>Visual cosmetics</span><strong>Paint · Frame · Engine · Armor · Decal · Trail</strong><small>These only change how your drone looks.</small></div>
+          <div><span>How purchases work</span><strong>Coins unlock permanently</strong><small>Save after equipping. Expedition workshop parts are a separate run-only currency.</small></div>
+        </div>
         <div className="profile-preview">
           <canvas width="360" height="206" ref={previewRef} />
           <div className="profile-preview-copy">
@@ -5965,13 +6153,12 @@ function PauseMenu({ setScreen, retryLevel, openSettings, openControls, abandonR
   );
 }
 
-function Summary({ summary, next, returnToMenu, expedition, chooseUpgrade, craftMod }) {
-  const [upgradeChosen, setUpgradeChosen] = useState(false);
+function Summary({ summary, next, returnToMenu }) {
   const earnedStars = getStarsForRoom(summary.levelIndex, summary);
   const isCustomRun = Boolean(summary.isCustom);
   const isStationExpedition = Boolean(summary.stationExpedition);
+  const stationNode = STATION_EXPEDITION_NODES.find((node) => node.id === summary.stationNode);
   const atFinalRoom = isCustomRun || summary.levelIndex >= rooms.length - 1;
-  const choices = EXPEDITION_UPGRADES.filter((item) => !expedition.upgrades.includes(item.id)).slice(summary.levelIndex % 3, summary.levelIndex % 3 + 3);
   return (
     <div className="overlay">
       <section className="panel modal expedition-summary">
@@ -5979,33 +6166,21 @@ function Summary({ summary, next, returnToMenu, expedition, chooseUpgrade, craft
         <h1 className="title" style={{ fontSize: 58 }}>{summary.result}</h1>
         <p className="lead">{summary.room} | {Math.round(summary.time)}s | Scrap recovered: {Math.round(summary.scrap)} | Hull {Math.round(summary.hull ?? 0)}%{isStationExpedition ? ` | Energy ${Math.round(summary.energy ?? 0)} | Corruption ${Math.round(summary.corruption ?? 0)}%` : ""}</p>
         {!isStationExpedition && <div className="summary-stars">{"★".repeat(earnedStars)}{"☆".repeat(3 - earnedStars)}</div>}
-        {!isCustomRun && (!atFinalRoom || isStationExpedition) && summary.result === "Extracted" && (
-          <div className="expedition-grid">
-            <section className="expedition-choice-panel">
-              <div className="expedition-section-head"><span>Flight Recorder Upgrade</span><strong>Choose One</strong></div>
-              <div className="upgrade-choice-grid">
-                {choices.map((item) => (
-                  <button key={item.id} className="upgrade-choice" style={{ "--upgrade-color": item.color }} data-owned={expedition.upgrades.includes(item.id)} disabled={upgradeChosen} onClick={() => { chooseUpgrade(item.id); setUpgradeChosen(true); }}>
-                    <span>{item.icon}</span><strong>{item.label}</strong><small>{item.detail}</small>
-                  </button>
-                ))}
-              </div>
-            </section>
-            <section className="workshop-panel">
-              <div className="expedition-section-head"><span>Salvage Workshop</span><strong>{expedition.salvage} Parts</strong></div>
-              <div className="workshop-list">
-                {SALVAGE_MODS.map((mod) => (
-                  <button key={mod.id} data-owned={expedition.mods.includes(mod.id)} disabled={expedition.mods.includes(mod.id) || expedition.salvage < mod.cost} onClick={() => craftMod(mod)}>
-                    <strong>{mod.label}</strong><small>{mod.detail}</small><span>{expedition.mods.includes(mod.id) ? "Installed" : `${mod.cost} parts`}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-            <section className="incoming-mutation">
-              <span>Incoming Station Mutation</span>
-              <strong style={{ color: STATION_MUTATIONS.find((item) => item.id === expedition.mutation)?.color }}>{STATION_MUTATIONS.find((item) => item.id === expedition.mutation)?.label}</strong>
-              <small>{STATION_MUTATIONS.find((item) => item.id === expedition.mutation)?.detail}</small>
-            </section>
+        {!isCustomRun && !isStationExpedition && summary.result === "Extracted" && <div className="campaign-summary-guide"><strong>{earnedStars} stars secured</strong><span>Stars unlock later campaign rooms. Faster clears, stronger remaining hull, and completed objectives improve the result.</span></div>}
+        {isStationExpedition && (
+          <div className="station-debrief">
+            <div className="station-debrief-result" data-success={summary.result === "Extracted"}>
+              <span>{summary.result === "Extracted" ? "Sector secured" : "Emergency recovery"}</span>
+              <strong>{stationNode?.label || summary.room}</strong>
+              <small>{summary.result === "Extracted" ? summary.stationFirstClear ? stationNode?.rewardLabel : "Previously secured sector revisited" : "The docking spine recovered your drone. Alert and corruption increased."}</small>
+            </div>
+            <div className="station-debrief-telemetry">
+              <div><span>Hull remaining</span><strong>{Math.round(summary.hull ?? 0)}%</strong></div>
+              <div><span>Energy remaining</span><strong>{Math.round(summary.energy ?? 0)}</strong></div>
+              <div><span>Signal corruption</span><strong>{Math.round(summary.corruption ?? 0)}%</strong></div>
+              <div><span>Scrap recovered</span><strong>{Math.round(summary.scrap ?? 0)}</strong></div>
+            </div>
+            <p>{summary.result === "Extracted" ? "Return to the schematic to choose a connected route. The workshop is the only place to install recovered modifications." : "The expedition continues, but the failed approach has made the station more dangerous."}</p>
           </div>
         )}
         <div className="button-grid">
@@ -6017,7 +6192,7 @@ function Summary({ summary, next, returnToMenu, expedition, chooseUpgrade, craft
   );
 }
 
-function SalvageWorkshop({ expedition, craftMod, setScreen, returnScreen = "menu" }) {
+function SalvageWorkshop({ expedition, craftMod, installUpgrade, setScreen, returnScreen = "menu" }) {
   return (
     <div className="overlay">
       <section className="panel dedicated-workshop">
@@ -6025,15 +6200,31 @@ function SalvageWorkshop({ expedition, craftMod, setScreen, returnScreen = "menu
           <div>
             <span className="badge">Salvage Engineering</span>
             <h2>Salvage Workshop</h2>
-            <p className="small-copy">Recovered room scrap becomes expedition parts. Install permanent modifications for the current expedition.</p>
+            <p className="small-copy">{expedition.active ? "Spend recovered parts on run-only systems. Everything installed here lasts until this expedition ends." : "Workshop systems are installed during Station Expeditions using parts recovered in that run."}</p>
           </div>
           <Button onClick={() => setScreen(returnScreen)}><X /></Button>
         </div>
         <div className="workshop-balance"><Wrench size={24} /><span>Available Parts</span><strong>{expedition.salvage}</strong></div>
+        <div className="workshop-system-explainer">
+          <div><Radio size={18} /><strong>Recorder upgrades</strong><span>Change what your Echoes can do.</span></div>
+          <div><Wrench size={18} /><strong>Hardware modifications</strong><span>Improve the physical drone and weapon systems.</span></div>
+        </div>
+        <div className="workshop-section-head"><span>Flight recorder upgrades</span><small>Run-only Echo strategy</small></div>
+        <div className="workshop-blueprints workshop-recorder-blueprints">
+          {EXPEDITION_UPGRADES.map((upgrade, index) => (
+            <button key={upgrade.id} style={{ "--upgrade-color": upgrade.color }} data-owned={expedition.upgrades.includes(upgrade.id)} disabled={!expedition.active || expedition.upgrades.includes(upgrade.id) || expedition.salvage < upgrade.cost} onClick={() => installUpgrade(upgrade)}>
+              <span>Recorder 0{index + 1} · {upgrade.icon}</span>
+              <strong>{upgrade.label}</strong>
+              <p>{upgrade.detail}</p>
+              <small>{expedition.upgrades.includes(upgrade.id) ? "Installed" : `${upgrade.cost} parts required`}</small>
+            </button>
+          ))}
+        </div>
+        <div className="workshop-section-head"><span>Drone hardware</span><small>Run-only physical systems</small></div>
         <div className="workshop-blueprints">
           {SALVAGE_MODS.map((mod, index) => (
-            <button key={mod.id} data-owned={expedition.mods.includes(mod.id)} disabled={expedition.mods.includes(mod.id) || expedition.salvage < mod.cost} onClick={() => craftMod(mod)}>
-              <span>Blueprint 0{index + 1}</span>
+            <button key={mod.id} data-owned={expedition.mods.includes(mod.id)} disabled={!expedition.active || expedition.mods.includes(mod.id) || expedition.salvage < mod.cost} onClick={() => craftMod(mod)}>
+              <span>Hardware 0{index + 1}</span>
               <strong>{mod.label}</strong>
               <p>{mod.detail}</p>
               <small>{expedition.mods.includes(mod.id) ? "Installed" : `${mod.cost} parts required`}</small>
@@ -6041,8 +6232,8 @@ function SalvageWorkshop({ expedition, craftMod, setScreen, returnScreen = "menu
           ))}
         </div>
         <div className="installed-mods">
-          <span>Installed Systems</span>
-          <strong>{expedition.mods.length ? expedition.mods.map((id) => SALVAGE_MODS.find((mod) => mod.id === id)?.label).join(" · ") : "No modifications installed"}</strong>
+          <span>Installed for this expedition</span>
+          <strong>{[...expedition.upgrades.map((id) => EXPEDITION_UPGRADES.find((upgrade) => upgrade.id === id)?.label), ...expedition.mods.map((id) => SALVAGE_MODS.find((mod) => mod.id === id)?.label)].filter(Boolean).join(" · ") || "No run systems installed"}</strong>
         </div>
       </section>
     </div>
@@ -6431,8 +6622,8 @@ function App() {
       corruption: 0,
       power: 0,
       alert: 0,
-      mutation: STATION_MUTATIONS[index % STATION_MUTATIONS.length].id,
-      event: STATION_EVENTS[index % STATION_EVENTS.length].id
+      mutation: null,
+      event: null
     });
     setScreen("playing");
   };
@@ -6481,12 +6672,12 @@ function App() {
     setLevelIndex((v) => Math.min(v + 1, rooms.length - 1));
     setExpedition((current) => ({
       ...current,
-      mutation: STATION_MUTATIONS[(levelIndex + 1) % STATION_MUTATIONS.length].id,
-      event: STATION_EVENTS[(levelIndex + 1) % STATION_EVENTS.length].id
+      mutation: current.active ? STATION_MUTATIONS[(levelIndex + 1) % STATION_MUTATIONS.length].id : null,
+      event: current.active ? STATION_EVENTS[(levelIndex + 1) % STATION_EVENTS.length].id : null
     }));
     setScreen("playing");
   };
-  const chooseUpgrade = (id) => setExpedition((current) => current.upgrades.includes(id) ? current : { ...current, upgrades: [...current.upgrades, id] });
+  const chooseUpgrade = (upgrade) => setExpedition((current) => !current.active || current.upgrades.includes(upgrade.id) || current.salvage < upgrade.cost ? current : { ...current, salvage: current.salvage - upgrade.cost, upgrades: [...current.upgrades, upgrade.id] });
   const craftMod = (mod) => setExpedition((current) => current.mods.includes(mod.id) || current.salvage < mod.cost ? current : { ...current, salvage: current.salvage - mod.cost, mods: [...current.mods, mod.id] });
   const retryLevel = () => {
     setRunSeed((v) => v + 1);
@@ -6580,8 +6771,9 @@ function App() {
       {screen === "stationMap" && <StationMap expedition={expedition} enterNode={enterStationNode} abandon={abandonStationExpedition} />}
       {screen === "profile" && <ProfileScreen user={user} setUser={setUser} setScreen={setScreen} />}
       {screen === "shop" && <ShopScreen user={user} setUser={setUser} setScreen={setScreen} />}
-      {screen === "workshop" && <SalvageWorkshop expedition={expedition} craftMod={craftMod} setScreen={setScreen} returnScreen={expedition.active ? "stationMap" : "menu"} />}
+      {screen === "workshop" && <SalvageWorkshop expedition={expedition} craftMod={craftMod} installUpgrade={chooseUpgrade} setScreen={setScreen} returnScreen={expedition.active ? "stationMap" : "menu"} />}
       {screen === "briefing" && <Briefing setScreen={setScreen} startRun={() => startCampaignRoom(0)} />}
+      {screen === "manual" && <SystemsManual setScreen={setScreen} />}
       {screen === "settings" && <SettingsDrawer settings={settings} setSettings={setSettings} setScreen={setScreen} returnScreen={overlayReturnScreen} />}
       {screen === "controls" && <Controls setScreen={setScreen} keybinds={keybinds} setKeybinds={setKeybinds} returnScreen={overlayReturnScreen} />}
       {screen === "paused" && <PauseMenu setScreen={setScreen} retryLevel={retryLevel} abandonRun={returnToMenu} openSettings={() => openSettingsFrom("paused")} openControls={() => openControlsFrom("paused")} />}
