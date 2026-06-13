@@ -38,6 +38,14 @@ function Summary({ summary, next, returnToMenu }) {
         <p className="lead">{summary.room} | {Math.round(summary.time)}s | Scrap recovered: {Math.round(summary.scrap)} | Hull {Math.round(summary.hull ?? 0)}%{isStationExpedition ? ` | Energy ${Math.round(summary.energy ?? 0)} | Corruption ${Math.round(summary.corruption ?? 0)}%` : ""}</p>
         {!isStationExpedition && <div className="summary-stars">{"★".repeat(earnedStars)}{"☆".repeat(3 - earnedStars)}</div>}
         {!isCustomRun && !isStationExpedition && summary.result === "Extracted" && <div className="campaign-summary-guide"><strong>{earnedStars} stars secured</strong><span>Stars unlock later campaign rooms. Faster clears, stronger remaining hull, and completed objectives improve the result.</span></div>}
+        {!isCustomRun && !isStationExpedition && summary.contract && (
+          <div className="summary-contract" data-complete={summary.contractCompleted}>
+            <span>Optional salvage contract</span>
+            <strong>{summary.contract.label}</strong>
+            <p>{summary.contractProgress}</p>
+            <small>{summary.contractFirstClear ? `Completed · +${summary.contractReward} coins secured` : summary.contractAlreadyClaimed ? "Completed · reward previously claimed" : summary.contractCompleted ? "Completed" : "Contract incomplete"}</small>
+          </div>
+        )}
         {isStationExpedition && (
           <div className="station-debrief">
             <div className="station-debrief-result" data-success={summary.result === "Extracted"}>

@@ -3,6 +3,7 @@ import { clamp } from "../game/geometry.js";
 import { getRoomMechanicHint, getObjectiveText } from "../game/rules.js";
 import { useGame } from "../hooks/useGame.js";
 import { keyName } from "../services/profile-store.js";
+import { getContractRunState, getContractProgress } from "../game/contracts.js";
 import { useEffect, useState } from "react";
 import { Crosshair, Gauge, Radio, Shield, Sparkles, Zap } from "lucide-react";
 
@@ -98,6 +99,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
           <strong>Objective</strong>
           <span>{getObjectiveText(g?.level)}</span>
           <small>{getRoomMechanicHint(g?.level)}</small>
+          {g?.contract && <div className="contract-hud"><strong>Optional · {g.contract.label}</strong><span>{g.contract.detail}</span><small>{getContractProgress(g.contract, getContractRunState(g), g.level)} · first clear +{g.contract.reward} coins</small></div>}
         </div>
         <div className="hud-cluster stat-grid">
           <div className="stat-tile"><Shield size={16} /><span>Scrap</span><strong>{g?.player.scrap ?? 0}</strong></div>

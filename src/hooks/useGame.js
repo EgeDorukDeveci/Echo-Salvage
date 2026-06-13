@@ -6,6 +6,7 @@ import { getBossPhase, damageBoss, spawnBossProjectile, spawnEnemyProjectile, sp
 import { drawLevel } from "../game/rendering.js";
 import { getCampaignSection, getCampaignTuning } from "../game/rules.js";
 import { captureEchoReplay, isCargoBlocked, moveCargo, phaseMove, resolveAfterPhase, isExtractionReady } from "../game/simulation.js";
+import { getRoomContract, getContractRunState, evaluateContract, getContractProgress } from "../game/contracts.js";
 
 function getPetPerks(cosmetic = COSMETIC_DEFAULTS) {
   switch (cosmetic.pet) {
@@ -198,6 +199,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       abilityBursts: [],
       spawnFlash: 1200,
       nextEchoId: 0,
+      echoesDeployed: 0,
       echoStatus: "",
       echoStatusUntil: 0,
       recording: [],
@@ -211,6 +213,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       tuning,
       expedition: { upgrades, mods, mutation, event, active: Boolean(expedition?.active), alert: expedition?.alert || 0, power: expedition?.power || 0 }
     };
+    game.current.contract = !customLevel && !expedition?.active ? getRoomContract(level, levelIndex) : null;
   };
 
   useEffect(reset, [levelIndex, customLevel, settings.difficulty, expedition]);
@@ -324,6 +327,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     const echo = captureEchoReplay(g.recording, g.echoes, g.nextEchoId ?? 0, g.expedition?.upgrades?.has("echoConvergence") && g.echoes.length > 0);
     g.nextEchoId = echo.id + 1;
     g.echoes.push(echo);
+    g.echoesDeployed += 1;
     g.echoStatus = `Echo ${echo.slot + 1} captured · replaying last 8s`;
     g.echoStatusUntil = performance.now() + 1100;
     if (settings.shake && !settings.reduced) g.shake = 8;
@@ -1160,8 +1164,11 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
           stationNode: expedition?.currentNode || null,
           stationFirstClear: Boolean(expedition?.active && expedition?.currentNode && !(expedition.cleared || []).includes(expedition.currentNode))
         };
-        onRunComplete?.(resolvedSummary);
-        setSummary(resolvedSummary);
+        const contractRun = getContractRunState(g, now);
+        resolvedSummary.contract = g.contract;
+        resolvedSummary.contractProgress = getContractProgress(g.contract, contractRun, level);
+        resolvedSummary.contractCompleted = evaluateContract(g.contract, contractRun, level, result === "Extracted");
+        setSummary(onRunComplete?.(resolvedSummary) || resolvedSummary);
         setScreen("summary");
       };
 

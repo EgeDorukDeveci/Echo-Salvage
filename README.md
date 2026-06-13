@@ -8,6 +8,7 @@ The Echo continuously records the latest eight seconds of movement, shooting, an
 
 - Canvas-based 2D station gameplay
 - Handmade 59-room campaign ordered by difficulty
+- Optional room-specific Salvage Contracts with one-time coin rewards
 - Echo replay puzzles with plates, switches, doors, lasers, cargo, and timing
 - Hostiles: turrets, chase drones, missile sentries, gravity nodes, echo jammers, laser sweepers, shield drones, repair bots, and blink hunters
 - Four visually specialized orbital biomes with unique floors, walls, landmarks, cores, turrets, and section-native hostile variants such as Death Plants, Magma Vents, and Black Holes
@@ -32,6 +33,8 @@ The campaign is split into four themed station decks:
 - **Corruption Site** pushes the longest Echo chains and the harshest combinations.
 
 Rooms unlock sequentially. Clearing a room opens the next one, so stars are now performance ratings instead of skip currency.
+
+Every campaign room also offers one optional **Salvage Contract**. Contracts reward careful play such as recovering every salvage shard, limiting Echo deployments, preserving hull or energy, or extracting within a generous timer. Contract rewards are paid once per room and never block campaign progression.
 
 ## Difficulty
 

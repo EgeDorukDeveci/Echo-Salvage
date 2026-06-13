@@ -125,6 +125,14 @@ function normalizeProgress(progress = {}) {
   }, {});
 }
 
+function normalizeContracts(contracts = {}) {
+  return Object.entries(contracts || {}).reduce((safe, [rawIndex, completed]) => {
+    const index = Number(rawIndex);
+    if (completed && Number.isInteger(index) && index >= 0 && index < rooms.length) safe[index] = true;
+    return safe;
+  }, {});
+}
+
 function makeSession(user) {
   const economy = normalizeEconomy(user);
   return {
@@ -134,6 +142,7 @@ function makeSession(user) {
     avatar: user.avatar || "yellow",
     devMode: Boolean(user.devMode),
     progress: normalizeProgress(user.progress),
+    contracts: normalizeContracts(user.contracts),
     sessionNonce: user.sessionNonce,
     sessionExpiresAt: user.sessionExpiresAt,
     ...economy
@@ -225,7 +234,7 @@ function getStoredSession() {
 }
 
 function updateStoredUserProfile(updated) {
-  const normalized = { ...updated, progress: normalizeProgress(updated.progress), ...normalizeEconomy(updated) };
+  const normalized = { ...updated, progress: normalizeProgress(updated.progress), contracts: normalizeContracts(updated.contracts), ...normalizeEconomy(updated) };
   const users = getStoredUsers();
   const nextUsers = users.some((user) => user.id === normalized.id)
     ? users.map((user) => (user.id === normalized.id ? { ...user, ...normalized } : user))

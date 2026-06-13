@@ -117,15 +117,25 @@ function App() {
   const recordCampaignProgress = (resolvedSummary) => {
     if (resolvedSummary.stationExpedition) {
       setExpedition((current) => resolveExpeditionRun(current, resolvedSummary));
-      return;
+      return resolvedSummary;
     }
-    if (resolvedSummary.result !== "Extracted" || resolvedSummary.isCustom || user?.devMode || !user?.id) return;
+    if (resolvedSummary.result !== "Extracted" || resolvedSummary.isCustom || user?.devMode || !user?.id) return resolvedSummary;
     const current = getStoredUsers().find((entry) => entry.id === user.id) || user;
     const earnedStars = getStarsForRoom(resolvedSummary);
     const progress = { ...(current.progress || {}) };
-    if (earnedStars <= (progress[resolvedSummary.levelIndex] || 0)) return;
-    progress[resolvedSummary.levelIndex] = earnedStars;
-    setUser(updateStoredUserProfile({ ...current, progress }));
+    const contracts = { ...(current.contracts || {}) };
+    const contractKey = String(resolvedSummary.levelIndex);
+    const contractFirstClear = Boolean(resolvedSummary.contractCompleted && !contracts[contractKey]);
+    if (earnedStars > (progress[resolvedSummary.levelIndex] || 0)) progress[resolvedSummary.levelIndex] = earnedStars;
+    if (contractFirstClear) contracts[contractKey] = true;
+    const contractReward = contractFirstClear ? resolvedSummary.contract.reward : 0;
+    setUser(updateStoredUserProfile({ ...current, progress, contracts, coins: normalizeEconomy(current).coins + contractReward }));
+    return {
+      ...resolvedSummary,
+      contractFirstClear,
+      contractReward,
+      contractAlreadyClaimed: Boolean(resolvedSummary.contractCompleted && !contractFirstClear)
+    };
   };
   return (
     <div className="app" data-theme={appTheme}>

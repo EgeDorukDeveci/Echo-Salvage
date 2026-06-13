@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { ECHO_REPLAY_FRAMES, captureEchoReplay, isCargoBlocked, moveCargo, phaseMove, resolveAfterPhase, isExtractionReady } from "../src/game/simulation.js";
 import { playerRect, rectsTouch } from "../src/game/geometry.js";
 import { makeLevel } from "../src/game/levels.js";
+import { evaluateContract, getContractProgress, getRoomContract } from "../src/game/contracts.js";
 
 const emptyLevel = () => ({
   walls: [],
@@ -99,4 +100,31 @@ test("Section bosses remain distinct and increase in durability", () => {
   assert.deepEqual(bosses.map((boss) => boss.name), ["Calibration Warden", "Breach Furnace", "Verdant Maw", "Null Crown"]);
   assert.equal(new Set(bosses.map((boss) => boss.kind)).size, bosses.length);
   assert.deepEqual(bosses.map((boss) => boss.hp), [...bosses.map((boss) => boss.hp)].sort((a, b) => a - b));
+});
+
+test("Every campaign room receives one deterministic optional salvage contract", () => {
+  const contracts = Array.from({ length: 59 }, (_, index) => getRoomContract(makeLevel(index), index));
+  assert.equal(contracts.every(Boolean), true);
+  assert.deepEqual(contracts, Array.from({ length: 59 }, (_, index) => getRoomContract(makeLevel(index), index)));
+  assert.equal(contracts.every((contract) => contract.reward > 0), true);
+});
+
+test("Salvage contracts evaluate run telemetry without changing room completion", () => {
+  const level = emptyLevel();
+  level.scrap = [{}, {}, {}];
+  const salvage = { id: "salvage", reward: 12 };
+  const discipline = { id: "echoDiscipline", reward: 14 };
+  const energy = { id: "energy", reward: 13 };
+  const swift = { id: "swift", reward: 18, targetSeconds: 90 };
+  const run = { scrap: 3, echoesDeployed: 2, hull: 70, energyPercent: 30, time: 89 };
+
+  assert.equal(evaluateContract(salvage, run, level), true);
+  assert.equal(evaluateContract(salvage, { ...run, scrap: 2 }, level), false);
+  assert.equal(evaluateContract(discipline, run, level), true);
+  assert.equal(evaluateContract(discipline, { ...run, echoesDeployed: 3 }, level), false);
+  assert.equal(evaluateContract(energy, run, level), true);
+  assert.equal(evaluateContract(swift, run, level), true);
+  assert.equal(evaluateContract(swift, { ...run, time: 91 }, level), false);
+  assert.equal(evaluateContract(swift, run, level, false), false);
+  assert.equal(getContractProgress(swift, run, level), "89s / 90s");
 });

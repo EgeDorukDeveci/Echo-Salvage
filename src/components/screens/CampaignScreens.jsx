@@ -1,6 +1,7 @@
 import { rooms, CAMPAIGN_SECTIONS, getCampaignRoutePoints, getCampaignRoutePath, SALVAGE_MOD_BY_ID, STATION_EXPEDITION_NODES, CAMPAIGN_SECTION_BY_ID, STATION_MUTATION_BY_ID, STATION_EVENT_BY_ID, STATION_NODE_BY_ID } from "../../game/config.js";
 import { makeLevel } from "../../game/levels.js";
 import { clamp, countLevelHostiles } from "../../game/geometry.js";
+import { getRoomContract } from "../../game/contracts.js";
 import { getStationNode, getStationMutationForNode, getStationEventForNode, getCampaignSection, getRoomMechanicHint, getObjectiveText } from "../../game/rules.js";
 import { getNextCampaignRoomIndex, isRoomUnlocked, getCurrentSectionIndex, normalizeProgress, getTotalStars } from "../../services/profile-store.js";
 import { AvatarBadge, Button } from "../ui.jsx";
@@ -181,6 +182,7 @@ function MainMenu({ openBriefing, startRoom, startStationExpedition, setScreen, 
   const [selectedRoomIndex, setSelectedRoomIndex] = useState(nextRoomIndex);
   const selectedSection = CAMPAIGN_SECTION_BY_ID.get(selectedSectionId);
   const selectedRoomLevel = useMemo(() => makeLevel(selectedRoomIndex), [selectedRoomIndex]);
+  const selectedRoomContract = useMemo(() => getRoomContract(selectedRoomLevel, selectedRoomIndex), [selectedRoomLevel, selectedRoomIndex]);
   const selectedRoomUnlocked = isRoomUnlocked(selectedRoomIndex, user);
   const selectedRoomStars = safeProgress[selectedRoomIndex] || 0;
   const selectedRoomSection = getCampaignSection(selectedRoomIndex);
@@ -349,6 +351,12 @@ function MainMenu({ openBriefing, startRoom, startStationExpedition, setScreen, 
                   <div className="room-brief-lesson">
                     <span>Primary lesson</span>
                     <strong>{getRoomMechanicHint(selectedRoomLevel)}</strong>
+                  </div>
+                  <div className="room-contract" data-claimed={Boolean(user?.contracts?.[selectedRoomIndex])}>
+                    <span>Optional salvage contract</span>
+                    <strong>{selectedRoomContract.label}</strong>
+                    <p>{selectedRoomContract.detail}</p>
+                    <small>{user?.contracts?.[selectedRoomIndex] ? "Reward claimed" : `First clear reward · +${selectedRoomContract.reward} coins`}</small>
                   </div>
                   <div className="room-brief-stats">
                     <div><span>Chapter</span><strong>{selectedRoomIndex - section.range[0] < 4 ? "Learn" : selectedRoomIndex - section.range[0] < 8 ? "Combine" : "Prove"}</strong></div>
