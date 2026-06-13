@@ -175,7 +175,7 @@ Run the local verification bundle:
 npm run verify
 ```
 
-That runs the room audit and production build.
+That runs gameplay reliability tests, the room audit, and the production build.
 
 Print the campaign pressure report:
 
@@ -206,6 +206,7 @@ For now, the level creator is focused on local building, testing, importing, and
 - `src/game/combat.js` contains shared boss and enemy-projectile helpers.
 - `src/game/rendering.js` contains canvas drawing only.
 - `src/game/rules.js` contains campaign, objective, tuning, and expedition progression rules.
+- `src/game/simulation.js` contains tested Echo, cargo, phase-movement, and extraction rules shared by the live game loop.
 - `src/hooks/useGame.js` owns the live gameplay simulation and input loop.
 - `src/hooks/useAmbient.js` owns the procedural ambient audio lifecycle.
 - `src/components/GameView.jsx` renders the canvas HUD and mobile controls.

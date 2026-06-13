@@ -1,9 +1,11 @@
-import { W, H, ECHO_MS, ECHO_FRAME_MS, MAX_ECHOES, PLAYER_MARGIN, CARGO_MARGIN, MAX_ENERGY, ECHO_COST, ECHO_COLORS, ECHO_FILLS, DIFFICULTY_TUNING, COSMETIC_DEFAULTS, WEAPONS, ABILITIES, WEAPON_BY_ID, ABILITY_BY_ID, SECTION_MINIBOSSES, MINIBOSS_SPREADS, createMiniboss, CAMPAIGN_SECTION_BY_ID } from "../game/config.js";
+import { useEffect, useRef } from "react";
+import { W, H, ECHO_MS, ECHO_FRAME_MS, MAX_ECHOES, PLAYER_MARGIN, MAX_ENERGY, ECHO_COST, DIFFICULTY_TUNING, COSMETIC_DEFAULTS, WEAPONS, ABILITIES, WEAPON_BY_ID, ABILITY_BY_ID, SECTION_MINIBOSSES, MINIBOSS_SPREADS, createMiniboss, CAMPAIGN_SECTION_BY_ID } from "../game/config.js";
 import { makeLevel, makeExpeditionLevel } from "../game/levels.js";
-import { rectsTouch, dist, clamp, playerRect, getSolidBlocks, SPECIAL_HOSTILE_KEYS, getLevelHostiles, areLevelHostilesDefeated, nudgeOutOfBlocks, finalizeCustomLevel, hasLineOfSight, pointToSegmentDistance } from "../game/geometry.js";
+import { rectsTouch, dist, clamp, playerRect, getSolidBlocks, SPECIAL_HOSTILE_KEYS, getLevelHostiles, finalizeCustomLevel, hasLineOfSight, pointToSegmentDistance } from "../game/geometry.js";
 import { getBossPhase, damageBoss, spawnBossProjectile, spawnEnemyProjectile, spawnEnemySpread, spawnEnemyRadial } from "../game/combat.js";
 import { drawLevel } from "../game/rendering.js";
-import { getCampaignSection, getCampaignTuning, isRoomObjectiveComplete } from "../game/rules.js";
+import { getCampaignSection, getCampaignTuning } from "../game/rules.js";
+import { captureEchoReplay, isCargoBlocked, moveCargo, phaseMove, resolveAfterPhase, isExtractionReady } from "../game/simulation.js";
 
 function getPetPerks(cosmetic = COSMETIC_DEFAULTS) {
   switch (cosmetic.pet) {
@@ -312,8 +314,6 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       blockEcho(`Need ${Math.ceil(echoCost - g.player.energy)} energy`);
       return;
     }
-    const usedSlots = new Set(g.echoes.map((echo) => echo.slot));
-    const slot = Array.from({ length: MAX_ECHOES }, (_, i) => i).find((i) => !usedSlots.has(i)) ?? 0;
     const replayFrames = ECHO_MS / ECHO_FRAME_MS;
     if (g.recording.length < replayFrames) {
       const remainingSeconds = Math.ceil((replayFrames - g.recording.length) * ECHO_FRAME_MS / 1000);
@@ -321,28 +321,10 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       return;
     }
     g.player.energy -= echoCost;
-    const frames = g.recording.slice(-replayFrames).map((frame) => ({ ...frame }));
-    const id = g.nextEchoId ?? 0;
-    g.nextEchoId = id + 1;
-    const echo = {
-      id,
-      slot,
-      frames,
-      age: 0,
-      x: frames[0].x,
-      y: frames[0].y,
-      angle: 0,
-      fired: 0,
-      echoColor: ECHO_COLORS[slot] || ECHO_COLORS[0],
-      echoFill: ECHO_FILLS[slot] || ECHO_FILLS[0]
-    };
-    if (g.expedition?.upgrades?.has("echoConvergence") && g.echoes.length > 0) {
-      echo.fused = true;
-      echo.echoColor = "#f4ffff";
-      echo.echoFill = "rgba(126,249,255,.38)";
-    }
+    const echo = captureEchoReplay(g.recording, g.echoes, g.nextEchoId ?? 0, g.expedition?.upgrades?.has("echoConvergence") && g.echoes.length > 0);
+    g.nextEchoId = echo.id + 1;
     g.echoes.push(echo);
-    g.echoStatus = `Echo ${slot + 1} captured · replaying last 8s`;
+    g.echoStatus = `Echo ${echo.slot + 1} captured · replaying last 8s`;
     g.echoStatusUntil = performance.now() + 1100;
     if (settings.shake && !settings.reduced) g.shake = 8;
   }
@@ -470,7 +452,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       phaseMove(g.player, nx * 205, ny * 205);
       g.player.phaseUntil = now + 360;
       g.player.phaseVector = { x: nx, y: ny };
-      resolvePlayerAfterPhase(g.player, g.level);
+      resolveAfterPhase(g.player, g.level);
       const end = { x: g.player.x, y: g.player.y };
       getLevelHostiles(g.level).forEach((target) => {
         if (target.hp > 0 && pointToSegmentDistance(target, start, end) < 72) target.hp -= isShielded(g.level, target) ? 0 : 3;
@@ -534,23 +516,6 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     if (g.player.ammo <= 0) startReload(now);
   }
 
-  function crateBlocked(crate, level, ignoreCrate = null) {
-    const blockers = [...level.walls, ...level.doors.filter((d) => !d.open), ...level.crates.filter((c) => c !== crate && c !== ignoreCrate)];
-    return crate.x < CARGO_MARGIN || crate.y < CARGO_MARGIN || crate.x + crate.w > W - CARGO_MARGIN || crate.y + crate.h > H - CARGO_MARGIN || blockers.some((b) => rectsTouch(crate, b));
-  }
-
-  function moveCrate(crate, dx, dy, level) {
-    const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 7));
-    const stepX = dx / steps;
-    const stepY = dy / steps;
-    for (let i = 0; i < steps; i += 1) {
-      crate.x += stepX;
-      if (crateBlocked(crate, level)) crate.x -= stepX;
-      crate.y += stepY;
-      if (crateBlocked(crate, level)) crate.y -= stepY;
-    }
-  }
-
   function tryMove(entity, dx, dy, level, canPushCargo = false) {
     const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 7));
     const stepX = dx / steps;
@@ -570,7 +535,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         return;
       }
       hitCrate[axis] += amount;
-      if (crateBlocked(hitCrate, level)) {
+      if (isCargoBlocked(hitCrate, level)) {
         hitCrate[axis] -= amount;
         entity[axis] -= amount;
       }
@@ -582,17 +547,6 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     }
     entity.x = clamp(entity.x, PLAYER_MARGIN, W - PLAYER_MARGIN);
     entity.y = clamp(entity.y, PLAYER_MARGIN, H - PLAYER_MARGIN);
-  }
-
-  function phaseMove(entity, dx, dy) {
-    entity.x = clamp(entity.x + dx, PLAYER_MARGIN, W - PLAYER_MARGIN);
-    entity.y = clamp(entity.y + dy, PLAYER_MARGIN, H - PLAYER_MARGIN);
-  }
-
-  function resolvePlayerAfterPhase(entity, level) {
-    nudgeOutOfBlocks(entity, level.crates, entity.phaseVector, 120);
-    const solids = [...level.walls, ...level.doors.filter((door) => !door.open)];
-    nudgeOutOfBlocks(entity, solids, entity.phaseVector, 220);
   }
 
   function updateCargoTether(g, dt) {
@@ -613,7 +567,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     const gap = dist(center, target);
     if (gap > 8) {
       const pull = Math.min(gap, 150 * dt / 1000);
-      moveCrate(crate, ((target.x - center.x) / gap) * pull, ((target.y - center.y) / gap) * pull, g.level);
+      moveCargo(crate, ((target.x - center.x) / gap) * pull, ((target.y - center.y) / gap) * pull, g.level);
     }
     const currentCenter = { x: crate.x + crate.w / 2, y: crate.y + crate.h / 2 };
     if (dist(currentCenter, g.player) > 155) g.cargoTether = null;
@@ -716,7 +670,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         const target = g.player.pendingTeleport;
         g.player.phaseVector = { x: target.x - g.player.x, y: target.y - g.player.y };
         phaseMove(g.player, target.x - g.player.x, target.y - g.player.y);
-        resolvePlayerAfterPhase(g.player, level);
+        resolveAfterPhase(g.player, level);
         g.abilityBursts.push({ x: g.player.x, y: g.player.y, type: "teleport", life: 620, maxLife: 620 });
         g.player.pendingTeleport = null;
       }
@@ -1170,7 +1124,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       }
       const hadPhase = (g.player.dashTrail || 0) > 0;
       g.player.dashTrail = Math.max(0, (g.player.dashTrail || 0) - dt);
-      if (hadPhase && g.player.dashTrail === 0) resolvePlayerAfterPhase(g.player, level);
+      if (hadPhase && g.player.dashTrail === 0) resolveAfterPhase(g.player, level);
       g.dashBursts.forEach((burst) => burst.life -= dt);
       g.dashBursts = g.dashBursts.filter((burst) => burst.life > 0);
       g.railBeams.forEach((beam) => {
@@ -1214,11 +1168,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       if (g.player.hp <= 0) {
         finishRun("Signal Lost");
       }
-      const roomSecured =
-        (!level.core || !level.core.alive || levelIndex < 4) &&
-        (!level.boss || level.boss.hp <= 0) &&
-        areLevelHostilesDefeated(level);
-      if (rectsTouch(playerRect(g.player), level.exit) && level.doors.every((d) => d.open) && roomSecured && isRoomObjectiveComplete(level)) {
+      if (isExtractionReady(level, g.player, { ignoreLiveCore: levelIndex < 4 })) {
         finishRun("Extracted");
       }
 

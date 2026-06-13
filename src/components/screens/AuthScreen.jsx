@@ -168,4 +168,8 @@ function AuthScreen({ onAuth }) {
   );
 }
 
+function Brief({ icon, title, text }) {
+  return <div className="brief-card"><div className="brief-icon">{icon}</div><div><h3>{title}</h3><p>{text}</p></div></div>;
+}
+
 export { AuthScreen };

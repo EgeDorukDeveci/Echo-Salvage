@@ -1,10 +1,13 @@
-import { W, H, MAX_ECHOES, MAX_ENERGY, rooms, STATION_MUTATION_BY_ID } from "../game/config.js";
+import { W, H, MAX_ECHOES, MAX_ENERGY, rooms, STATION_MUTATION_BY_ID, WEAPONS, ABILITIES, WEAPON_BY_ID, ABILITY_BY_ID } from "../game/config.js";
 import { clamp } from "../game/geometry.js";
 import { getRoomMechanicHint, getObjectiveText } from "../game/rules.js";
 import { useGame } from "../hooks/useGame.js";
 import { keyName } from "../services/profile-store.js";
 import { useEffect, useState } from "react";
 import { Crosshair, Gauge, Radio, Shield, Sparkles, Zap } from "lucide-react";
+
+const getWeaponById = (id) => WEAPON_BY_ID.get(id) || WEAPONS[0];
+const getAbilityById = (id) => ABILITY_BY_ID.get(id) || ABILITIES[0];
 
 function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSummary, onRunComplete, cosmetic, awardCoins, keybinds, expedition }) {
   const { canvas, game, spawnEcho, mobileAction, setMobileMove, setMobileAim, setMobileShooting } = useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, onRunComplete, cosmetic, awardCoins, keybinds, expedition });
