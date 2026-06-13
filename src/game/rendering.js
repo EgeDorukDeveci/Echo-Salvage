@@ -337,6 +337,43 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
     ctx.textAlign = "left";
   });
 
+  if (game.secret && !game.secret.recovered) {
+    const gap = Math.hypot(game.player.x - game.secret.x, game.player.y - game.secret.y);
+    if (gap < 230) {
+      const strength = clamp(1 - gap / 230, 0.08, 1);
+      const pulse = 1 + Math.sin(now * 0.01) * 0.12;
+      ctx.save();
+      ctx.globalAlpha = 0.18 + strength * 0.72;
+      ctx.translate(game.secret.x, game.secret.y);
+      ctx.scale(pulse, pulse);
+      ctx.rotate(Math.PI / 4);
+      ctx.shadowColor = "#b59cff";
+      ctx.shadowBlur = 10 + strength * 22;
+      ctx.fillStyle = "rgba(45, 31, 78, 0.78)";
+      ctx.strokeStyle = "#b59cff";
+      ctx.lineWidth = 2;
+      ctx.fillRect(-12, -12, 24, 24);
+      ctx.strokeRect(-12, -12, 24, 24);
+      ctx.rotate(-Math.PI / 4);
+      ctx.fillStyle = "#efeaff";
+      ctx.font = "900 13px Rajdhani, Bahnschrift, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("?", 0, 5);
+      ctx.restore();
+      ctx.save();
+      ctx.globalAlpha = strength * 0.38;
+      ctx.strokeStyle = "#b59cff";
+      ctx.setLineDash([3, 7]);
+      for (let i = 0; i < 3; i += 1) {
+        ctx.beginPath();
+        ctx.arc(game.secret.x, game.secret.y, 30 + i * 13 + Math.sin(now * 0.006 + i) * 4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+      if (gap < 72) drawLabel(ctx, "ENCRYPTED RECORD · PRESS E", game.secret.x - 86, game.secret.y - 34, "#b59cff");
+    }
+  }
+
   const active = game.activeIds;
   level.plates.forEach((p) => {
     ctx.beginPath();

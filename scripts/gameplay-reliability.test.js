@@ -5,6 +5,7 @@ import { ECHO_REPLAY_FRAMES, captureEchoReplay, isCargoBlocked, moveCargo, phase
 import { playerRect, rectsTouch } from "../src/game/geometry.js";
 import { makeLevel } from "../src/game/levels.js";
 import { evaluateContract, getContractProgress, getRoomContract } from "../src/game/contracts.js";
+import { STATION_SECRETS } from "../src/game/secrets.js";
 
 const emptyLevel = () => ({
   walls: [],
@@ -127,4 +128,17 @@ test("Salvage contracts evaluate run telemetry without changing room completion"
   assert.equal(evaluateContract(swift, { ...run, time: 91 }, level), false);
   assert.equal(evaluateContract(swift, run, level, false), false);
   assert.equal(getContractProgress(swift, run, level), "89s / 90s");
+});
+
+test("Station secrets are unique, evenly distributed, and placed outside solid geometry", () => {
+  assert.equal(new Set(STATION_SECRETS.map((secret) => secret.id)).size, STATION_SECRETS.length);
+  const deckCounts = STATION_SECRETS.reduce((counts, secret) => ({ ...counts, [secret.deck]: (counts[secret.deck] || 0) + 1 }), {});
+  assert.deepEqual(Object.values(deckCounts), [3, 3, 3, 3]);
+  STATION_SECRETS.forEach((secret) => {
+    const level = makeLevel(secret.roomIndex);
+    const secretRect = { x: secret.x - 18, y: secret.y - 18, w: 36, h: 36 };
+    const solids = [...level.walls, ...level.movingWalls, ...level.doors, ...level.crates, ...level.coinCrates];
+    assert.equal(solids.some((solid) => rectsTouch(secretRect, solid)), false, `${secret.title} must remain reachable`);
+    assert.ok(secret.x >= 70 && secret.x <= 1210 && secret.y >= 70 && secret.y <= 650);
+  });
 });

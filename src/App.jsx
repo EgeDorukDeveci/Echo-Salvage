@@ -137,10 +137,18 @@ function App() {
       contractAlreadyClaimed: Boolean(resolvedSummary.contractCompleted && !contractFirstClear)
     };
   };
+  const discoverStationSecret = (secret) => {
+    if (!secret || !user?.id) return false;
+    const current = getStoredUsers().find((entry) => entry.id === user.id) || user;
+    if (current.secrets?.[secret.id]) return false;
+    const secrets = { ...(current.secrets || {}), [secret.id]: true };
+    setUser(updateStoredUserProfile({ ...current, secrets, coins: normalizeEconomy(current).coins + secret.reward }));
+    return true;
+  };
   return (
     <div className="app" data-theme={appTheme}>
       <div className="frame" />
-      {(screen === "playing" || screen === "paused" || screen === "summary") && <GameView key={`${levelIndex}-${runSeed}-${customLevel ? "custom" : "stock"}`} levelIndex={levelIndex} customLevel={customLevel} screen={screen === "playing" ? "playing" : "idle"} setScreen={setScreen} settings={settings} setSummary={setSummary} onRunComplete={recordCampaignProgress} cosmetic={activeCosmetic} keybinds={keybinds} expedition={expedition} awardCoins={(amount) => {
+      {(screen === "playing" || screen === "paused" || screen === "summary") && <GameView key={`${levelIndex}-${runSeed}-${customLevel ? "custom" : "stock"}`} levelIndex={levelIndex} customLevel={customLevel} screen={screen === "playing" ? "playing" : "idle"} setScreen={setScreen} settings={settings} setSummary={setSummary} onRunComplete={recordCampaignProgress} cosmetic={activeCosmetic} keybinds={keybinds} expedition={expedition} discoveredSecrets={user?.secrets} onDiscoverSecret={discoverStationSecret} awardCoins={(amount) => {
         if (!user?.id) return;
         const session = updateUserEconomy(user, (current) => ({ ...current, coins: normalizeEconomy(current).coins + amount }));
         setUser(session);
@@ -154,7 +162,7 @@ function App() {
       {screen === "shop" && <ShopScreen user={user} setUser={setUser} setScreen={setScreen} />}
       {screen === "workshop" && <SalvageWorkshop expedition={expedition} craftMod={craftMod} installUpgrade={chooseUpgrade} setScreen={setScreen} returnScreen={expedition.active ? "stationMap" : "menu"} />}
       {screen === "briefing" && <Briefing setScreen={setScreen} startRun={() => startCampaignRoom(0)} />}
-      {screen === "manual" && <SystemsManual setScreen={setScreen} />}
+      {screen === "manual" && <SystemsManual user={user} setScreen={setScreen} />}
       {screen === "settings" && <SettingsDrawer settings={settings} setSettings={setSettings} setScreen={setScreen} returnScreen={overlayReturnScreen} />}
       {screen === "controls" && <Controls setScreen={setScreen} keybinds={keybinds} setKeybinds={setKeybinds} returnScreen={overlayReturnScreen} />}
       {screen === "paused" && <PauseMenu setScreen={setScreen} retryLevel={retryLevel} abandonRun={returnToMenu} openSettings={() => openSettingsFrom("paused")} openControls={() => openControlsFrom("paused")} />}

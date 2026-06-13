@@ -7,6 +7,7 @@ import { drawLevel } from "../game/rendering.js";
 import { getCampaignSection, getCampaignTuning } from "../game/rules.js";
 import { captureEchoReplay, isCargoBlocked, moveCargo, phaseMove, resolveAfterPhase, isExtractionReady } from "../game/simulation.js";
 import { getRoomContract, getContractRunState, evaluateContract, getContractProgress } from "../game/contracts.js";
+import { getStationSecret } from "../game/secrets.js";
 
 function getPetPerks(cosmetic = COSMETIC_DEFAULTS) {
   switch (cosmetic.pet) {
@@ -122,7 +123,7 @@ function prepareRunLevel(level, hostileHpBonus = 0) {
   });
 }
 
-function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, onRunComplete, cosmetic, awardCoins, keybinds, expedition }) {
+function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, onRunComplete, cosmetic, awardCoins, keybinds, expedition, discoveredSecrets, onDiscoverSecret }) {
   const canvas = useRef(null);
   const game = useRef(null);
   const runInstance = useRef(0);
@@ -202,6 +203,9 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       echoesDeployed: 0,
       echoStatus: "",
       echoStatusUntil: 0,
+      secretStatus: "",
+      secretStatusUntil: 0,
+      secretFoundThisRun: false,
       recording: [],
       recordTimer: 0,
       started: performance.now(),
@@ -214,6 +218,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       expedition: { upgrades, mods, mutation, event, active: Boolean(expedition?.active), alert: expedition?.alert || 0, power: expedition?.power || 0 }
     };
     game.current.contract = !customLevel && !expedition?.active ? getRoomContract(level, levelIndex) : null;
+    const stationSecret = !customLevel && !expedition?.active ? getStationSecret(levelIndex) : null;
+    game.current.secret = stationSecret ? { ...stationSecret, recovered: Boolean(discoveredSecrets?.[stationSecret.id]) } : null;
   };
 
   useEffect(reset, [levelIndex, customLevel, settings.difficulty, expedition]);
@@ -582,6 +588,15 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     g.level.switches.forEach((s) => {
       if (dist(actor, s) < 54) s.on = true;
     });
+    if (options.discoverSecret && g.secret && !g.secret.recovered && dist(actor, g.secret) < 72) {
+      g.secret.recovered = true;
+      g.secretFoundThisRun = true;
+      g.player.coinsEarned += g.secret.reward;
+      g.coinPopups.push({ x: g.secret.x, y: g.secret.y - 8, amount: g.secret.reward, life: 780, maxLife: 780, spin: Math.random() * Math.PI * 2 });
+      g.secretStatus = `Secret recovered · ${g.secret.title} · +${g.secret.reward} coins`;
+      g.secretStatusUntil = performance.now() + 3200;
+      onDiscoverSecret?.(g.secret);
+    }
     if (!options.toggleCargo) return;
     const nearest = g.level.crates
       .map((crate, index) => ({ crate, index, gap: dist(actor, { x: crate.x + crate.w / 2, y: crate.y + crate.h / 2 }) }))
@@ -709,7 +724,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       g.player.triggerHeld = wantsShoot;
       if (keys.current.has(keybinds.reload)) startReload(now);
       const wantsInteract = keys.current.has(keybinds.interact) || touch.current.interact;
-      if (wantsInteract || interactQueued.current) interact(g.player, { toggleCargo: interactQueued.current });
+      if (wantsInteract || interactQueued.current) interact(g.player, { toggleCargo: interactQueued.current, discoverSecret: true });
       interactQueued.current = false;
 
       g.echoes.forEach((e) => {
@@ -1164,6 +1179,8 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
           stationNode: expedition?.currentNode || null,
           stationFirstClear: Boolean(expedition?.active && expedition?.currentNode && !(expedition.cleared || []).includes(expedition.currentNode))
         };
+        resolvedSummary.secretRecovered = Boolean(g.secretFoundThisRun);
+        resolvedSummary.secret = g.secret;
         const contractRun = getContractRunState(g, now);
         resolvedSummary.contract = g.contract;
         resolvedSummary.contractProgress = getContractProgress(g.contract, contractRun, level);
@@ -1190,6 +1207,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
   function mobileAction(action) {
     if (action === "dash") useAbility(performance.now());
     else if (action === "echo") spawnEcho();
+    else if (action === "interact" && game.current?.status === "playing") interact(game.current.player, { toggleCargo: true, discoverSecret: true });
     else if (action === "pause" && game.current?.status === "playing") setScreen("paused");
   }
   function setMobileMove(x, y) {

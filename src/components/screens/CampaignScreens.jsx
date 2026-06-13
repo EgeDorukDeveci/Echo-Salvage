@@ -2,6 +2,7 @@ import { rooms, CAMPAIGN_SECTIONS, getCampaignRoutePoints, getCampaignRoutePath,
 import { makeLevel } from "../../game/levels.js";
 import { clamp, countLevelHostiles } from "../../game/geometry.js";
 import { getRoomContract } from "../../game/contracts.js";
+import { STATION_SECRETS } from "../../game/secrets.js";
 import { getStationNode, getStationMutationForNode, getStationEventForNode, getCampaignSection, getRoomMechanicHint, getObjectiveText } from "../../game/rules.js";
 import { getNextCampaignRoomIndex, isRoomUnlocked, getCurrentSectionIndex, normalizeProgress, getTotalStars } from "../../services/profile-store.js";
 import { AvatarBadge, Button } from "../ui.jsx";
@@ -435,7 +436,9 @@ function Brief({ icon, title, text }) {
   return <div className="brief-card"><div className="brief-icon">{icon}</div><div><h3>{title}</h3><p>{text}</p></div></div>;
 }
 
-function SystemsManual({ setScreen }) {
+function SystemsManual({ user, setScreen }) {
+  const recoveredSecrets = user?.secrets || {};
+  const recoveredCount = STATION_SECRETS.filter((secret) => recoveredSecrets[secret.id]).length;
   return (
     <div className="overlay manual-overlay">
       <section className="panel systems-manual">
@@ -479,6 +482,23 @@ function SystemsManual({ setScreen }) {
             <p>Frames, paint, cockpit, engine, armor, decals, dash animation, and trails change appearance only. Universal colors can be reused across slots.</p>
             <strong>Duration: permanent account unlock.</strong>
           </section>
+        </div>
+        <div className="secret-archive-head">
+          <div><span className="badge">Recorder Archive</span><h3>Station Secrets</h3><p>Hidden recorder fragments resolve when you approach them. Recover one with E; fragments never block extraction.</p></div>
+          <strong>{recoveredCount}/{STATION_SECRETS.length} recovered</strong>
+        </div>
+        <div className="secret-archive-grid">
+          {STATION_SECRETS.map((secret, index) => {
+            const recovered = Boolean(recoveredSecrets[secret.id]);
+            return (
+              <article key={secret.id} data-recovered={recovered}>
+                <span>{String(index + 1).padStart(2, "0")} · {secret.deck}</span>
+                <h4>{recovered ? secret.title : "Encrypted Fragment"}</h4>
+                <p>{recovered ? secret.text : "Signal contents unavailable."}</p>
+                <small>{recovered ? "Archive restored" : `Hidden in room ${secret.roomIndex + 1}`}</small>
+              </article>
+            );
+          })}
         </div>
       </section>
     </div>

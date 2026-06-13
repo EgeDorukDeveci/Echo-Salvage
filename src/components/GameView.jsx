@@ -1,5 +1,5 @@
 import { W, H, MAX_ECHOES, MAX_ENERGY, rooms, STATION_MUTATION_BY_ID, WEAPONS, ABILITIES, WEAPON_BY_ID, ABILITY_BY_ID } from "../game/config.js";
-import { clamp } from "../game/geometry.js";
+import { clamp, dist } from "../game/geometry.js";
 import { getRoomMechanicHint, getObjectiveText } from "../game/rules.js";
 import { useGame } from "../hooks/useGame.js";
 import { keyName } from "../services/profile-store.js";
@@ -10,8 +10,8 @@ import { Crosshair, Gauge, Radio, Shield, Sparkles, Zap } from "lucide-react";
 const getWeaponById = (id) => WEAPON_BY_ID.get(id) || WEAPONS[0];
 const getAbilityById = (id) => ABILITY_BY_ID.get(id) || ABILITIES[0];
 
-function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSummary, onRunComplete, cosmetic, awardCoins, keybinds, expedition }) {
-  const { canvas, game, spawnEcho, mobileAction, setMobileMove, setMobileAim, setMobileShooting } = useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, onRunComplete, cosmetic, awardCoins, keybinds, expedition });
+function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSummary, onRunComplete, cosmetic, awardCoins, keybinds, expedition, discoveredSecrets, onDiscoverSecret }) {
+  const { canvas, game, spawnEcho, mobileAction, setMobileMove, setMobileAim, setMobileShooting } = useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, onRunComplete, cosmetic, awardCoins, keybinds, expedition, discoveredSecrets, onDiscoverSecret });
   const [, refreshHud] = useState(0);
   const [controlMode, setControlMode] = useState(() => localStorage.getItem("echo-salvage-control-mode") || "pc");
   const [leftStick, setLeftStick] = useState({ x: 0, y: 0 });
@@ -100,6 +100,8 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
           <span>{getObjectiveText(g?.level)}</span>
           <small>{getRoomMechanicHint(g?.level)}</small>
           {g?.contract && <div className="contract-hud"><strong>Optional · {g.contract.label}</strong><span>{g.contract.detail}</span><small>{getContractProgress(g.contract, getContractRunState(g), g.level)} · first clear +{g.contract.reward} coins</small></div>}
+          {g?.secret && !g.secret.recovered && dist(g.player, g.secret) < 230 && <div className="secret-hud"><strong>Encrypted signal nearby</strong><small>{dist(g.player, g.secret) < 72 ? `${keyName(keybinds.interact)} · recover recorder fragment` : "Signal strength rising"}</small></div>}
+          {g?.secretStatus && performance.now() < g.secretStatusUntil && <div className="secret-hud" data-recovered="true"><strong>{g.secretStatus}</strong></div>}
         </div>
         <div className="hud-cluster stat-grid">
           <div className="stat-tile"><Shield size={16} /><span>Scrap</span><strong>{g?.player.scrap ?? 0}</strong></div>
@@ -123,6 +125,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
           <div className="mobile-actions">
             <button className="mobile-action mobile-action-dash" onClick={() => mobileAction("dash")}>{getAbilityById(g?.player.abilityId).label}</button>
             <button className="mobile-action mobile-action-echo" onClick={() => mobileAction("echo")}>Echo</button>
+            <button className="mobile-action mobile-action-interact" onClick={() => mobileAction("interact")}>Interact</button>
             <button className="mobile-action mobile-action-pause" onClick={() => mobileAction("pause")}>Pause</button>
           </div>
           <div className="mobile-stick mobile-stick-aim" onPointerDown={onRightStickStart} onPointerMove={onRightStickMove} onPointerUp={onRightStickEnd} onPointerCancel={onRightStickEnd}>

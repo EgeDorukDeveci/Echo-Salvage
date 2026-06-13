@@ -46,6 +46,7 @@ function Summary({ summary, next, returnToMenu }) {
             <small>{summary.contractFirstClear ? `Completed · +${summary.contractReward} coins secured` : summary.contractAlreadyClaimed ? "Completed · reward previously claimed" : summary.contractCompleted ? "Completed" : "Contract incomplete"}</small>
           </div>
         )}
+        {summary.secretRecovered && summary.secret && <div className="summary-secret"><span>Station secret recovered</span><strong>{summary.secret.title}</strong><p>{summary.secret.text}</p><small>Recorder Archive updated</small></div>}
         {isStationExpedition && (
           <div className="station-debrief">
             <div className="station-debrief-result" data-success={summary.result === "Extracted"}>

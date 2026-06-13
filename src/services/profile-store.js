@@ -1,4 +1,5 @@
 import { ABILITY_DEFAULT, KEYBINDS_KEY, defaultKeybinds, rooms, CAMPAIGN_SECTIONS, WEAPON_DEFAULT, COSMETIC_DEFAULTS, ABILITIES } from "../game/config.js";
+import { STATION_SECRET_IDS } from "../game/secrets.js";
 
 const AUTH_USERS_KEY = "echo-salvage-users";
 const AUTH_SESSION_KEY = "echo-salvage-session";
@@ -133,6 +134,13 @@ function normalizeContracts(contracts = {}) {
   }, {});
 }
 
+function normalizeSecrets(secrets = {}) {
+  return Object.entries(secrets || {}).reduce((safe, [id, recovered]) => {
+    if (recovered && STATION_SECRET_IDS.has(id)) safe[id] = true;
+    return safe;
+  }, {});
+}
+
 function makeSession(user) {
   const economy = normalizeEconomy(user);
   return {
@@ -143,6 +151,7 @@ function makeSession(user) {
     devMode: Boolean(user.devMode),
     progress: normalizeProgress(user.progress),
     contracts: normalizeContracts(user.contracts),
+    secrets: normalizeSecrets(user.secrets),
     sessionNonce: user.sessionNonce,
     sessionExpiresAt: user.sessionExpiresAt,
     ...economy
@@ -234,7 +243,7 @@ function getStoredSession() {
 }
 
 function updateStoredUserProfile(updated) {
-  const normalized = { ...updated, progress: normalizeProgress(updated.progress), contracts: normalizeContracts(updated.contracts), ...normalizeEconomy(updated) };
+  const normalized = { ...updated, progress: normalizeProgress(updated.progress), contracts: normalizeContracts(updated.contracts), secrets: normalizeSecrets(updated.secrets), ...normalizeEconomy(updated) };
   const users = getStoredUsers();
   const nextUsers = users.some((user) => user.id === normalized.id)
     ? users.map((user) => (user.id === normalized.id ? { ...user, ...normalized } : user))
