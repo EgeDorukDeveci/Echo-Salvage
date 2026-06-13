@@ -1,54 +1,11 @@
-const fs = require("fs");
-const path = require("path");
-const vm = require("vm");
+import { rooms, CAMPAIGN_SECTIONS, CAMPAIGN_ROUTE_POINTS, STATION_EXPEDITION_NODES } from "../src/game/config.js";
+import { makeLevel, makeExpeditionLevel } from "../src/game/levels.js";
+import { rectsTouch, dist, playerRect, getSolidBlocks, SPECIAL_HOSTILE_KEYS } from "../src/game/geometry.js";
 
-const appPath = path.join(process.cwd(), "src", "App.jsx");
-const source = fs.readFileSync(appPath, "utf8");
 const AUDIT_W = 1280;
 const AUDIT_H = 720;
 const AUDIT_PLAYER_MARGIN = 80;
 const AUDIT_CARGO_MARGIN = 64;
-
-function extractBetween(startNeedle, endNeedle) {
-  const start = source.indexOf(startNeedle);
-  const end = source.indexOf(endNeedle, start);
-  if (start === -1 || end === -1) {
-    throw new Error(`Failed to extract source between "${startNeedle}" and "${endNeedle}"`);
-  }
-  return source.slice(start, end);
-}
-
-const boot = `
-const W = 1280;
-const H = 720;
-const ECHO_MS = 8000;
-const ECHO_FRAME_MS = 100;
-const MAX_ECHOES = 3;
-const CELL = 40;
-const PLAYER_MARGIN = 80;
-const CARGO_MARGIN = 64;
-`;
-
-const snippet = [
-  extractBetween("const rooms = [", "const AUTH_USERS_KEY"),
-  extractBetween("function makeLevel(index = 0) {", "const segmentIntersectsRect"),
-  extractBetween("const segmentIntersectsRect", "function glowRect")
-].join("\n\n");
-
-const context = {
-  structuredClone,
-  console,
-  Math,
-  Set
-};
-vm.createContext(context);
-vm.runInContext(`${boot}\n${snippet}\nthis.auditApi = { rooms, CAMPAIGN_SECTIONS, CAMPAIGN_ROUTE_POINTS, makeLevel, hasLineOfSight, getSolidBlocks, rectsTouch, playerRect, dist, SPECIAL_HOSTILE_KEYS };`, context);
-
-const { rooms, CAMPAIGN_SECTIONS, CAMPAIGN_ROUTE_POINTS, makeLevel, getSolidBlocks, rectsTouch, playerRect, dist, SPECIAL_HOSTILE_KEYS } = context.auditApi;
-
-function centerOf(rect) {
-  return { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 };
-}
 
 function supportDistance(level, support) {
   const targets = [
@@ -307,6 +264,15 @@ if (pacingIssues.length) {
   allIssues.push({ index: 0, name: "Campaign pacing", issues: pacingIssues });
 }
 
+const expeditionNodes = STATION_EXPEDITION_NODES.filter((node) => !["start", "workshop"].includes(node.type));
+expeditionNodes.forEach((node, index) => {
+  const level = makeExpeditionLevel(node.id);
+  const issues = auditLevel(level, rooms.length + index);
+  if (issues.length) {
+    allIssues.push({ index: `E${index + 1}`, name: level.name, issues });
+  }
+});
+
 if (allIssues.length) {
   console.error("Level audit failed:");
   allIssues.forEach((entry) => {
@@ -316,4 +282,4 @@ if (allIssues.length) {
   process.exit(1);
 }
 
-console.log(`Level audit passed for ${rooms.length} rooms.`);
+console.log(`Level audit passed for ${rooms.length} campaign rooms and ${expeditionNodes.length} expedition sectors.`);

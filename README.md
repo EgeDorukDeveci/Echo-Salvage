@@ -7,7 +7,7 @@ The Echo continuously records the latest eight seconds of movement, shooting, an
 ## Current Features
 
 - Canvas-based 2D station gameplay
-- Handmade 56-room campaign ordered by difficulty
+- Handmade 59-room campaign ordered by difficulty
 - Echo replay puzzles with plates, switches, doors, lasers, cargo, and timing
 - Hostiles: turrets, chase drones, missile sentries, gravity nodes, echo jammers, laser sweepers, shield drones, repair bots, and blink hunters
 - Four visually specialized orbital biomes with unique floors, walls, landmarks, cores, turrets, and section-native hostile variants such as Death Plants, Magma Vents, and Black Holes
@@ -29,7 +29,7 @@ The campaign is split into four themed station decks:
 - **Training Deck** teaches movement, cargo, pressure plates, and the first enemy reads.
 - **Breach Deck** starts leaning on missiles, gravity pulls, and wider lock chains.
 - **Reactor Deck** mixes support hostiles and denser route-planning.
-- **Singularity Deck** pushes the longest Echo chains and the harshest combinations.
+- **Corruption Site** pushes the longest Echo chains and the harshest combinations.
 
 Rooms unlock sequentially. Clearing a room opens the next one, so stars are now performance ratings instead of skip currency.
 
@@ -85,23 +85,26 @@ The campaign is listed from easiest to hardest:
 39. Drone Fork Hangar
 40. Missile Dash Parabola
 41. Gravity Plate Crucible
-42. Jammer Timing Cloister
-43. Sweeper Cargo Weave
+42. Verdant Maw Cloister
+43. Sweeper Corruption Weave
 44. Shield Drone Bastion
 45. Repair Turret Depot
-46. Blink Hunter Labyrinth
+46. Drifting Blink Labyrinth
 47. Gravity Missile Canal
-48. Echo Jammer Switchyard
+48. Corrupted Jammer Switchyard
 49. Sweeper Shield Gallery
 50. Repair Drone Orchard
-51. Core Cargo Furnace
+51. Drifting Core Furnace
 52. Blink Missile Reliquary
 53. Gravity Shield Foundry
-54. Jammer Repair Cathedral
-55. Singularity Lock Garden
-56. Crown Reactor Gauntlet
+54. Corruption Repair Cathedral
+55. Corrupted Shift Garden
+56. Crown Corruption Gauntlet
+57. Corrupted Echo Causeway
+58. Drifting Station Spine
+59. Null Shift Convergence
 
-Rooms 22-56 are hand-authored advanced rooms. They spread the hostile types across the set instead of putting every enemy into every room; shield drones and repair bots are placed close to other hostiles so they function as support units. Rooms 37-56 add more varied exit positions, cargo routes, Echo plate chains, and late-game hostile combinations.
+Rooms 22-59 are hand-authored advanced rooms. They spread the hostile types across the set instead of putting every enemy into every room; shield drones and repair bots are placed close to other hostiles so they function as support units. Rooms 37-59 add more varied exit positions, cargo routes, Echo plate chains, and late-game hostile combinations.
 
 ## Controls
 
@@ -172,7 +175,7 @@ Run the local verification bundle:
 npm run verify
 ```
 
-That runs the room audit first, then the production build.
+That runs the room audit and production build.
 
 Print the campaign pressure report:
 
@@ -193,3 +196,19 @@ For now, the level creator is focused on local building, testing, importing, and
 - Real-money purchases are not active.
 - The game is a Vite/React app with the gameplay rendered on HTML canvas.
 - The background music is original procedural Web Audio, not an imported copyrighted song.
+
+## Source Architecture
+
+- `src/App.jsx` owns top-level navigation and screen composition.
+- `src/game/config.js` contains immutable balance data, catalogs, campaign metadata, and expedition definitions.
+- `src/game/levels.js` contains the authored campaign and expedition rooms.
+- `src/game/geometry.js` contains level normalization, collision, and spatial helpers.
+- `src/game/combat.js` contains shared boss and enemy-projectile helpers.
+- `src/game/rendering.js` contains canvas drawing only.
+- `src/game/rules.js` contains campaign, objective, tuning, and expedition progression rules.
+- `src/hooks/useGame.js` owns the live gameplay simulation and input loop.
+- `src/hooks/useAmbient.js` owns the procedural ambient audio lifecycle.
+- `src/components/GameView.jsx` renders the canvas HUD and mobile controls.
+- `src/components/screens/` contains the independent auth, campaign, customization, settings, run, and editor screens.
+- `src/services/profile-store.js` owns local authentication, progress, economy, keybinds, and level-code conversion.
+- `scripts/audit-levels.js` and `scripts/report-difficulty.js` import the real level modules directly.
