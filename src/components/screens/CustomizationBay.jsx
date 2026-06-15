@@ -1,4 +1,4 @@
-import { ABILITY_DEFAULT, AVATARS, WEAPON_DEFAULT, COSMETIC_DEFAULTS, UNIVERSAL_COLORS, DRONE_FRAMES, COCKPITS, ENGINES, DECALS, ARMORS, PETS, PET_BY_ID, DASH_STYLES, DASH_STYLE_BY_ID, WEAPONS, ABILITIES } from "../../game/config.js";
+import { ABILITY_DEFAULT, AVATARS, WEAPON_DEFAULT, COSMETIC_DEFAULTS, UNIVERSAL_COLORS, DRONE_FRAMES, COCKPITS, ENGINES, DECALS, ARMORS, PETS, PET_BY_ID, DASH_STYLES, DASH_STYLE_BY_ID, WEAPONS, ABILITIES, WEAPON_BY_ID, ABILITY_BY_ID } from "../../game/config.js";
 import { drawDashBurst, drawAbilityBurst, drawDrone, drawPet } from "../../game/rendering.js";
 import { normalizeEconomy, getStoredUsers, updateStoredUserProfile, updateUserEconomy } from "../../services/profile-store.js";
 import { AvatarBadge, Button } from "../ui.jsx";
@@ -9,6 +9,8 @@ const BODY_PRICES = { "#ffd52d": 35, "#00f0d2": 45, "#58e07a": 55, "#ff4e41": 70
 const TRAIL_PRICES = { "#ffd52d": 35, "#58e07a": 50, "#ff4e41": 65, "#e7f0ef": 80, "#ff8a00": 95, "#b78cff": 110, "#8aa0ff": 115, "#ff6ec7": 120, "#9df6a3": 90, "#7ef9ff": 100, "#f5f7ff": 125, "#f77d9d": 105, "#c9ff45": 92, "#4de0ff": 96, "#ffcf6b": 99, "#f0a6ff": 130, "#8cffda": 108 };
 const COLOR_PRICES = Object.fromEntries(UNIVERSAL_COLORS.map((color, index) => [color, BODY_PRICES[color] || TRAIL_PRICES[color] || 55 + index * 4]));
 const FRAME_PRICES = { split: 80, needle: 120 };
+const getWeaponById = (id) => WEAPON_BY_ID.get(id) || WEAPONS[0];
+const getAbilityById = (id) => ABILITY_BY_ID.get(id) || ABILITIES[0];
 const COLOR_EQUIP_SLOTS = [
   { label: "Body Paint", slot: "body" },
   { label: "Glow Accent", slot: "accent" },

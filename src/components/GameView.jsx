@@ -99,6 +99,11 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
       style={{ "--corruption-strength": `${Math.min(1, (g?.player.corruption ?? 0) / 100)}` }}
     >
       <canvas ref={canvas} className="game-canvas" width={W} height={H} />
+      {isMobile && (
+        <button type="button" className="mobile-mode-toggle" onClick={() => setControlMode("pc")}>
+          PC Mode
+        </button>
+      )}
       <div className="hud">
         <div className="hud-cluster vitals-card">
           <div className="hud-title">
@@ -132,14 +137,6 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
           </div>
         </div>
       </div>
-      {isMobile && (
-        <div className="mobile-readout" aria-label="Combat status">
-          <div><span>Hull</span><strong>{Math.max(0, Math.round(g?.player.hp ?? 100))}</strong></div>
-          <div><span>Energy</span><strong>{Math.max(0, Math.round(g?.player.energy ?? MAX_ENERGY))}</strong></div>
-          <div><span>Echo</span><strong>{g?.echoes.length ?? 0}/{MAX_ECHOES}</strong></div>
-          <div><span>Ammo</span><strong>{g?.player.isReloading ? "..." : `${g?.player.ammo ?? 0}/${g?.player.ammoMax ?? 0}`}</strong></div>
-        </div>
-      )}
       {isMobile && (
         <div className="mobile-dock" aria-label="Mobile gameplay controls">
           <div className="mobile-control-zone mobile-control-zone-move">

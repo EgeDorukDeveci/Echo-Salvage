@@ -420,51 +420,33 @@ textarea {
   line-height: 1;
 }
 
-.mobile-readout {
+.mobile-mode-toggle {
   position: absolute;
-  left: 50%;
-  bottom: max(18px, env(safe-area-inset-bottom));
-  z-index: 6;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(42px, 1fr));
-  gap: 4px;
-  width: min(318px, 42vw);
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-
-.mobile-readout div {
-  display: grid;
-  gap: 1px;
-  border: 1px solid rgba(120, 171, 181, 0.28);
-  border-radius: 10px;
-  background: rgba(4, 10, 13, 0.66);
-  padding: 6px 7px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(10px);
-}
-
-.mobile-readout span {
-  color: rgba(154, 176, 178, 0.92);
-  font-size: 7px;
+  z-index: 9;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(76px, calc(env(safe-area-inset-right) + 76px));
+  min-height: 38px;
+  border: 1px solid rgba(120, 171, 181, 0.46);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, rgba(0, 240, 210, 0.16), rgba(0, 240, 210, 0.03)),
+    rgba(8, 17, 20, 0.78);
+  color: var(--text);
+  padding: 8px 13px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(12px) saturate(1.15);
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 0.08em;
-  line-height: 1;
   text-transform: uppercase;
-}
-
-.mobile-readout strong {
-  color: var(--text);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
+  pointer-events: auto;
 }
 
 .mobile-layout .hud {
   top: max(10px, env(safe-area-inset-top));
   left: max(10px, env(safe-area-inset-left));
-  right: max(58px, calc(env(safe-area-inset-right) + 58px));
-  grid-template-columns: minmax(168px, 210px) minmax(0, 1fr);
+  right: max(154px, calc(env(safe-area-inset-right) + 154px));
+  grid-template-columns: minmax(170px, 218px) minmax(210px, 1fr) minmax(168px, 228px);
   gap: 7px;
 }
 
@@ -473,11 +455,12 @@ textarea {
   padding: 7px 8px;
 }
 
-.mobile-layout .hud-title span,
-.mobile-layout .objective-card small,
+.mobile-layout .hud-title span {
+  display: none;
+}
+
 .mobile-layout .contract-hud,
-.mobile-layout .hud-help,
-.mobile-layout .stat-grid {
+.mobile-layout .hud-help {
   display: none;
 }
 
@@ -509,6 +492,43 @@ textarea {
   -webkit-line-clamp: 2;
   font-size: 11px;
   line-height: 1.15;
+}
+
+.mobile-layout .objective-card > small {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  font-size: 8px;
+}
+
+.mobile-layout .stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  padding: 6px;
+}
+
+.mobile-layout .stat-tile {
+  min-height: 36px;
+  padding: 5px 6px;
+  border-radius: 7px;
+}
+
+.mobile-layout .stat-tile svg {
+  width: 12px;
+  height: 12px;
+}
+
+.mobile-layout .stat-tile span {
+  font-size: 7px;
+}
+
+.mobile-layout .stat-tile strong {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (max-width: 720px) {
@@ -555,27 +575,23 @@ textarea {
   }
 
   .mobile-layout .hud {
-    right: max(54px, calc(env(safe-area-inset-right) + 54px));
-    grid-template-columns: 1fr;
+    right: max(122px, calc(env(safe-area-inset-right) + 122px));
+    grid-template-columns: minmax(150px, 1fr) minmax(140px, 0.75fr);
   }
 
   .mobile-layout .objective-card {
-    display: none;
+    grid-column: 1 / -1;
+    order: 3;
   }
 
-  .mobile-readout {
-    left: max(12px, env(safe-area-inset-left));
-    bottom: max(132px, calc(env(safe-area-inset-bottom) + 132px));
-    width: min(220px, 48vw);
-    transform: none;
+  .mobile-layout .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .mobile-readout div {
-    padding: 5px 6px;
-  }
-
-  .mobile-readout strong {
-    font-size: 11px;
+  .mobile-mode-toggle {
+    right: max(68px, calc(env(safe-area-inset-right) + 68px));
+    min-height: 36px;
+    padding: 8px 11px;
   }
 }
 
@@ -601,11 +617,11 @@ textarea {
   }
 
   .mobile-layout .hud {
-    grid-template-columns: minmax(150px, 190px) minmax(0, 1fr);
+    grid-template-columns: minmax(150px, 190px) minmax(200px, 1fr) minmax(160px, 210px);
   }
 
-  .mobile-readout {
-    width: min(270px, 32vw);
+  .mobile-layout .objective-card > small {
+    display: none;
   }
 }
 
