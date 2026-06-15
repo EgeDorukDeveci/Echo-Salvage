@@ -38,7 +38,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
   }, [controlMode]);
   const g = game.current;
   const isMobile = controlMode === "mobile";
-  const stickValueFromPointer = (e, radius = 50) => {
+  const stickValueFromPointer = (e, radius = 52) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
@@ -76,7 +76,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
     const v = stickValueFromPointer(e);
     setRightStick({ x: v.x, y: v.y });
     setMobileAim(v.x, v.y, true);
-    setMobileShooting(v.force > 0.62);
+    setMobileShooting(v.force > 0.18);
   };
   const onRightStickMove = (e) => {
     e.preventDefault();
@@ -84,7 +84,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
     const v = stickValueFromPointer(e);
     setRightStick({ x: v.x, y: v.y });
     setMobileAim(v.x, v.y, true);
-    setMobileShooting(v.force > 0.58);
+    setMobileShooting(v.force > 0.18);
   };
   const onRightStickEnd = (e) => {
     e.preventDefault();
@@ -132,6 +132,14 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
         </div>
       </div>
       {isMobile && (
+        <div className="mobile-readout" aria-label="Combat status">
+          <div><span>Hull</span><strong>{Math.max(0, Math.round(g?.player.hp ?? 100))}</strong></div>
+          <div><span>Energy</span><strong>{Math.max(0, Math.round(g?.player.energy ?? MAX_ENERGY))}</strong></div>
+          <div><span>Echo</span><strong>{g?.echoes.length ?? 0}/{MAX_ECHOES}</strong></div>
+          <div><span>Ammo</span><strong>{g?.player.isReloading ? "..." : `${g?.player.ammo ?? 0}/${g?.player.ammoMax ?? 0}`}</strong></div>
+        </div>
+      )}
+      {isMobile && (
         <div className="mobile-dock" aria-label="Mobile gameplay controls">
           <div className="mobile-control-zone mobile-control-zone-move">
             <span className="mobile-control-caption">Move</span>
@@ -144,11 +152,12 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
             <button type="button" className="mobile-action mobile-action-dash" onClick={() => mobileAction("dash")}><span>{getAbilityById(g?.player.abilityId).label}</span><small>Ability</small></button>
             <button type="button" className="mobile-action mobile-action-echo" onClick={() => mobileAction("echo")}><span>Echo</span><small>Record</small></button>
             <button type="button" className="mobile-action mobile-action-interact" onClick={() => mobileAction("interact")}><span>Interact</span><small>Cargo / Secret</small></button>
+            <button type="button" className="mobile-action mobile-action-reload" onClick={() => mobileAction("reload")}><span>Reload</span><small>Ammo</small></button>
             <button type="button" className="mobile-action mobile-action-pause" onClick={() => mobileAction("pause")} aria-label="Pause game">Pause</button>
           </div>
           <div className="mobile-control-zone mobile-control-zone-aim">
             <span className="mobile-control-caption">Aim / Fire</span>
-            <div className="mobile-stick mobile-stick-aim" data-active={Math.hypot(rightStick.x, rightStick.y) > 0.08} data-firing={Math.hypot(rightStick.x, rightStick.y) > 0.58} onPointerDown={onRightStickStart} onPointerMove={onRightStickMove} onPointerUp={onRightStickEnd} onPointerCancel={onRightStickEnd}>
+            <div className="mobile-stick mobile-stick-aim" data-active={Math.hypot(rightStick.x, rightStick.y) > 0.08} data-firing={Math.hypot(rightStick.x, rightStick.y) > 0.18} onPointerDown={onRightStickStart} onPointerMove={onRightStickMove} onPointerUp={onRightStickEnd} onPointerCancel={onRightStickEnd}>
               <span className="mobile-stick-ring" />
               <span className="mobile-stick-fire-ring" />
               <span className="mobile-stick-knob" style={{ transform: `translate(${rightStick.x * 40}px, ${rightStick.y * 40}px)` }} />

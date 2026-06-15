@@ -1208,6 +1208,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     if (action === "dash") useAbility(performance.now());
     else if (action === "echo") spawnEcho();
     else if (action === "interact" && game.current?.status === "playing") interact(game.current.player, { toggleCargo: true, discoverSecret: true });
+    else if (action === "reload" && game.current?.status === "playing") startReload(performance.now());
     else if (action === "pause" && game.current?.status === "playing") setScreen("paused");
   }
   function setMobileMove(x, y) {
