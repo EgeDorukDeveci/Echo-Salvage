@@ -1,5 +1,6 @@
 node_modules/
 dist/
+EchoSalvage/
 .env
 .env.local
 .DS_Store

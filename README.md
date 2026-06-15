@@ -67,7 +67,7 @@ The campaign is listed from easiest to hardest:
 15. Missile Dash Range
 16. Gravity Node Primer
 17. Jammer Mirror Lock
-18. Sweeper Repair Bay
+18. Sweeper Lock Bay
 19. Shield Drone Gauntlet
 20. Blink Hunter Furnace
 21. Echo Core Finale
