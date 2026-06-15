@@ -9,6 +9,7 @@ import { Crosshair, Gauge, Radio, Shield, Sparkles, Zap } from "lucide-react";
 
 const getWeaponById = (id) => WEAPON_BY_ID.get(id) || WEAPONS[0];
 const getAbilityById = (id) => ABILITY_BY_ID.get(id) || ABILITIES[0];
+const MOBILE_FIRE_THRESHOLD = 0.38;
 const getInitialControlMode = () => {
   try {
     const stored = localStorage.getItem("echo-salvage-control-mode");
@@ -76,7 +77,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
     const v = stickValueFromPointer(e);
     setRightStick({ x: v.x, y: v.y });
     setMobileAim(v.x, v.y, true);
-    setMobileShooting(v.force > 0.18);
+    setMobileShooting(v.force > MOBILE_FIRE_THRESHOLD);
   };
   const onRightStickMove = (e) => {
     e.preventDefault();
@@ -84,7 +85,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
     const v = stickValueFromPointer(e);
     setRightStick({ x: v.x, y: v.y });
     setMobileAim(v.x, v.y, true);
-    setMobileShooting(v.force > 0.18);
+    setMobileShooting(v.force > MOBILE_FIRE_THRESHOLD);
   };
   const onRightStickEnd = (e) => {
     e.preventDefault();
@@ -157,7 +158,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
           </div>
           <div className="mobile-control-zone mobile-control-zone-aim">
             <span className="mobile-control-caption">Aim / Fire</span>
-            <div className="mobile-stick mobile-stick-aim" data-active={Math.hypot(rightStick.x, rightStick.y) > 0.08} data-firing={Math.hypot(rightStick.x, rightStick.y) > 0.18} onPointerDown={onRightStickStart} onPointerMove={onRightStickMove} onPointerUp={onRightStickEnd} onPointerCancel={onRightStickEnd}>
+            <div className="mobile-stick mobile-stick-aim" data-active={Math.hypot(rightStick.x, rightStick.y) > 0.08} data-firing={Math.hypot(rightStick.x, rightStick.y) > MOBILE_FIRE_THRESHOLD} onPointerDown={onRightStickStart} onPointerMove={onRightStickMove} onPointerUp={onRightStickEnd} onPointerCancel={onRightStickEnd}>
               <span className="mobile-stick-ring" />
               <span className="mobile-stick-fire-ring" />
               <span className="mobile-stick-knob" style={{ transform: `translate(${rightStick.x * 40}px, ${rightStick.y * 40}px)` }} />
