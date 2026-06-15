@@ -9,11 +9,20 @@ import { Crosshair, Gauge, Radio, Shield, Sparkles, Zap } from "lucide-react";
 
 const getWeaponById = (id) => WEAPON_BY_ID.get(id) || WEAPONS[0];
 const getAbilityById = (id) => ABILITY_BY_ID.get(id) || ABILITIES[0];
+const getInitialControlMode = () => {
+  try {
+    const stored = localStorage.getItem("echo-salvage-control-mode");
+    if (stored === "mobile" || stored === "pc") return stored;
+  } catch {
+    // Ignore storage access failures and fall back to device capability.
+  }
+  return window.matchMedia?.("(pointer: coarse)").matches ? "mobile" : "pc";
+};
 
 function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSummary, onRunComplete, cosmetic, awardCoins, keybinds, expedition, discoveredSecrets, onDiscoverSecret }) {
   const { canvas, game, spawnEcho, mobileAction, setMobileMove, setMobileAim, setMobileShooting } = useGame({ levelIndex, customLevel, screen, setScreen, settings, setSummary, onRunComplete, cosmetic, awardCoins, keybinds, expedition, discoveredSecrets, onDiscoverSecret });
   const [, refreshHud] = useState(0);
-  const [controlMode, setControlMode] = useState(() => localStorage.getItem("echo-salvage-control-mode") || "pc");
+  const [controlMode, setControlMode] = useState(getInitialControlMode);
   const [leftStick, setLeftStick] = useState({ x: 0, y: 0 });
   const [rightStick, setRightStick] = useState({ x: 0, y: 0 });
   useEffect(() => {
@@ -21,11 +30,15 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
     return () => clearInterval(id);
   }, []);
   useEffect(() => {
-    localStorage.setItem("echo-salvage-control-mode", controlMode);
+    try {
+      localStorage.setItem("echo-salvage-control-mode", controlMode);
+    } catch {
+      // Storage can be unavailable in private or embedded contexts.
+    }
   }, [controlMode]);
   const g = game.current;
   const isMobile = controlMode === "mobile";
-  const stickValueFromPointer = (e, radius = 44) => {
+  const stickValueFromPointer = (e, radius = 50) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
@@ -34,7 +47,9 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
     const len = Math.hypot(dx, dy);
     if (!len) return { x: 0, y: 0, force: 0 };
     const limited = Math.min(radius, len);
-    return { x: (dx / len) * (limited / radius), y: (dy / len) * (limited / radius), force: len / radius };
+    const force = Math.min(1, len / radius);
+    if (force < 0.08) return { x: 0, y: 0, force: 0 };
+    return { x: (dx / len) * (limited / radius), y: (dy / len) * (limited / radius), force };
   };
   const onLeftStickStart = (e) => {
     e.preventDefault();
@@ -61,7 +76,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
     const v = stickValueFromPointer(e);
     setRightStick({ x: v.x, y: v.y });
     setMobileAim(v.x, v.y, true);
-    setMobileShooting(false);
+    setMobileShooting(v.force > 0.62);
   };
   const onRightStickMove = (e) => {
     e.preventDefault();
@@ -69,7 +84,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
     const v = stickValueFromPointer(e);
     setRightStick({ x: v.x, y: v.y });
     setMobileAim(v.x, v.y, true);
-    setMobileShooting(v.force > 0.82);
+    setMobileShooting(v.force > 0.58);
   };
   const onRightStickEnd = (e) => {
     e.preventDefault();
@@ -117,21 +132,27 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
         </div>
       </div>
       {isMobile && (
-        <div className="mobile-dock">
-          <div className="mobile-stick" onPointerDown={onLeftStickStart} onPointerMove={onLeftStickMove} onPointerUp={onLeftStickEnd} onPointerCancel={onLeftStickEnd}>
-            <span className="mobile-stick-ring" />
-            <span className="mobile-stick-knob" style={{ transform: `translate(${leftStick.x * 34}px, ${leftStick.y * 34}px)` }} />
+        <div className="mobile-dock" aria-label="Mobile gameplay controls">
+          <div className="mobile-control-zone mobile-control-zone-move">
+            <span className="mobile-control-caption">Move</span>
+            <div className="mobile-stick" data-active={Math.hypot(leftStick.x, leftStick.y) > 0.08} onPointerDown={onLeftStickStart} onPointerMove={onLeftStickMove} onPointerUp={onLeftStickEnd} onPointerCancel={onLeftStickEnd}>
+              <span className="mobile-stick-ring" />
+              <span className="mobile-stick-knob" style={{ transform: `translate(${leftStick.x * 40}px, ${leftStick.y * 40}px)` }} />
+            </div>
           </div>
           <div className="mobile-actions">
-            <button className="mobile-action mobile-action-dash" onClick={() => mobileAction("dash")}>{getAbilityById(g?.player.abilityId).label}</button>
-            <button className="mobile-action mobile-action-echo" onClick={() => mobileAction("echo")}>Echo</button>
-            <button className="mobile-action mobile-action-interact" onClick={() => mobileAction("interact")}>Interact</button>
-            <button className="mobile-action mobile-action-pause" onClick={() => mobileAction("pause")}>Pause</button>
+            <button type="button" className="mobile-action mobile-action-dash" onClick={() => mobileAction("dash")}><span>{getAbilityById(g?.player.abilityId).label}</span><small>Ability</small></button>
+            <button type="button" className="mobile-action mobile-action-echo" onClick={() => mobileAction("echo")}><span>Echo</span><small>Record</small></button>
+            <button type="button" className="mobile-action mobile-action-interact" onClick={() => mobileAction("interact")}><span>Interact</span><small>Cargo / Secret</small></button>
+            <button type="button" className="mobile-action mobile-action-pause" onClick={() => mobileAction("pause")} aria-label="Pause game">Pause</button>
           </div>
-          <div className="mobile-stick mobile-stick-aim" onPointerDown={onRightStickStart} onPointerMove={onRightStickMove} onPointerUp={onRightStickEnd} onPointerCancel={onRightStickEnd}>
-            <span className="mobile-stick-ring" />
-            <span className="mobile-stick-fire-ring" />
-            <span className="mobile-stick-knob" style={{ transform: `translate(${rightStick.x * 34}px, ${rightStick.y * 34}px)` }} />
+          <div className="mobile-control-zone mobile-control-zone-aim">
+            <span className="mobile-control-caption">Aim / Fire</span>
+            <div className="mobile-stick mobile-stick-aim" data-active={Math.hypot(rightStick.x, rightStick.y) > 0.08} data-firing={Math.hypot(rightStick.x, rightStick.y) > 0.58} onPointerDown={onRightStickStart} onPointerMove={onRightStickMove} onPointerUp={onRightStickEnd} onPointerCancel={onRightStickEnd}>
+              <span className="mobile-stick-ring" />
+              <span className="mobile-stick-fire-ring" />
+              <span className="mobile-stick-knob" style={{ transform: `translate(${rightStick.x * 40}px, ${rightStick.y * 40}px)` }} />
+            </div>
           </div>
         </div>
       )}
