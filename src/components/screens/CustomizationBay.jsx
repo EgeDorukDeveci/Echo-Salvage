@@ -41,8 +41,11 @@ const COSMETIC_SHOP_GROUPS = [
 
 function CosmeticOptionGroup({ group, cosmetic, owned, equipCosmetic, setMessage }) {
   return (
-    <div>
-      <label>{group.label}</label>
+    <div className="customizer-lane">
+      <div className="customizer-lane-label">
+        <label>{group.label}</label>
+        <small>{group.items.length} options</small>
+      </div>
       <div className="frame-row">
         {group.items.map((item) => {
           const unlocked = owned[group.bucket].includes(item.id);
@@ -53,7 +56,9 @@ function CosmeticOptionGroup({ group, cosmetic, owned, equipCosmetic, setMessage
               data-locked={!unlocked}
               onClick={() => unlocked ? equipCosmetic(group.slot, item.id) : setMessage(`Unlock this ${group.noun} in the shop first.`)}
             >
-              {item.perk ? <><span>{item.label}</span><small>{item.perk}</small></> : item.label}
+              <span>{item.label}</span>
+              {item.perk && <small>{item.perk}</small>}
+              <em>{cosmetic[group.slot] === item.id ? "Equipped" : unlocked ? "Owned" : "Locked"}</em>
             </button>
           );
         })}

@@ -1,7 +1,9 @@
 import { rooms, EXPEDITION_UPGRADES, EXPEDITION_UPGRADE_BY_ID, SALVAGE_MODS, SALVAGE_MOD_BY_ID, STATION_NODE_BY_ID } from "../../game/config.js";
 import { getStarsForRoom } from "../../services/profile-store.js";
+import { listCommunityLevels } from "../../services/server-api.js";
 import { Button } from "../ui.jsx";
 import { BookOpen, DoorOpen, Gamepad2, Globe2, Play, Radio, RotateCcw, Settings, Wrench, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
 function createInitialSummaryState() {
   return { result: "Extracted", scrap: 0, hull: 100, time: 0, room: rooms[0], levelIndex: 0, isCustom: false };
@@ -120,26 +122,57 @@ function SalvageWorkshop({ expedition, craftMod, installUpgrade, setScreen, retu
   );
 }
 
-function CommunityLevels({ returnToMenu }) {
+function CommunityLevels({ returnToMenu, playLevel }) {
+  const [levels, setLevels] = useState([]);
+  const [status, setStatus] = useState("Loading community relay...");
+
+  useEffect(() => {
+    let alive = true;
+    listCommunityLevels()
+      .then((result) => {
+        if (!alive) return;
+        setLevels(result.levels || []);
+        setStatus(result.levels?.length ? "" : "No community levels published yet.");
+      })
+      .catch(() => {
+        if (!alive) return;
+        setStatus("Community server is offline. Start it with npm run server.");
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   return (
     <div className="overlay">
       <section className="panel community-panel">
         <div className="drawer-head">
           <div>
-            <span className="badge construction-badge">In Construction</span>
+            <span className="badge">Community Relay</span>
             <h2>Community Levels</h2>
-            <p className="small-copy">Global level publishing is paused while the main game is being built.</p>
+            <p className="small-copy">Published rooms from the local Echo Salvage server appear here.</p>
           </div>
           <div className="community-actions">
             <Button onClick={returnToMenu}>Menu</Button>
           </div>
         </div>
         <div className="community-list">
-          <div className="community-empty construction-empty">
+          {status && <div className="community-empty construction-empty">
             <Globe2 size={38} />
-            <h3>Community Relay Offline</h3>
-            <p>This tab is intentionally parked for now. The editor can still make/import level codes locally, but public publishing is not part of the current build.</p>
-          </div>
+            <h3>{status}</h3>
+            <p>The editor can still make/import level codes locally while the server is offline.</p>
+          </div>}
+          {levels.map((entry) => (
+            <article className="community-card" key={entry.id}>
+              <div>
+                <span>{entry.author || "Anonymous"}</span>
+                <strong>{entry.title}</strong>
+                <p>{entry.description || "No description provided."}</p>
+                <small>{new Date(entry.createdAt).toLocaleString()}</small>
+              </div>
+              <Button primary onClick={() => playLevel?.(entry.level)}><Play size={18} /> Play</Button>
+            </article>
+          ))}
         </div>
       </section>
     </div>

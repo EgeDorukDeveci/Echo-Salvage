@@ -161,6 +161,20 @@ Open the shown localhost URL, usually:
 http://localhost:5173/
 ```
 
+Start the local account/community server:
+
+```bash
+npm run server
+```
+
+The server listens on:
+
+```text
+http://localhost:8787/
+```
+
+When Vite is running, `/api` requests proxy to this server. Account sign up/login, profile updates, and Community Level publishing/listing use the server first and fall back to browser-local storage if it is offline. Server data is stored locally in `data/server-db.json`, which is intentionally ignored by git.
+
 Build the static app:
 
 ```bash

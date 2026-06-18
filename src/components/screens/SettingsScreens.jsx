@@ -13,22 +13,12 @@ function SettingsDrawer({ settings, setSettings, setScreen, returnScreen = "menu
         <button className="btn" onClick={() => setScreen(returnScreen)} aria-label="Close settings"><X /></button>
       </div>
       <div className="setting"><label>Volume {Math.round(settings.volume * 100)}%</label><input type="range" min="0" max="1" step="0.01" value={settings.volume} onChange={(e) => updateSetting("volume", Number(e.target.value))} /></div>
-      <Toggle title="Cosy Background Song" text="Original procedural ambient loop generated in-browser." value={settings.music} onChange={(music) => updateSetting("music", music)} />
+      <Toggle title="Adaptive Station Score" text="A restrained procedural soundtrack that crossfades as you move between station decks." value={settings.music} onChange={(music) => updateSetting("music", music)} />
       <Toggle title="Screen Shake" text="Impact feedback from hits, lasers, and Echo deployment." value={settings.shake} onChange={(shake) => updateSetting("shake", shake)} />
       <Toggle title="Reduced Motion" text="Softens camera jitter and heavy pulses." value={settings.reduced} onChange={(reduced) => updateSetting("reduced", reduced)} />
       <div className="setting">
         <label>Mouse Sensitivity {settings.mouseSensitivity.toFixed(2)}x</label>
         <input type="range" min="0.25" max="2.5" step="0.05" value={settings.mouseSensitivity} onChange={(e) => updateSetting("mouseSensitivity", Number(e.target.value))} />
-      </div>
-      <div className="setting">
-        <label>Theme</label>
-        <select value={settings.uiTheme} onChange={(e) => updateSetting("uiTheme", e.target.value)}>
-          <option value="station">Station</option>
-          <option value="hazard">Hazard</option>
-          <option value="reactor">Reactor</option>
-          <option value="midnight">Midnight</option>
-        </select>
-        <p className="small-copy">Menu surfaces use this. Stock campaign rooms now shift theme automatically by deck.</p>
       </div>
       <div className="setting">
         <label>Difficulty</label>

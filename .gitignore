@@ -1,6 +1,7 @@
 node_modules/
 dist/
 EchoSalvage/
+data/server-db.json
 .env
 .env.local
 .DS_Store

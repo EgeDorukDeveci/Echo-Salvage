@@ -3,16 +3,19 @@ import { makeLevel } from "../../game/levels.js";
 import { rectsTouch, clamp, SPECIAL_HOSTILE_KEYS, ensureLevelArrays, finalizeCustomLevel } from "../../game/geometry.js";
 import { drawLevel } from "../../game/rendering.js";
 import { encodeLevelCode, decodeLevelCode } from "../../services/profile-store.js";
+import { publishCommunityLevel } from "../../services/server-api.js";
 import { Button } from "../ui.jsx";
 import { useEffect, useRef, useState } from "react";
 import { Play } from "lucide-react";
 
-function Editor({ returnToMenu, setScreen, setCustomLevel, settings = defaultSettings }) {
+function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defaultSettings }) {
   const canvas = useRef(null);
   const [mode, setMode] = useState("build");
   const [tool, setTool] = useState("wall");
   const [level, setLevel] = useState(makeLevel(0));
   const [code, setCode] = useState("");
+  const [publishName, setPublishName] = useState("Untitled Echo Map");
+  const [publishNote, setPublishNote] = useState("");
   const [publishStatus, setPublishStatus] = useState("");
   const [selected, setSelected] = useState(null);
   const editorKeys = ["walls", "movingWalls", "echoCorruptionZones", "crates", "coinCrates", "plates", "switches", "turrets", "drones", "missileSentries", ...SPECIAL_HOSTILE_KEYS, "scrap"];
@@ -238,6 +241,30 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, settings = defaultSet
     }
   };
 
+  const publish = async () => {
+    const cleanName = publishName.trim();
+    if (cleanName.length < 3) {
+      setPublishStatus("Give the map a title first.");
+      return;
+    }
+    try {
+      setPublishStatus("Publishing to community server...");
+      const publishedLevel = { ...finalizeCustomLevel(structuredClone(level)), name: cleanName };
+      const levelCode = encodeLevelCode(publishedLevel);
+      const result = await publishCommunityLevel({
+        title: cleanName,
+        description: publishNote.trim(),
+        author: user?.nickname || "Anonymous",
+        level: publishedLevel,
+        code: levelCode
+      });
+      setCode(result.level?.code || levelCode);
+      setPublishStatus("Published to the community server.");
+    } catch (error) {
+      setPublishStatus(error.message || "Community server is offline.");
+    }
+  };
+
   return (
     <div className="editor">
       <main className="editor-canvas-wrap">
@@ -293,9 +320,14 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, settings = defaultSet
         </div>
         <div className="tools">{tools.map((t) => <button type="button" className="tool-btn" data-active={mode === "build" && tool === t.id} key={t.id} onClick={() => { setMode("build"); setTool(t.id); }}><span>{t.label}</span><small>{t.hint}</small></button>)}</div>
         <details className="publish-box">
-          <summary><span className="badge construction-badge">In Construction</span> Codes and Publish</summary>
+          <summary><span className="badge">Community</span> Codes and Publish</summary>
           <div className="publish-grid">
-            <p className="small-copy">Public publishing is paused. Local level codes remain available for testing and manual sharing.</p>
+            <p className="small-copy">Publish sends this room to the local Echo Salvage server. Level codes still work for manual sharing.</p>
+            <label>Map Title</label>
+            <input value={publishName} onChange={(e) => setPublishName(e.target.value)} />
+            <label>Description</label>
+            <textarea rows="3" value={publishNote} onChange={(e) => setPublishNote(e.target.value)} placeholder="What makes this room interesting?" />
+            <Button primary onClick={publish}>Publish Community Map</Button>
             <label>Level Code</label>
             <textarea rows="4" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Local level codes appear here." />
             {publishStatus && <p className="small-copy">{publishStatus}</p>}

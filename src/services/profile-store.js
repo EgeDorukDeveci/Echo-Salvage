@@ -1,5 +1,6 @@
 import { ABILITY_DEFAULT, KEYBINDS_KEY, defaultKeybinds, rooms, CAMPAIGN_SECTIONS, WEAPON_DEFAULT, COSMETIC_DEFAULTS, ABILITIES } from "../game/config.js";
 import { STATION_SECRET_IDS } from "../game/secrets.js";
+import { syncServerProfile } from "./server-api.js";
 
 const AUTH_USERS_KEY = "echo-salvage-users";
 const AUTH_SESSION_KEY = "echo-salvage-session";
@@ -249,6 +250,7 @@ function updateStoredUserProfile(updated) {
     ? users.map((user) => (user.id === normalized.id ? { ...user, ...normalized } : user))
     : [...users, normalized];
   saveStoredUsers(nextUsers);
+  syncServerProfile(normalized);
   return storeSession(normalized);
 }
 

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "server": "node server/server.js",
     "test:gameplay": "node --test scripts/gameplay-reliability.test.js",
     "audit:levels": "node scripts/audit-levels.js",
     "build": "vite build",

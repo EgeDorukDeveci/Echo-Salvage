@@ -96,6 +96,12 @@ function App() {
     setRunSeed((v) => v + 1);
     setScreen("playing");
   };
+  const playCommunityLevel = (level) => {
+    setCustomLevel(level);
+    setExpedition(createInactiveExpedition());
+    setRunSeed((value) => value + 1);
+    setScreen("playing");
+  };
   const logout = () => {
     localStorage.removeItem(AUTH_SESSION_KEY);
     setCustomLevel(null);
@@ -167,8 +173,8 @@ function App() {
       {screen === "controls" && <Controls setScreen={setScreen} keybinds={keybinds} setKeybinds={setKeybinds} returnScreen={overlayReturnScreen} />}
       {screen === "paused" && <PauseMenu setScreen={setScreen} retryLevel={retryLevel} abandonRun={returnToMenu} openSettings={() => openSettingsFrom("paused")} openControls={() => openControlsFrom("paused")} />}
       {screen === "summary" && <Summary summary={summary} next={next} returnToMenu={returnToMenu} />}
-      {screen === "community" && <CommunityLevels returnToMenu={returnToMenu} />}
-      {screen === "editor" && <Editor returnToMenu={returnToMenu} setScreen={setScreen} setCustomLevel={setCustomLevel} settings={settings} />}
+      {screen === "community" && <CommunityLevels returnToMenu={returnToMenu} playLevel={playCommunityLevel} />}
+      {screen === "editor" && <Editor returnToMenu={returnToMenu} setScreen={setScreen} setCustomLevel={setCustomLevel} user={user} settings={settings} />}
     </div>
   );
 }

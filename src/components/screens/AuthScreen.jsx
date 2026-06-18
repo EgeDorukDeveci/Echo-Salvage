@@ -1,5 +1,6 @@
 import { COSMETIC_DEFAULTS, BODY_COLORS, TRAIL_COLORS, UNIVERSAL_COLORS, DRONE_FRAMES, COCKPITS, ENGINES, DECALS, ARMORS, PETS, DASH_STYLES, WEAPONS, ABILITIES } from "../../game/config.js";
 import { AUTH_SESSION_TTL_MS, DEV_LOGIN, DEV_COINS, DEFAULT_OWNED, makeRandomHex, createPasswordRecord, verifyStoredPassword, getStoredUsers, saveStoredUsers, storeSession, updateStoredUserProfile } from "../../services/profile-store.js";
+import { loginServerProfile, signupServerProfile } from "../../services/server-api.js";
 import { Button } from "../ui.jsx";
 import { useState } from "react";
 import { Lock, Mail, Shield, UserRound, UserPlus } from "lucide-react";
@@ -73,6 +74,21 @@ function AuthScreen({ onAuth }) {
       }
     }
     try {
+      try {
+        const result = mode === "signup"
+          ? await signupServerProfile({ nickname: cleanNick, email: cleanEmail, password: cleanPassword })
+          : await loginServerProfile({ nickname: cleanNick, password: cleanPassword });
+        const serverUser = result.user;
+        if (serverUser?.id) {
+          const users = getStoredUsers();
+          saveStoredUsers([serverUser, ...users.filter((u) => u.id !== serverUser.id && u.nickname.toLowerCase() !== serverUser.nickname.toLowerCase())]);
+          onAuth(storeSession(serverUser));
+          setBusy(false);
+          return;
+        }
+      } catch {
+        // If the local server is offline, keep the browser-only fallback usable.
+      }
       const users = getStoredUsers();
       const found = users.find((u) => u.nickname.toLowerCase() === cleanNick.toLowerCase());
       if (mode === "signup") {
