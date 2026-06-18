@@ -1,4 +1,4 @@
-import { W, H, MAX_ECHOES, MAX_ENERGY, rooms, STATION_MUTATION_BY_ID, WEAPONS, ABILITIES, WEAPON_BY_ID, ABILITY_BY_ID } from "../game/config.js";
+import { W, H, ECHO_MS, ECHO_FRAME_MS, MAX_ECHOES, MAX_ENERGY, rooms, STATION_MUTATION_BY_ID, WEAPONS, ABILITIES, WEAPON_BY_ID, ABILITY_BY_ID } from "../game/config.js";
 import { clamp, dist } from "../game/geometry.js";
 import { getRoomMechanicHint, getObjectiveText } from "../game/rules.js";
 import { useGame } from "../hooks/useGame.js";
@@ -10,6 +10,34 @@ import { Crosshair, Gauge, Radio, Shield, Sparkles, Zap } from "lucide-react";
 const getWeaponById = (id) => WEAPON_BY_ID.get(id) || WEAPONS[0];
 const getAbilityById = (id) => ABILITY_BY_ID.get(id) || ABILITIES[0];
 const MOBILE_FIRE_THRESHOLD = 0.38;
+
+function getTrialPrompt(g, keybinds, isMobile) {
+  if (!g?.level?.isTrial) return null;
+  const booted = g.level.switches.find((item) => item.id === "BOOT")?.on;
+  const rangeClear = g.level.switches.find((item) => item.id === "RANGE_CLEAR")?.on;
+  const turretAlive = g.level.turrets.some((item) => item.hp > 0);
+  const cargoPlate = g.level.plates.find((item) => item.id === "CARGO");
+  const echoPlate = g.level.plates.find((item) => item.id === "ECHO");
+  const cargoParked = cargoPlate && g.level.crates.some((crate) => dist({ x: crate.x + crate.w / 2, y: crate.y + crate.h / 2 }, cargoPlate) < cargoPlate.r + 16);
+  const echoParked = echoPlate && g.echoes.some((echo) => !echo.corrupted && dist(echo, echoPlate) < echoPlate.r + 18);
+  const historySeconds = Math.min(8, Math.floor((g.recording.length * ECHO_FRAME_MS) / 1000));
+  const interact = isMobile ? "Interact" : keyName(keybinds.interact);
+  const echo = isMobile ? "Echo" : keyName(keybinds.echo);
+  const ability = isMobile ? "Ability" : keyName(keybinds.ability);
+
+  if (!booted) return { step: 1, title: "Wake the trial deck", detail: `Move to the yellow terminal with your movement controls, then press ${interact}.` };
+  if (turretAlive) return { step: 2, title: "Clear the firing lane", detail: isMobile ? "Use the right stick to aim and fire at the calibration turret." : "Aim with the mouse and hold left click to destroy the calibration turret." };
+  if (!rangeClear) return { step: 3, title: "Confirm the lane is clear", detail: `Approach the terminal beyond the turret and press ${interact}.` };
+  if (!cargoParked) return { step: 4, title: "Make a permanent weight", detail: `Press ${interact} near the cargo to tether it. Pull or push it onto the yellow pressure plate.` };
+  if (!g.echoes.length) {
+    return historySeconds < ECHO_MS / 1000
+      ? { step: 5, title: "Build eight seconds of history", detail: `Stand on the cyan Echo plate while the recorder fills: ${historySeconds}/8 seconds.` }
+      : { step: 5, title: "Leave your past on the plate", detail: `Stand on the cyan plate and press ${echo}. Your last eight seconds will replay and remain there.` };
+  }
+  if (!echoParked) return { step: 5, title: "Place an Echo on the cyan plate", detail: `Return to the plate, wait there, then press ${echo} after the recorder has eight seconds.` };
+  return { step: 6, title: "Extract", detail: `The route is open. Press ${ability} to test your equipped ability, then enter the extraction field.` };
+}
+
 const getInitialControlMode = () => {
   try {
     const stored = localStorage.getItem("echo-salvage-control-mode");
@@ -39,6 +67,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
   }, [controlMode]);
   const g = game.current;
   const isMobile = controlMode === "mobile";
+  const trialPrompt = getTrialPrompt(g, keybinds, isMobile);
   const stickValueFromPointer = (e, radius = 52) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
@@ -108,7 +137,7 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
         <div className="hud-cluster vitals-card">
           <div className="hud-title">
             <span>{g?.level.name ?? "Training Bay"}</span>
-            <strong>{g?.expedition?.active ? "Expedition Sector" : `Deck ${levelIndex + 1}/${rooms.length}`}</strong>
+            <strong>{g?.level.isTrial ? "Pilot Trial" : g?.expedition?.active ? "Expedition Sector" : `Deck ${levelIndex + 1}/${rooms.length}`}</strong>
           </div>
           {g?.expedition?.mutation && <div className="expedition-hud-line"><span>{g.expedition.active ? `Power ${g.expedition.power} · Alert ${g.expedition.alert}` : "Mutation"}</span><strong>{STATION_MUTATION_BY_ID.get(g.expedition.mutation)?.label}</strong></div>}
           <Meter label="Hull" value={g?.player.hp ?? 100} color="#ffd52d" />
@@ -117,9 +146,9 @@ function GameView({ levelIndex, customLevel, screen, setScreen, settings, setSum
           {((g?.level.echoCorruptionZones?.length ?? 0) > 0 || g?.expedition?.active) && <Meter label="Corruption" value={g?.player.corruption ?? 0} color="#ff6ec7" />}
         </div>
         <div className="hud-card objective-card">
-          <strong>Objective</strong>
-          <span>{getObjectiveText(g?.level)}</span>
-          <small>{getRoomMechanicHint(g?.level)}</small>
+          <strong>{trialPrompt ? `Trial step ${trialPrompt.step}/6` : "Objective"}</strong>
+          <span>{trialPrompt?.title || getObjectiveText(g?.level)}</span>
+          <small>{trialPrompt?.detail || getRoomMechanicHint(g?.level)}</small>
           {g?.contract && <div className="contract-hud"><strong>Optional · {g.contract.label}</strong><span>{g.contract.detail}</span><small>{getContractProgress(g.contract, getContractRunState(g), g.level)} · first clear +{g.contract.reward} coins</small></div>}
           {g?.secret && !g.secret.recovered && dist(g.player, g.secret) < 230 && <div className="secret-hud"><strong>Encrypted signal nearby</strong><small>{dist(g.player, g.secret) < 72 ? `${keyName(keybinds.interact)} · recover recorder fragment` : "Signal strength rising"}</small></div>}
           {g?.secretStatus && performance.now() < g.secretStatusUntil && <div className="secret-hud" data-recovered="true"><strong>{g.secretStatus}</strong></div>}

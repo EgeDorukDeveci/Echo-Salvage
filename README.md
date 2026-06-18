@@ -9,7 +9,7 @@ The Echo continuously records the latest eight seconds of movement, shooting, an
 - Canvas-based 2D station gameplay
 - Handmade 59-room campaign ordered by difficulty
 - Optional room-specific Salvage Contracts with one-time coin rewards
-- Twelve hidden Station Secrets with proximity interference, one-time rewards, and a persistent Recorder Archive
+- Twelve hidden Station Secrets with proximity interference, a persistent Recorder Archive, and secret-only powered relics
 - Echo replay puzzles with plates, switches, doors, lasers, cargo, and timing
 - Hostiles: turrets, chase drones, missile sentries, gravity nodes, echo jammers, laser sweepers, shield drones, repair bots, and blink hunters
 - Four visually specialized orbital biomes with unique floors, walls, landmarks, cores, turrets, and section-native hostile variants such as Death Plants, Magma Vents, and Black Holes
@@ -21,7 +21,8 @@ The Echo continuously records the latest eight seconds of movement, shooting, an
 - Local sign up/login with nickname, password, and optional email, using PBKDF2 password hashing plus expiring session records
 - Customizable controls, mouse sensitivity, visual themes, and mobile/PC control options
 - Campaign difficulty that ramps automatically by deck, while custom levels still respect the manual difficulty setting
-- Level creator with a compact Geometry Dash-inspired editor, right-click object editing, import/export, and instant testing
+- Level creator with categorized/searchable tools, current hostile and boss catalogs, right-click object editing, import/export, publishing, and instant testing
+- SQLite-backed Community Relay with validated map storage, authenticated publishing, search, sorting, likes, and play counts
 - Procedural ambient background music generated in the browser
 
 ## Campaign Structure
@@ -37,7 +38,7 @@ Rooms unlock sequentially. Clearing a room opens the next one, so stars are now 
 
 Every campaign room also offers one optional **Salvage Contract**. Contracts reward careful play such as recovering every salvage shard, limiting Echo deployments, preserving hull or energy, or extracting within a generous timer. Contract rewards are paid once per room and never block campaign progression.
 
-Twelve selected campaign rooms conceal optional **Station Secrets**. Their encrypted recorder fragments only become visible at close range, can be recovered with the interact control, and reveal station lore in the Systems Manual's Recorder Archive. Secrets grant a one-time coin reward and never affect extraction.
+Twelve selected campaign rooms conceal optional **Station Secrets**. Their encrypted recorder fragments only become visible at close range, can be recovered with the interact control, and reveal station lore in the Systems Manual's Recorder Archive. Completing each three-fragment deck archive unlocks a visible powered Archive Relic; secrets never block extraction.
 
 ## Difficulty
 
@@ -173,7 +174,15 @@ The server listens on:
 http://localhost:8787/
 ```
 
-When Vite is running, `/api` requests proxy to this server. Account sign up/login, profile updates, and Community Level publishing/listing use the server first and fall back to browser-local storage if it is offline. Server data is stored locally in `data/server-db.json`, which is intentionally ignored by git.
+When Vite is running, `/api` requests proxy to this server. Account sign up/login and profile sync use the server first and retain the browser-local fallback if it is offline. Community publishing requires a server-backed account.
+
+The server stores accounts, sessions, community maps, likes, and play counts in SQLite:
+
+```text
+data/echo-salvage.sqlite
+```
+
+SQLite runs in WAL mode for safer concurrent reads/writes. Legacy `data/server-db.json` data is migrated automatically on first startup.
 
 Build the static app:
 
@@ -195,7 +204,7 @@ Run the local verification bundle:
 npm run verify
 ```
 
-That runs gameplay reliability tests, the room audit, and the production build.
+That runs gameplay reliability tests, the Community Relay integration test, the room audit, and the production build.
 
 Print the campaign pressure report:
 
@@ -207,9 +216,36 @@ This gives a quick weighted readout of room pressure so we can spot suspicious s
 
 ## Community Levels
 
-The Community Levels tab is currently marked **In Construction**.
+The Community Relay supports:
 
-For now, the level creator is focused on local building, testing, importing, and exporting. Global publishing was intentionally paused while the core game and campaign are being improved.
+- Authenticated map publishing with author ownership
+- Server-side schema normalization, object limits, and duplicate detection
+- Lightweight paginated browsing with search and Newest / Most Played / Most Liked sorting
+- Full map payloads downloaded only when Play is selected
+- Persistent play counts and per-account likes
+- Author-only update/delete API routes
+
+The creator includes player spawn, exits, doors, laser gates, moving walls, puzzle controls, destructible cores, every standard hostile, all current elite encounters, and all four campaign bosses.
+
+### Container deployment
+
+Run the full built game and API with a persistent Docker volume:
+
+```bash
+docker compose up --build
+```
+
+Open `http://localhost:8787/`. The `echo-salvage-data` volume stores the SQLite database across container restarts.
+
+For a hosted deployment, use a service with a persistent disk/volume and set:
+
+```text
+ECHO_DATA_DIR=/your/persistent/path
+PORT=8787
+CORS_ORIGIN=https://your-frontend.example
+```
+
+If the Vite frontend is hosted separately, set `VITE_API_BASE` to the public API URL ending in `/api`.
 
 ## Notes
 
@@ -232,4 +268,8 @@ For now, the level creator is focused on local building, testing, importing, and
 - `src/components/GameView.jsx` renders the canvas HUD and mobile controls.
 - `src/components/screens/` contains the independent auth, campaign, customization, settings, run, and editor screens.
 - `src/services/profile-store.js` owns local authentication, progress, economy, keybinds, and level-code conversion.
+- `src/services/server-api.js` owns authenticated Community Relay requests.
+- `server/db.js` owns SQLite schema initialization and legacy JSON migration.
+- `server/level-validation.js` owns server-side community-map normalization and limits.
+- `server/server.js` owns authenticated account, profile, and community-map HTTP routes.
 - `scripts/audit-levels.js` and `scripts/report-difficulty.js` import the real level modules directly.

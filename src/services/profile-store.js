@@ -161,6 +161,8 @@ function makeSession(user) {
     secrets: normalizeSecrets(user.secrets),
     sessionNonce: user.sessionNonce,
     sessionExpiresAt: user.sessionExpiresAt,
+    serverToken: user.serverToken,
+    serverTokenExpiresAt: user.serverTokenExpiresAt,
     ...economy
   };
 }

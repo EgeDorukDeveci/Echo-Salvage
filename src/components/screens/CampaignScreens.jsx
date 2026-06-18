@@ -173,7 +173,7 @@ function StationMap({ expedition, enterNode, abandon }) {
   );
 }
 
-function MainMenu({ openBriefing, startRoom, startStationExpedition, setScreen, user, onLogout, openSettings, openControls }) {
+function MainMenu({ startTrial, startRoom, startStationExpedition, setScreen, user, onLogout, openSettings, openControls }) {
   const safeProgress = normalizeProgress(user?.progress);
   const totalStars = getTotalStars(safeProgress);
   const isNewPilot = totalStars === 0;
@@ -207,10 +207,10 @@ function MainMenu({ openBriefing, startRoom, startStationExpedition, setScreen, 
           <h1 className="title">Echo Salvage</h1>
           <p className="lead">Record eight seconds of movement and actions, then deploy an Echo that repeats them. Coordinate with your own past to open the station.</p>
           <div className="main-mode-launches">
-            <button className="mode-launch mode-launch-campaign" onClick={openBriefing}>
-              <span><Play size={19} /> {isNewPilot ? "Recommended first" : "Guided campaign"}</span>
-              <strong>{isNewPilot ? "Learn the Echo" : "Continue campaign"}</strong>
-              <small>Curated rooms teach one system at a time. Earn stars to unlock later sectors.</small>
+            <button className="mode-launch mode-launch-campaign" onClick={isNewPilot ? startTrial : () => startRoom(nextRoomIndex)}>
+              <span><Play size={19} /> {isNewPilot ? "Playable introduction" : "Guided campaign"}</span>
+              <strong>{isNewPilot ? "Pilot Trial" : "Continue campaign"}</strong>
+              <small>{isNewPilot ? "One short mission teaches movement, combat, cargo, Echoes, and extraction." : "Continue from your next unlocked station room."}</small>
             </button>
             <button className="mode-launch mode-launch-expedition" onClick={startStationExpedition}>
               <span><Radio size={19} /> Advanced run</span>
@@ -225,9 +225,10 @@ function MainMenu({ openBriefing, startRoom, startStationExpedition, setScreen, 
           </div>
           <div className="button-grid">
             <Button onClick={() => setScreen("editor")}><Wand2 size={20} /> Level Creator</Button>
-            <Button className="construction-tab" onClick={() => setScreen("community")}><Globe2 size={20} /> Community Levels <span>In Construction</span></Button>
+            <Button onClick={() => setScreen("community")}><Globe2 size={20} /> Community Levels</Button>
             <Button onClick={() => setScreen("profile")}><UserRound size={20} /> Customization Bay</Button>
-            <Button onClick={() => setScreen("manual")}><BookOpen size={20} /> Systems Manual</Button>
+            <Button onClick={startTrial}><Play size={20} /> Replay Pilot Trial</Button>
+            <Button onClick={() => setScreen("archive")}><BookOpen size={20} /> Recorder Archive</Button>
             <Button onClick={openSettings}><Settings size={20} /> Settings</Button>
             <Button onClick={openControls}><Gamepad2 size={20} /> Controls</Button>
             <Button danger onClick={onLogout}><LogOut size={20} /> Logout</Button>
@@ -378,65 +379,7 @@ function MainMenu({ openBriefing, startRoom, startStationExpedition, setScreen, 
   );
 }
 
-function Briefing({ setScreen, startRun }) {
-  return (
-    <div className="overlay onboarding-overlay">
-      <section className="panel onboarding-panel">
-        <header className="onboarding-head">
-          <div>
-            <span className="badge">Pilot Calibration</span>
-            <h1>Your past self opens the way.</h1>
-            <p>Do something useful, press Q, then move on while the Echo repeats the eight seconds before you pressed it.</p>
-          </div>
-          <Button onClick={() => setScreen("menu")}><X size={18} /> Menu</Button>
-        </header>
-        <div className="echo-example">
-          <div className="echo-example-stage">
-            <div className="echo-path" />
-            <span className="echo-drone echo-drone-start"><i />You start here</span>
-            <span className="echo-plate echo-plate-a">Plate A</span>
-            <span className="echo-drone echo-drone-record"><i />Stand here</span>
-            <span className="echo-press">Press Q</span>
-            <span className="echo-drone echo-drone-ghost"><i />Echo repeats</span>
-            <span className="echo-plate echo-plate-b">Plate B</span>
-            <span className="echo-drone echo-drone-finish"><i />You move here</span>
-            <span className="echo-door"><i />Door opens</span>
-          </div>
-          <div className="echo-timeline">
-            <span><strong>1</strong> Move to A</span>
-            <span><strong>2</strong> Wait on A</span>
-            <span><strong>3</strong> Press Q</span>
-            <span><strong>4</strong> Move to B</span>
-          </div>
-        </div>
-        <div className="onboarding-lessons">
-          <Brief icon={<Radio />} title="Echo records backward" text="Q captures the eight seconds immediately before you press it. Each Echo has its own recording." />
-          <Brief icon={<Boxes />} title="Bodies hold plates" text="You, Echoes, and cargo can hold pressure plates. Cargo stays forever; Echoes repeat actions and then remain at their final position." />
-          <Brief icon={<Zap />} title="Energy is limited" text="Echoes, abilities, and dashes consume energy. Salvage and certain pets restore it, so spend it deliberately." />
-          <Brief icon={<DoorOpen />} title="Finish every requirement" text="Doors only open when their full lock chain is solved. Clear required hostiles and objectives, then reach extraction." />
-        </div>
-        <div className="onboarding-controls">
-          <span><strong>WASD</strong> Move</span>
-          <span><strong>Mouse</strong> Aim</span>
-          <span><strong>Click</strong> Shoot</span>
-          <span><strong>Shift</strong> Ability</span>
-          <span><strong>Q</strong> Echo</span>
-          <span><strong>E</strong> Interact / tether cargo</span>
-        </div>
-        <footer className="onboarding-actions">
-          <div><strong>Start with Training Deck</strong><span>The first rooms teach these systems one at a time. Mutations and persistent expedition systems are introduced later in Station Expedition.</span></div>
-          <Button primary onClick={startRun}><Play size={22} /> Begin Calibration</Button>
-        </footer>
-      </section>
-    </div>
-  );
-}
-
-function Brief({ icon, title, text }) {
-  return <div className="brief-card"><div className="brief-icon">{icon}</div><div><h3>{title}</h3><p>{text}</p></div></div>;
-}
-
-function SystemsManual({ user, setScreen }) {
+function RecorderArchive({ user, setScreen }) {
   const recoveredSecrets = user?.secrets || {};
   const recoveredCount = STATION_SECRETS.filter((secret) => recoveredSecrets[secret.id]).length;
   const nextSecretMilestone = getNextSecretMilestone(recoveredCount);
@@ -444,48 +387,11 @@ function SystemsManual({ user, setScreen }) {
     <div className="overlay manual-overlay">
       <section className="panel systems-manual">
         <header className="drawer-head">
-          <div><span className="badge">Systems Manual</span><h2>What changes, where, and for how long</h2><p className="small-copy">Campaign teaches the rules. Expedition bends them. Your loadout follows you everywhere.</p></div>
-          <Button onClick={() => setScreen("menu")} aria-label="Close systems manual"><X /></Button>
+          <div><span className="badge">Recorder Archive</span><h2>Recovered Station Secrets</h2><p className="small-copy">Fragments reveal Khepri's history and restore secret-only accessories with unique powers.</p></div>
+          <Button onClick={() => setScreen("menu")} aria-label="Close recorder archive"><X /></Button>
         </header>
-        <div className="manual-mode-strip">
-          <div><Play size={18} /><strong>Campaign</strong><span>Curated rooms, stars, and fixed difficulty. No random mutations.</span></div>
-          <div><Radio size={18} /><strong>Station Expedition</strong><span>Branching advanced run with persistent hull, energy, alert, and corruption.</span></div>
-          <div><UserRound size={18} /><strong>Customization Bay</strong><span>Permanent account unlocks. Weapons, abilities, and pets change gameplay.</span></div>
-        </div>
-        <div className="manual-system-grid">
-          <section>
-            <span className="manual-number">01</span><h3>Echoes</h3>
-            <p>Each Q press captures a separate eight-second history. Echoes repeat movement, shots, and interactions, then remain at their final position.</p>
-            <strong>Use for: plates, crossfire, distractions, and timed routes.</strong>
-          </section>
-          <section>
-            <span className="manual-number">02</span><h3>Mutations</h3>
-            <p>A mutation changes a room rule for the next expedition sector, such as faster enemies or larger corruption zones. The station map previews it before entry.</p>
-            <strong>Duration: one expedition sector.</strong>
-          </section>
-          <section>
-            <span className="manual-number">03</span><h3>Events</h3>
-            <p>An event is an immediate station incident, such as a hull breach or lockdown. It combines with the sector mutation.</p>
-            <strong>Duration: one expedition sector.</strong>
-          </section>
-          <section>
-            <span className="manual-number">04</span><h3>Workshop systems</h3>
-            <p>Spend expedition parts at the Machine Chapel. Recorder upgrades change your Echo strategy; hardware modifications strengthen the drone.</p>
-            <strong>Duration: current expedition only.</strong>
-          </section>
-          <section>
-            <span className="manual-number">05</span><h3>Loadout equipment</h3>
-            <p>Weapons, abilities, and pets are bought with coins in the Customization Bay. Their perks affect both campaign and expedition gameplay.</p>
-            <strong>Duration: permanent until unequipped.</strong>
-          </section>
-          <section>
-            <span className="manual-number">06</span><h3>Visual cosmetics</h3>
-            <p>Frames, paint, cockpit, engine, armor, decals, dash animation, and trails change appearance only. Archive Relics are the exception: they are visible accessories with an equipped power.</p>
-            <strong>Duration: permanent account unlock.</strong>
-          </section>
-        </div>
         <div className="secret-archive-head">
-          <div><span className="badge">Recorder Archive</span><h3>Station Secrets</h3><p>Restore all three fragments on a deck to recover a visible Archive Relic. Relics are secret-only accessories with powers and cannot be purchased.</p></div>
+          <div><span className="badge">Station Secrets</span><h3>Archive Relics</h3><p>Restore all three fragments on a deck to recover a visible Archive Relic. Relics cannot be purchased.</p></div>
           <strong>{recoveredCount}/{STATION_SECRETS.length} recovered</strong>
         </div>
         <div className="secret-milestones">
@@ -516,4 +422,4 @@ function SystemsManual({ user, setScreen }) {
   );
 }
 
-export { StationMap, MainMenu, Briefing, SystemsManual };
+export { StationMap, MainMenu, RecorderArchive };

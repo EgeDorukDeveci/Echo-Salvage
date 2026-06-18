@@ -1,0 +1,15 @@
+services:
+  echo-salvage:
+    build: .
+    ports:
+      - "8787:8787"
+    environment:
+      PORT: 8787
+      ECHO_DATA_DIR: /data
+      CORS_ORIGIN: "*"
+    volumes:
+      - echo-salvage-data:/data
+    restart: unless-stopped
+
+volumes:
+  echo-salvage-data:

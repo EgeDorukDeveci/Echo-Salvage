@@ -23,8 +23,8 @@ function AuthScreen({ onAuth }) {
       setMessage("Nickname needs at least 2 characters.");
       return;
     }
-    if (cleanPassword.length < 4) {
-      setMessage("Password needs at least 4 characters.");
+    if (cleanPassword.length < (mode === "signup" ? 6 : 4)) {
+      setMessage(mode === "signup" ? "Password needs at least 6 characters." : "Enter your password.");
       return;
     }
     setBusy(true);
@@ -170,7 +170,7 @@ function AuthScreen({ onAuth }) {
             )}
             <label>
               <span><Lock size={16} /> Password</span>
-              <input value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "signup" ? "new-password" : "current-password"} type="password" placeholder="4+ characters" />
+              <input value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "signup" ? "new-password" : "current-password"} type="password" placeholder="6+ characters" />
             </label>
             {message && <p className="auth-message">{message}</p>}
             <Button primary className="auth-submit" type="submit">{busy ? "Securing Access..." : mode === "signup" ? "Create Profile" : "Enter Station"}</Button>

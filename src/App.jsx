@@ -8,12 +8,13 @@ import { useAmbient } from "./hooks/useAmbient.js";
 import { AUTH_SESSION_KEY, getNextCampaignRoomIndex, normalizeEconomy, getStarsForRoom, getStoredKeybinds, getStoredUsers, getStoredSession, updateStoredUserProfile, updateUserEconomy } from "./services/profile-store.js";
 import { GameView } from "./components/GameView.jsx";
 import { AuthScreen } from "./components/screens/AuthScreen.jsx";
-import { StationMap, MainMenu, Briefing, SystemsManual } from "./components/screens/CampaignScreens.jsx";
+import { StationMap, MainMenu, RecorderArchive } from "./components/screens/CampaignScreens.jsx";
 import { ProfileScreen, ShopScreen } from "./components/screens/CustomizationBay.jsx";
 import { SettingsDrawer, Controls } from "./components/screens/SettingsScreens.jsx";
 import { createInitialSummaryState, PauseMenu, Summary, SalvageWorkshop, CommunityLevels } from "./components/screens/RunScreens.jsx";
 import { Editor } from "./components/screens/Editor.jsx";
 import { getSecretMilestone } from "./game/secrets.js";
+import { makeTrialLevel } from "./game/trial.js";
 
 function App() {
   const [bootState] = useState(() => {
@@ -44,9 +45,12 @@ function App() {
     setOverlayReturnScreen("menu");
     setScreen("menu");
   };
-  const openBriefing = () => {
-    setCustomLevel(null);
-    setScreen("briefing");
+  const startTrial = () => {
+    setCustomLevel(makeTrialLevel());
+    setLevelIndex(0);
+    setExpedition(createInactiveExpedition());
+    setRunSeed((value) => value + 1);
+    setScreen("playing");
   };
   const startCampaignRoom = (index = 0) => {
     setCustomLevel(null);
@@ -81,6 +85,10 @@ function App() {
   const next = () => {
     if (summary.stationExpedition) {
       setScreen("stationMap");
+      return;
+    }
+    if (summary.isTrial && summary.result === "Extracted") {
+      startCampaignRoom(0);
       return;
     }
     if (summary.isCustom || levelIndex >= rooms.length - 1) {
@@ -170,14 +178,13 @@ function App() {
       }} />}
       <div className="interface-scale" data-visible={screen === "auth" || screen === "menu"}>
         {screen === "auth" && <AuthScreen onAuth={(session) => { setUser(session); setScreen("menu"); }} />}
-        {screen === "menu" && <MainMenu user={user} onLogout={logout} setScreen={setScreen} openBriefing={openBriefing} startRoom={startCampaignRoom} startStationExpedition={startStationExpedition} openSettings={() => openSettingsFrom("menu")} openControls={() => openControlsFrom("menu")} />}
+        {screen === "menu" && <MainMenu user={user} onLogout={logout} setScreen={setScreen} startTrial={startTrial} startRoom={startCampaignRoom} startStationExpedition={startStationExpedition} openSettings={() => openSettingsFrom("menu")} openControls={() => openControlsFrom("menu")} />}
       </div>
       {screen === "stationMap" && <StationMap expedition={expedition} enterNode={enterStationNode} abandon={returnToMenu} />}
       {screen === "profile" && <ProfileScreen user={user} setUser={setUser} setScreen={setScreen} />}
       {screen === "shop" && <ShopScreen user={user} setUser={setUser} setScreen={setScreen} />}
       {screen === "workshop" && <SalvageWorkshop expedition={expedition} craftMod={craftMod} installUpgrade={chooseUpgrade} setScreen={setScreen} returnScreen={expedition.active ? "stationMap" : "menu"} />}
-      {screen === "briefing" && <Briefing setScreen={setScreen} startRun={() => startCampaignRoom(0)} />}
-      {screen === "manual" && <SystemsManual user={user} setScreen={setScreen} />}
+      {screen === "archive" && <RecorderArchive user={user} setScreen={setScreen} />}
       {screen === "settings" && <SettingsDrawer settings={settings} setSettings={setSettings} setScreen={setScreen} returnScreen={overlayReturnScreen} />}
       {screen === "controls" && <Controls setScreen={setScreen} keybinds={keybinds} setKeybinds={setKeybinds} returnScreen={overlayReturnScreen} />}
       {screen === "paused" && <PauseMenu setScreen={setScreen} retryLevel={retryLevel} abandonRun={returnToMenu} openSettings={() => openSettingsFrom("paused")} openControls={() => openControlsFrom("paused")} />}

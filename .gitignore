@@ -2,6 +2,10 @@ node_modules/
 dist/
 EchoSalvage/
 data/server-db.json
+data/server-db.json.migrated
+data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
 .env
 .env.local
 .DS_Store

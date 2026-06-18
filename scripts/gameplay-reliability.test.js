@@ -2,8 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { ECHO_REPLAY_FRAMES, captureEchoReplay, isCargoBlocked, moveCargo, phaseMove, resolveAfterPhase, breakCloakOnFire, isExtractionReady } from "../src/game/simulation.js";
-import { playerRect, rectsTouch } from "../src/game/geometry.js";
+import { finalizeCustomLevel, playerRect, rectsTouch } from "../src/game/geometry.js";
 import { makeLevel } from "../src/game/levels.js";
+import { makeTrialLevel } from "../src/game/trial.js";
 import { evaluateContract, getContractProgress, getRoomContract } from "../src/game/contracts.js";
 import { STATION_SECRETS, SECRET_MILESTONES, getNextSecretMilestone } from "../src/game/secrets.js";
 import { ABILITIES, ABILITY_STYLES, ARCHIVE_RELICS, COSMETIC_DEFAULTS } from "../src/game/config.js";
@@ -42,6 +43,26 @@ test("Echo captures the latest eight-second window as an independent snapshot", 
   assert.equal(second.slot, 1);
   assert.notEqual(second.frames[0].x, first.frames[0].x);
   assert.equal(first.frames[0].x, 40, "later recording changes must not mutate an existing Echo");
+});
+
+test("Pilot trial is one sequential, completable lesson map", () => {
+  const level = finalizeCustomLevel(structuredClone(makeTrialLevel()));
+  assert.equal(level.isTrial, true);
+  assert.deepEqual(level.doors.map((door) => door.requires), [
+    ["BOOT"],
+    ["RANGE_CLEAR"],
+    ["CARGO"],
+    ["CARGO", "ECHO"]
+  ]);
+  assert.equal(level.crates.length, 1);
+  assert.equal(level.plates.length, 2);
+  assert.equal(level.turrets.length, 1);
+
+  level.switches.forEach((item) => { item.on = true; });
+  level.doors.forEach((door) => { door.open = true; });
+  level.turrets.forEach((item) => { item.hp = 0; });
+  const player = { x: level.exit.x + level.exit.w / 2, y: level.exit.y + level.exit.h / 2 };
+  assert.equal(isExtractionReady(level, player), true);
 });
 
 test("Echo capture refuses an incomplete history window", () => {
@@ -152,6 +173,7 @@ test("Station secrets unlock four secret-only accessories with distinct powers",
   assert.equal(ARCHIVE_RELICS.find((relic) => relic.id === "memoryCoil")?.maxEnergy, 20);
   assert.equal(ARCHIVE_RELICS.find((relic) => relic.id === "echoLure")?.echoDiscount, 4);
   assert.equal(ARCHIVE_RELICS.find((relic) => relic.id === "phaseLens")?.abilityCooldownMultiplier, 0.82);
+  assert.equal(Number.isFinite(120 + (ARCHIVE_RELICS.find((relic) => relic.id === "none")?.maxEnergy || 0)), true);
   assert.equal(getNextSecretMilestone(6)?.count, 9);
   assert.equal(getNextSecretMilestone(12), null);
 });

@@ -1,8 +1,8 @@
 import { rooms, EXPEDITION_UPGRADES, EXPEDITION_UPGRADE_BY_ID, SALVAGE_MODS, SALVAGE_MOD_BY_ID, STATION_NODE_BY_ID } from "../../game/config.js";
 import { getStarsForRoom } from "../../services/profile-store.js";
-import { listCommunityLevels } from "../../services/server-api.js";
+import { getCommunityLevel, listCommunityLevels, toggleCommunityLike } from "../../services/server-api.js";
 import { Button } from "../ui.jsx";
-import { BookOpen, DoorOpen, Gamepad2, Globe2, Play, Radio, RotateCcw, Settings, Wrench, X } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, DoorOpen, Gamepad2, Globe2, Heart, Play, Radio, RotateCcw, Search, Settings, Wrench, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 function createInitialSummaryState() {
@@ -30,6 +30,7 @@ function Summary({ summary, next, returnToMenu }) {
   const earnedStars = getStarsForRoom(summary);
   const isCustomRun = Boolean(summary.isCustom);
   const isStationExpedition = Boolean(summary.stationExpedition);
+  const isTrial = Boolean(summary.isTrial);
   const stationNode = STATION_NODE_BY_ID.get(summary.stationNode);
   const atFinalRoom = isCustomRun || summary.levelIndex >= rooms.length - 1;
   return (
@@ -38,7 +39,8 @@ function Summary({ summary, next, returnToMenu }) {
         <span className="badge">Run Summary</span>
         <h1 className="title" style={{ fontSize: 58 }}>{summary.result}</h1>
         <p className="lead">{summary.room} | {Math.round(summary.time)}s | Scrap recovered: {Math.round(summary.scrap)} | Hull {Math.round(summary.hull ?? 0)}%{isStationExpedition ? ` | Energy ${Math.round(summary.energy ?? 0)} | Corruption ${Math.round(summary.corruption ?? 0)}%` : ""}</p>
-        {!isStationExpedition && <div className="summary-stars">{"★".repeat(earnedStars)}{"☆".repeat(3 - earnedStars)}</div>}
+        {!isStationExpedition && !isTrial && <div className="summary-stars">{"★".repeat(earnedStars)}{"☆".repeat(3 - earnedStars)}</div>}
+        {isTrial && summary.result === "Extracted" && <div className="campaign-summary-guide"><strong>Pilot calibration complete</strong><span>You used a terminal, cleared a threat, moved cargo, deployed your recorded past, and extracted. The campaign now combines those ideas.</span></div>}
         {!isCustomRun && !isStationExpedition && summary.result === "Extracted" && <div className="campaign-summary-guide"><strong>{earnedStars} stars secured</strong><span>Stars unlock later campaign rooms. Faster clears, stronger remaining hull, and completed objectives improve the result.</span></div>}
         {!isCustomRun && !isStationExpedition && summary.contract && (
           <div className="summary-contract" data-complete={summary.contractCompleted}>
@@ -75,7 +77,7 @@ function Summary({ summary, next, returnToMenu }) {
           </div>
         )}
         <div className="button-grid">
-          <Button primary onClick={next}><DoorOpen /> {isStationExpedition ? "Station Map" : isCustomRun ? "Return To Menu" : atFinalRoom ? "Return To Menu" : "Next Room"}</Button>
+          <Button primary onClick={next}><DoorOpen /> {isStationExpedition ? "Station Map" : isTrial && summary.result === "Extracted" ? "Begin Campaign" : isCustomRun ? "Return To Menu" : atFinalRoom ? "Return To Menu" : "Next Room"}</Button>
           <Button onClick={returnToMenu}><BookOpen /> Main Menu</Button>
         </div>
       </section>
@@ -134,23 +136,54 @@ function SalvageWorkshop({ expedition, craftMod, installUpgrade, setScreen, retu
 function CommunityLevels({ returnToMenu, playLevel }) {
   const [levels, setLevels] = useState([]);
   const [status, setStatus] = useState("Loading community relay...");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState("new");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
+  const [playingId, setPlayingId] = useState("");
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     let alive = true;
-    listCommunityLevels()
+    setStatus("Loading community relay...");
+    const timer = setTimeout(() => listCommunityLevels({ page, limit: 10, query, sort })
       .then((result) => {
         if (!alive) return;
         setLevels(result.levels || []);
-        setStatus(result.levels?.length ? "" : "No community levels published yet.");
+        setPagination(result.pagination || { page: 1, pages: 1, total: result.levels?.length || 0 });
+        setStatus(result.levels?.length ? "" : "No community levels match this search.");
       })
       .catch(() => {
         if (!alive) return;
         setStatus("Community server is offline. Start it with npm run server.");
-      });
+      }), 180);
     return () => {
       alive = false;
+      clearTimeout(timer);
     };
-  }, []);
+  }, [page, query, sort]);
+
+  const openLevel = async (entry) => {
+    try {
+      setPlayingId(entry.id);
+      setNotice("");
+      const result = await getCommunityLevel(entry.id);
+      playLevel?.(result.level?.level);
+    } catch (error) {
+      setNotice(error.message || "This community map could not be loaded.");
+      setPlayingId("");
+    }
+  };
+
+  const toggleLike = async (entry) => {
+    try {
+      setNotice("");
+      const result = await toggleCommunityLike(entry.id);
+      setLevels((current) => current.map((level) => level.id === entry.id ? { ...level, liked: result.liked, likes: result.likes } : level));
+    } catch (error) {
+      setNotice(error.message || "Sign in to like community maps.");
+    }
+  };
 
   return (
     <div className="overlay">
@@ -159,12 +192,22 @@ function CommunityLevels({ returnToMenu, playLevel }) {
           <div>
             <span className="badge">Community Relay</span>
             <h2>Community Levels</h2>
-            <p className="small-copy">Published rooms from the local Echo Salvage server appear here.</p>
+            <p className="small-copy">Validated player-made rooms stored by the Echo Salvage community server.</p>
           </div>
           <div className="community-actions">
             <Button onClick={returnToMenu}>Menu</Button>
           </div>
         </div>
+        <div className="community-toolbar">
+          <label><Search size={16} /><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Search maps or authors" /></label>
+          <div>
+            {[["new", "Newest"], ["popular", "Most Played"], ["liked", "Most Liked"]].map(([id, label]) => (
+              <button key={id} data-active={sort === id} onClick={() => { setSort(id); setPage(1); }}>{label}</button>
+            ))}
+          </div>
+          <span>{pagination.total} published maps</span>
+        </div>
+        <p className="community-notice" data-visible={Boolean(notice)} role="status">{notice || "Community relay ready."}</p>
         <div className="community-list">
           {status && <div className="community-empty construction-empty">
             <Globe2 size={38} />
@@ -174,15 +217,29 @@ function CommunityLevels({ returnToMenu, playLevel }) {
           {levels.map((entry) => (
             <article className="community-card" key={entry.id}>
               <div>
-                <span>{entry.author || "Anonymous"}</span>
+                <span>{entry.author || "Anonymous"} · {entry.plays} plays</span>
                 <strong>{entry.title}</strong>
                 <p>{entry.description || "No description provided."}</p>
+                <div className="community-map-stats">
+                  <small>{entry.stats?.hostiles || 0} hostiles</small>
+                  <small>{entry.stats?.puzzles || 0} puzzle pieces</small>
+                  <small>{entry.stats?.hazards || 0} hazards</small>
+                  {entry.stats?.hasBoss && <small>Boss room</small>}
+                </div>
                 <small>{new Date(entry.createdAt).toLocaleString()}</small>
               </div>
-              <Button primary onClick={() => playLevel?.(entry.level)}><Play size={18} /> Play</Button>
+              <div className="community-card-actions">
+                <button className="community-like" data-liked={entry.liked} onClick={() => toggleLike(entry)} aria-label={entry.liked ? "Unlike map" : "Like map"}><Heart size={17} fill={entry.liked ? "currentColor" : "none"} /><span>{entry.likes}</span></button>
+                <Button primary onClick={() => openLevel(entry)} disabled={playingId === entry.id}><Play size={18} /> {playingId === entry.id ? "Loading" : "Play"}</Button>
+              </div>
             </article>
           ))}
         </div>
+        {pagination.pages > 1 && <div className="community-pagination">
+          <button disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}><ChevronLeft size={16} /> Previous</button>
+          <span>Page {pagination.page} of {pagination.pages}</span>
+          <button disabled={page >= pagination.pages} onClick={() => setPage((value) => Math.min(pagination.pages, value + 1))}>Next <ChevronRight size={16} /></button>
+        </div>}
       </section>
     </div>
   );

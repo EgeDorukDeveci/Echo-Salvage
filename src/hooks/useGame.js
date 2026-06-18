@@ -160,7 +160,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     const hostileHpBonus = tuning.hostileHpBonus || 0;
     prepareRunLevel(level, hostileHpBonus);
     const expeditionPowerBonus = expedition?.active ? (expedition.power || 0) * 8 : 0;
-    const maxEnergy = tuning.maxEnergy + archiveBonuses.maxEnergy + (mods.has("capacitorMesh") ? 20 : 0) + expeditionPowerBonus;
+    const maxEnergy = tuning.maxEnergy + (archiveBonuses.maxEnergy || 0) + (mods.has("capacitorMesh") ? 20 : 0) + expeditionPowerBonus;
     game.current = {
       level,
       activeIds: new Set(),
@@ -1183,6 +1183,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
           room: level.name,
           levelIndex,
           isCustom: Boolean(customLevel),
+          isTrial: Boolean(level.isTrial),
           stationExpedition: Boolean(expedition?.active),
           stationNode: expedition?.currentNode || null,
           stationFirstClear: Boolean(expedition?.active && expedition?.currentNode && !(expedition.cleared || []).includes(expedition.currentNode))

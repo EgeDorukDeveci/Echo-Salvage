@@ -1,10 +1,25 @@
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
+const AUTH_USERS_KEY = "echo-salvage-users";
+const AUTH_SESSION_KEY = "echo-salvage-session";
+
+function getServerToken() {
+  try {
+    const session = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || "null");
+    const users = JSON.parse(localStorage.getItem(AUTH_USERS_KEY) || "[]");
+    const user = Array.isArray(users) ? users.find((entry) => entry.id === session?.id) : null;
+    return user?.serverToken || "";
+  } catch {
+    return "";
+  }
+}
 
 async function apiRequest(path, options = {}) {
+  const token = getServerToken();
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {})
     }
   });
@@ -30,8 +45,25 @@ async function publishCommunityLevel(payload) {
   return apiRequest("/community-levels", { method: "POST", body: JSON.stringify(payload) });
 }
 
-async function listCommunityLevels() {
-  return apiRequest("/community-levels");
+async function updateCommunityLevel(id, payload) {
+  return apiRequest(`/community-levels/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(payload) });
+}
+
+async function deleteCommunityLevel(id) {
+  return apiRequest(`/community-levels/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+async function listCommunityLevels({ page = 1, limit = 12, query = "", sort = "new" } = {}) {
+  const params = new URLSearchParams({ page: `${page}`, limit: `${limit}`, query, sort });
+  return apiRequest(`/community-levels?${params}`);
+}
+
+async function getCommunityLevel(id) {
+  return apiRequest(`/community-levels/${encodeURIComponent(id)}`);
+}
+
+async function toggleCommunityLike(id) {
+  return apiRequest(`/community-levels/${encodeURIComponent(id)}/like`, { method: "POST" });
 }
 
 export {
@@ -39,5 +71,9 @@ export {
   loginServerProfile,
   syncServerProfile,
   publishCommunityLevel,
-  listCommunityLevels
+  updateCommunityLevel,
+  deleteCommunityLevel,
+  listCommunityLevels,
+  getCommunityLevel,
+  toggleCommunityLike
 };

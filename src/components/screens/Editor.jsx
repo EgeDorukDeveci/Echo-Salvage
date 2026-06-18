@@ -1,6 +1,6 @@
 import { W, H, CELL, defaultSettings, COSMETIC_DEFAULTS, SECTION_MINIBOSSES, EXPEDITION_MINIBOSSES, createMiniboss } from "../../game/config.js";
 import { makeLevel } from "../../game/levels.js";
-import { rectsTouch, clamp, SPECIAL_HOSTILE_KEYS, ensureLevelArrays, finalizeCustomLevel } from "../../game/geometry.js";
+import { rectsTouch, clamp, SPECIAL_HOSTILE_KEYS, ensureLevelArrays, finalizeCustomLevel, countLevelHostiles } from "../../game/geometry.js";
 import { drawLevel } from "../../game/rendering.js";
 import { encodeLevelCode, decodeLevelCode } from "../../services/profile-store.js";
 import { publishCommunityLevel } from "../../services/server-api.js";
@@ -18,46 +18,69 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
   const [publishNote, setPublishNote] = useState("");
   const [publishStatus, setPublishStatus] = useState("");
   const [selected, setSelected] = useState(null);
-  const editorKeys = ["walls", "movingWalls", "echoCorruptionZones", "crates", "coinCrates", "plates", "switches", "turrets", "drones", "missileSentries", ...SPECIAL_HOSTILE_KEYS, "scrap"];
+  const [toolQuery, setToolQuery] = useState("");
+  const [toolCategory, setToolCategory] = useState("all");
+  const editorKeys = ["walls", "movingWalls", "echoCorruptionZones", "crates", "coinCrates", "plates", "switches", "doors", "lasers", "turrets", "drones", "missileSentries", ...SPECIAL_HOSTILE_KEYS, "scrap"];
   const tools = [
-    { id: "wall", label: "Wall", hint: "Solid station structure" },
-    { id: "movingWall", label: "Shift Wall", hint: "Moves vertically on a predictable rail" },
-    { id: "echoCorruption", label: "Echo Corruption", hint: "Disables Echo actions and plate weight inside its field" },
-    { id: "cargo", label: "Cargo", hint: "Push/block puzzle crate" },
-    { id: "coinCache", label: "Coin Cache", hint: "Collectable currency cache" },
-    { id: "plate", label: "Pressure Plate", hint: "Needs a body or Echo" },
-    { id: "switch", label: "Terminal", hint: "Interact with E" },
-    { id: "turret", label: "Turret", hint: "Shoots when it sees you" },
-    { id: "drone", label: "Enemy Drone", hint: "Chases and attacks the player" },
-    { id: "missileSentry", label: "Missile Sentry", hint: "Locks and fires a heavy homing missile" },
-    { id: "gravityNode", label: "Gravity Node", hint: "Pulls the player into danger" },
-    { id: "echoJammer", label: "Echo Jammer", hint: "Blocks Echo spawning nearby" },
-    { id: "laserSweeper", label: "Laser Sweeper", hint: "Rotating beam hazard" },
-    { id: "blinkHunter", label: "Blink Hunter", hint: "Teleports close then rushes" },
-    { id: "shieldDrone", label: "Shield Drone", hint: "Protects nearby hostiles" },
-    { id: "repairBot", label: "Repair Bot", hint: "Repairs damaged enemies" },
-    { id: "miniMirror", label: "Mirror Marshal", hint: "Training miniboss with precision spread volleys" },
-    { id: "miniRam", label: "Forge Ram", hint: "Breach miniboss with aggressive melee charges" },
-    { id: "miniThorn", label: "Thorn Stalker", hint: "Reactor miniboss with radial thorn attacks" },
-    { id: "miniHarrier", label: "Null Harrier", hint: "Corruption miniboss with readable blink volleys" },
-    { id: "miniReclaimer", label: "Cargo Reclaimer", hint: "Wide scrap-fan expedition miniboss" },
-    { id: "miniLancer", label: "Arc Lancer", hint: "Fast precision expedition miniboss" },
-    { id: "miniBastion", label: "Bastion Auditor", hint: "Slow armored radial-fire miniboss" },
-    { id: "miniSpore", label: "Spore Matriarch", hint: "Living miniboss that launches seeking spores" },
-    { id: "miniArchivist", label: "Null Archivist", hint: "Rotating signal-wave expedition miniboss" },
-    { id: "bossWarden", label: "Calibration Warden", hint: "Training section boss" },
-    { id: "bossFurnace", label: "Breach Furnace", hint: "Breach section boss" },
-    { id: "bossMaw", label: "Verdant Maw", hint: "Reactor melee section boss" },
-    { id: "bossCrown", label: "Null Crown", hint: "Corruption section boss" },
-    { id: "scrap", label: "Scrap", hint: "Restores energy" },
-    { id: "exit", label: "Exit Gate", hint: "Extraction target" },
+    { id: "playerSpawn", category: "layout", label: "Player Spawn", hint: "Starting position for the pilot" },
+    { id: "exit", category: "layout", label: "Exit Gate", hint: "Extraction target" },
+    { id: "wall", category: "layout", label: "Wall", hint: "Solid station structure" },
+    { id: "door", category: "layout", label: "Signal Door", hint: "Opens when placed controls are active" },
+    { id: "movingWall", category: "layout", label: "Shift Wall", hint: "Moves vertically on a predictable rail" },
+    { id: "cargo", category: "puzzle", label: "Cargo", hint: "Push/block puzzle crate" },
+    { id: "plate", category: "puzzle", label: "Pressure Plate", hint: "Needs a body, cargo, or Echo" },
+    { id: "switch", category: "puzzle", label: "Terminal", hint: "Interact with E" },
+    { id: "laserGate", category: "hazard", label: "Laser Gate", hint: "Beam linked to a nearby control" },
+    { id: "echoCorruption", category: "hazard", label: "Echo Corruption", hint: "Disables Echo actions and plate weight inside its field" },
+    { id: "coinCache", category: "pickup", label: "Coin Cache", hint: "Collectable currency cache" },
+    { id: "scrap", category: "pickup", label: "Scrap", hint: "Restores energy" },
+    { id: "core", category: "objective", label: "Destructible Core", hint: "Must be destroyed before extraction" },
+    { id: "turret", category: "hostile", label: "Turret", hint: "Shoots when it sees you" },
+    { id: "drone", category: "hostile", label: "Enemy Drone", hint: "Chases and attacks the player" },
+    { id: "missileSentry", category: "hostile", label: "Missile Sentry", hint: "Locks and fires a heavy homing missile" },
+    { id: "gravityNode", category: "hostile", label: "Gravity Node", hint: "Pulls the player into danger" },
+    { id: "echoJammer", category: "hostile", label: "Echo Jammer", hint: "Blocks Echo spawning nearby" },
+    { id: "laserSweeper", category: "hostile", label: "Laser Sweeper", hint: "Rotating beam hazard" },
+    { id: "blinkHunter", category: "hostile", label: "Blink Hunter", hint: "Teleports close then rushes" },
+    { id: "shieldDrone", category: "hostile", label: "Shield Drone", hint: "Protects nearby hostiles" },
+    { id: "repairBot", category: "hostile", label: "Repair Bot", hint: "Repairs damaged enemies" },
+    { id: "miniMirror", category: "elite", label: "Mirror Marshal", hint: "Training elite with precision spread volleys" },
+    { id: "miniRam", category: "elite", label: "Forge Ram", hint: "Breach elite with aggressive melee charges" },
+    { id: "miniThorn", category: "elite", label: "Thorn Stalker", hint: "Reactor elite with radial thorn attacks" },
+    { id: "miniHarrier", category: "elite", label: "Null Harrier", hint: "Corruption elite with readable blink volleys" },
+    { id: "miniReclaimer", category: "elite", label: "Cargo Reclaimer", hint: "Wide scrap-fan expedition elite" },
+    { id: "miniLancer", category: "elite", label: "Arc Lancer", hint: "Fast precision expedition elite" },
+    { id: "miniBastion", category: "elite", label: "Bastion Auditor", hint: "Slow armored radial-fire elite" },
+    { id: "miniSpore", category: "elite", label: "Spore Matriarch", hint: "Living elite that launches seeking spores" },
+    { id: "miniArchivist", category: "elite", label: "Null Archivist", hint: "Rotating signal-wave expedition elite" },
+    { id: "bossWarden", category: "boss", label: "Calibration Warden", hint: "Training section boss" },
+    { id: "bossFurnace", category: "boss", label: "Breach Furnace", hint: "Breach section boss" },
+    { id: "bossMaw", category: "boss", label: "Verdant Maw", hint: "Reactor melee section boss" },
+    { id: "bossCrown", category: "boss", label: "Null Crown", hint: "Corruption section boss" },
   ];
   const activeTool = tools.find((item) => item.id === tool) || tools[0];
-  const selectedObject = selected?.key === "exit" ? level.exit : selected?.key === "boss" ? level.boss : selected ? level[selected.key]?.[selected.index] : null;
+  const selectedObject = selected?.key === "exit" ? level.exit : selected?.key === "boss" ? level.boss : selected?.key === "core" ? level.core : selected?.key === "player" ? level.player : selected ? level[selected.key]?.[selected.index] : null;
+  const categories = [
+    { id: "all", label: "All" },
+    { id: "layout", label: "Layout" },
+    { id: "puzzle", label: "Puzzles" },
+    { id: "hazard", label: "Hazards" },
+    { id: "pickup", label: "Pickups" },
+    { id: "objective", label: "Objectives" },
+    { id: "hostile", label: "Hostiles" },
+    { id: "elite", label: "Elites" },
+    { id: "boss", label: "Bosses" }
+  ];
+  const visibleTools = tools.filter((item) => {
+    const matchesCategory = toolCategory === "all" || item.category === toolCategory;
+    const query = toolQuery.trim().toLowerCase();
+    return matchesCategory && (!query || `${item.label} ${item.hint}`.toLowerCase().includes(query));
+  });
 
   const getObjectRect = (obj, key) => {
     if (!obj) return null;
     if (key === "exit") return { x: obj.x, y: obj.y, w: obj.w, h: obj.h };
+    if (key === "lasers") return { x: Math.min(obj.x1, obj.x2) - 8, y: Math.min(obj.y1, obj.y2) - 8, w: Math.max(16, Math.abs(obj.x2 - obj.x1) + 16), h: Math.max(16, Math.abs(obj.y2 - obj.y1) + 16) };
     if (obj.w || obj.h) return { x: obj.x, y: obj.y, w: obj.w || CELL, h: obj.h || CELL };
     const r = obj.r || 24;
     return { x: obj.x - r, y: obj.y - r, w: r * 2, h: r * 2 };
@@ -85,6 +108,8 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
       }
     }
     if (source.boss && rectsTouch(cursor, getObjectRect(source.boss, "boss"))) return { key: "boss", index: 0 };
+    if (source.core && rectsTouch(cursor, getObjectRect(source.core, "core"))) return { key: "core", index: 0 };
+    if (source.player && rectsTouch(cursor, getObjectRect(source.player, "player"))) return { key: "player", index: 0 };
     if (source.exit && rectsTouch(cursor, getObjectRect(source.exit, "exit"))) return { key: "exit", index: 0 };
     return null;
   };
@@ -108,7 +133,9 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
 
   const placeToolAt = (toolId, x, y) => {
     const next = ensureLevelArrays(structuredClone(level));
+    if (toolId === "playerSpawn") next.player = { x: x + 20, y: y + 20 };
     if (toolId === "wall") next.walls.push({ x, y, w: CELL, h: CELL });
+    if (toolId === "door") next.doors.push({ x, y, w: CELL * 3, h: 32, requires: [], open: false });
     if (toolId === "movingWall") next.movingWalls.push({ x, y, w: CELL * 3, h: CELL, axis: "y", range: CELL * 2, speed: 0.0007, phase: 0 });
     if (toolId === "echoCorruption") next.echoCorruptionZones.push({ x: x + 20, y: y + 20, r: 100 });
     if (toolId === "cargo") next.crates.push({ x: x + 1, y: y + 1, w: CELL - 2, h: CELL - 2 });
@@ -118,6 +145,15 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
     }
     if (toolId === "plate") next.plates.push({ x: x + 20, y: y + 20, r: 26, id: `P${next.plates.length + 1}` });
     if (toolId === "switch") next.switches.push({ x: x + 20, y: y + 20, r: 22, id: `S${next.switches.length + 1}`, on: false });
+    if (toolId === "laserGate") {
+      const control = next.switches[0] || next.plates[0];
+      if (!control) {
+        const terminal = { x: clamp(x - 60, 60, W - 60), y: y + 20, r: 22, id: `S${next.switches.length + 1}`, on: false };
+        next.switches.push(terminal);
+      }
+      const disabledBy = (next.switches[0] || next.plates[0]).id;
+      next.lasers.push({ x1: x + 20, y1: clamp(y - 80, 40, H - 40), x2: x + 20, y2: clamp(y + 120, 40, H - 40), id: `L${next.lasers.length + 1}`, disabledBy });
+    }
     if (toolId === "turret") next.turrets.push({ x: x + 20, y: y + 20, hp: 2, cooldown: 0 });
     if (toolId === "drone") {
       next.drones = next.drones || [];
@@ -158,6 +194,7 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
       next.boss = { ...bossToolMap[toolId], x: x + 20, y: y + 20, pulse: 0 };
       next.objective = { type: "boss" };
     }
+    if (toolId === "core") next.core = { x: x + 20, y: y + 20, hp: 12, alive: true, pulse: 0 };
     if (toolId === "scrap") next.scrap.push({ x: x + 20, y: y + 20, taken: false });
     if (toolId === "exit") next.exit = { x, y, w: 58, h: 114 };
     setLevel(next);
@@ -165,7 +202,12 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
 
   const removeSelection = (target = selected) => {
     if (!target) return;
-    if (target.key === "exit") return;
+    if (target.key === "exit" || target.key === "player") return;
+    if (target.key === "core") {
+      setLevel((current) => ({ ...structuredClone(current), core: null }));
+      setSelected(null);
+      return;
+    }
     if (target.key === "boss") {
       setLevel((current) => ({ ...structuredClone(current), boss: null, objective: { type: "secure" } }));
       setSelected(null);
@@ -183,7 +225,7 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
     if (!selected) return;
     setLevel((current) => {
       const next = structuredClone(current);
-      const obj = selected.key === "exit" ? next.exit : selected.key === "boss" ? next.boss : next[selected.key]?.[selected.index];
+      const obj = selected.key === "exit" ? next.exit : selected.key === "boss" ? next.boss : selected.key === "core" ? next.core : selected.key === "player" ? next.player : next[selected.key]?.[selected.index];
       if (!obj) return current;
       patcher(obj);
       return next;
@@ -191,6 +233,13 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
   };
 
   const nudgeSelection = (dx, dy) => editSelection((obj) => {
+    if (selected?.key === "lasers") {
+      obj.x1 = clamp((obj.x1 || 0) + dx, 20, W - 20);
+      obj.x2 = clamp((obj.x2 || 0) + dx, 20, W - 20);
+      obj.y1 = clamp((obj.y1 || 0) + dy, 20, H - 20);
+      obj.y2 = clamp((obj.y2 || 0) + dy, 20, H - 20);
+      return;
+    }
     obj.x = clamp((obj.x || 0) + dx, 40, W - 40);
     obj.y = clamp((obj.y || 0) + dy, 40, H - 40);
   });
@@ -273,7 +322,7 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
       <aside className="editor-topbar">
         <div>
           <h2>Level Creator</h2>
-          <p>Build, edit, or delete. Right-click an object to inspect it.</p>
+          <p>{countLevelHostiles(level) + (level.boss ? 1 : 0)} hostiles · {level.walls.length + level.movingWalls.length + level.doors.length} structures · Right-click to inspect</p>
         </div>
         <div className="editor-actions">
           <Button primary onClick={() => { setCustomLevel(finalizeCustomLevel(structuredClone(level))); setScreen("playing"); }}><Play /> Test</Button>
@@ -286,7 +335,7 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
         {selectedObject ? (
           <>
             <span>Selected</span>
-            <strong>{selected.key === "exit" ? "Exit Gate" : selected.key.replace(/([A-Z])/g, " $1")}</strong>
+            <strong>{selected.key === "exit" ? "Exit Gate" : selected.key === "player" ? "Player Spawn" : selected.key.replace(/([A-Z])/g, " $1")}</strong>
             <div className="editor-move-pad">
               <button onClick={() => nudgeSelection(0, -CELL)}>Up</button>
               <button onClick={() => nudgeSelection(-CELL, 0)}>Left</button>
@@ -318,11 +367,20 @@ function Editor({ returnToMenu, setScreen, setCustomLevel, user, settings = defa
         <div className="editor-mode-tabs">
           {["build", "edit", "delete"].map((item) => <button key={item} data-active={mode === item} onClick={() => setMode(item)}>{item}</button>)}
         </div>
-        <div className="tools">{tools.map((t) => <button type="button" className="tool-btn" data-active={mode === "build" && tool === t.id} key={t.id} onClick={() => { setMode("build"); setTool(t.id); }}><span>{t.label}</span><small>{t.hint}</small></button>)}</div>
+        <div className="editor-tool-browser">
+          <div className="editor-tool-filter">
+            <input value={toolQuery} onChange={(event) => setToolQuery(event.target.value)} placeholder="Find a tool or hostile..." aria-label="Search creator tools" />
+            <div>{categories.map((category) => <button key={category.id} data-active={toolCategory === category.id} onClick={() => setToolCategory(category.id)}>{category.label}</button>)}</div>
+          </div>
+          <div className="tools">
+            {visibleTools.map((t) => <button type="button" className="tool-btn" data-category={t.category} data-active={mode === "build" && tool === t.id} key={t.id} onClick={() => { setMode("build"); setTool(t.id); }}><span>{t.label}</span><small>{t.hint}</small></button>)}
+            {!visibleTools.length && <p className="editor-tool-empty">No creator tools match this filter.</p>}
+          </div>
+        </div>
         <details className="publish-box">
           <summary><span className="badge">Community</span> Codes and Publish</summary>
           <div className="publish-grid">
-            <p className="small-copy">Publish sends this room to the local Echo Salvage server. Level codes still work for manual sharing.</p>
+            <p className="small-copy">Publishing stores a validated copy on the community server. Exact duplicates are rejected; level codes still work for manual sharing.</p>
             <label>Map Title</label>
             <input value={publishName} onChange={(e) => setPublishName(e.target.value)} />
             <label>Description</label>
