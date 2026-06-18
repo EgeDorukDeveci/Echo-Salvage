@@ -1,5 +1,5 @@
 import { ABILITY_DEFAULT, KEYBINDS_KEY, defaultKeybinds, rooms, CAMPAIGN_SECTIONS, WEAPON_DEFAULT, COSMETIC_DEFAULTS, ABILITIES } from "../game/config.js";
-import { STATION_SECRET_IDS } from "../game/secrets.js";
+import { STATION_SECRET_IDS, SECRET_MILESTONES } from "../game/secrets.js";
 import { syncServerProfile } from "./server-api.js";
 
 const AUTH_USERS_KEY = "echo-salvage-users";
@@ -19,7 +19,9 @@ const DEFAULT_OWNED = {
   decals: ["none"],
   armors: ["clean"],
   pets: ["none"],
+  relics: ["none"],
   dashes: ["streak"],
+  abilityStyles: ["signal"],
   weapons: [WEAPON_DEFAULT],
   abilities: [ABILITY_DEFAULT]
 };
@@ -97,6 +99,8 @@ function normalizeEconomy(data = {}) {
   const devMode = data.devMode || data.nickname?.toLowerCase() === DEV_LOGIN.nickname;
   const migratedAbilities = (data.owned?.abilities || []).map((id) => LEGACY_ABILITY_IDS[id] || id).filter((id) => VALID_ABILITY_IDS.has(id));
   const selectedAbility = LEGACY_ABILITY_IDS[data.cosmetic?.ability] || data.cosmetic?.ability;
+  const recoveredSecretCount = Object.entries(data.secrets || {}).filter(([id, recovered]) => recovered && STATION_SECRET_IDS.has(id)).length;
+  const recoveredRelics = SECRET_MILESTONES.filter((milestone) => milestone.count <= recoveredSecretCount).map((milestone) => milestone.unlock.id);
   return {
     coins: devMode ? DEV_COINS : Math.max(0, Math.round(Number.isFinite(data.coins) ? data.coins : 25)),
     owned: {
@@ -109,7 +113,9 @@ function normalizeEconomy(data = {}) {
       decals: mergeOwned(data.owned?.decals, DEFAULT_OWNED.decals),
       armors: mergeOwned(data.owned?.armors, DEFAULT_OWNED.armors),
       pets: mergeOwned(data.owned?.pets, DEFAULT_OWNED.pets),
+      relics: mergeOwned([...(data.owned?.relics || []), ...recoveredRelics], DEFAULT_OWNED.relics),
       dashes: mergeOwned(data.owned?.dashes, DEFAULT_OWNED.dashes),
+      abilityStyles: mergeOwned(data.owned?.abilityStyles, DEFAULT_OWNED.abilityStyles),
       weapons: mergeOwned(data.owned?.weapons, DEFAULT_OWNED.weapons),
       abilities: mergeOwned(migratedAbilities, DEFAULT_OWNED.abilities)
     },

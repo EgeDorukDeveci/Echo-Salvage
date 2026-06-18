@@ -13,6 +13,7 @@ import { ProfileScreen, ShopScreen } from "./components/screens/CustomizationBay
 import { SettingsDrawer, Controls } from "./components/screens/SettingsScreens.jsx";
 import { createInitialSummaryState, PauseMenu, Summary, SalvageWorkshop, CommunityLevels } from "./components/screens/RunScreens.jsx";
 import { Editor } from "./components/screens/Editor.jsx";
+import { getSecretMilestone } from "./game/secrets.js";
 
 function App() {
   const [bootState] = useState(() => {
@@ -148,8 +149,16 @@ function App() {
     const current = getStoredUsers().find((entry) => entry.id === user.id) || user;
     if (current.secrets?.[secret.id]) return false;
     const secrets = { ...(current.secrets || {}), [secret.id]: true };
-    setUser(updateStoredUserProfile({ ...current, secrets, coins: normalizeEconomy(current).coins + secret.reward }));
-    return true;
+    const recoveredCount = Object.values(secrets).filter(Boolean).length;
+    const milestone = getSecretMilestone(recoveredCount);
+    const economy = normalizeEconomy(current);
+    const owned = { ...economy.owned };
+    if (milestone?.unlock) {
+      const currentItems = owned[milestone.unlock.bucket] || [];
+      owned[milestone.unlock.bucket] = [...new Set([...currentItems, milestone.unlock.id])];
+    }
+    setUser(updateStoredUserProfile({ ...current, secrets, owned, coins: economy.coins }));
+    return { recoveredCount, milestone };
   };
   return (
     <div className="app" data-theme={appTheme}>

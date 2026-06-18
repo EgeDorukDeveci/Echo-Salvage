@@ -868,6 +868,19 @@ textarea {
   line-height: 1.4;
 }
 
+.summary-secret[data-milestone="true"] {
+  border-color: rgba(255, 213, 45, 0.56);
+  border-left-color: var(--yellow);
+  background:
+    linear-gradient(90deg, rgba(255, 213, 45, 0.12), transparent 72%),
+    rgba(45, 31, 78, 0.18);
+}
+
+.summary-secret[data-milestone="true"] span,
+.summary-secret[data-milestone="true"] small {
+  color: var(--yellow);
+}
+
 .dedicated-workshop {
   width: min(1080px, 94vw);
   max-height: 92vh;
@@ -3492,6 +3505,60 @@ textarea {
   white-space: nowrap;
 }
 
+.secret-milestones {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.secret-milestones article {
+  display: grid;
+  gap: 4px;
+  min-height: 72px;
+  border: 1px solid rgba(181, 156, 255, 0.25);
+  background: rgba(45, 31, 78, 0.1);
+  padding: 9px 10px;
+}
+
+.secret-milestones span,
+.secret-milestones small {
+  color: var(--muted);
+  font-size: 7px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.secret-milestones strong {
+  color: #c9b8ff;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.secret-milestones article[data-complete="true"] {
+  border-color: rgba(255, 213, 45, 0.56);
+  background: rgba(255, 213, 45, 0.08);
+}
+
+.secret-milestones article[data-complete="true"] span,
+.secret-milestones article[data-complete="true"] small,
+.secret-milestones article[data-complete="true"] strong {
+  color: var(--yellow);
+}
+
+.secret-next-reward {
+  margin: 0;
+  border-left: 2px solid #b59cff;
+  background: rgba(181, 156, 255, 0.08);
+  color: var(--muted);
+  padding: 7px 9px;
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.secret-next-reward strong {
+  color: #efeaff;
+}
+
 .secret-archive-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4937,6 +5004,7 @@ textarea {
   .onboarding-lessons,
   .manual-mode-strip,
   .manual-system-grid,
+  .secret-milestones,
   .secret-archive-grid,
   .bay-system-guide {
     grid-template-columns: 1fr;

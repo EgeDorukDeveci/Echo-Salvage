@@ -230,7 +230,7 @@ const AVATARS = [
 ];
 const AVATAR_BY_ID = new Map(AVATARS.map((avatar) => [avatar.id, avatar]));
 const WEAPON_DEFAULT = "pulse";
-const COSMETIC_DEFAULTS = { body: "#dfe9e8", accent: "#ffd52d", trail: "#00f0d2", frame: "arrow", cockpit: "slit", engine: "twin", decal: "none", armor: "clean", pet: "none", dashStyle: "streak", weapon: WEAPON_DEFAULT, ability: ABILITY_DEFAULT };
+const COSMETIC_DEFAULTS = { body: "#dfe9e8", accent: "#ffd52d", trail: "#00f0d2", frame: "arrow", cockpit: "slit", engine: "twin", decal: "none", armor: "clean", pet: "none", relic: "none", dashStyle: "streak", abilityStyle: "signal", weapon: WEAPON_DEFAULT, ability: ABILITY_DEFAULT };
 const BODY_COLORS = ["#dfe9e8", "#ffd52d", "#00f0d2", "#58e07a", "#ff4e41", "#ffb000", "#b78cff", "#8aa0ff"];
 const TRAIL_COLORS = ["#00f0d2", "#ffd52d", "#58e07a", "#ff4e41", "#e7f0ef", "#ff8a00", "#b78cff", "#8aa0ff"];
 const UNIVERSAL_COLORS = [...new Set([
@@ -319,6 +319,21 @@ const DASH_STYLES = [
   { id: "comet", label: "Comet Tail", price: 130 }
 ];
 const DASH_STYLE_BY_ID = new Map(DASH_STYLES.map((dash) => [dash.id, dash]));
+const ABILITY_STYLES = [
+  { id: "signal", label: "Signal Rings", price: 0, perk: "Clean concentric pulses and targeting marks." },
+  { id: "prism", label: "Prism Bloom", price: 95, perk: "Angular shards and rotating geometric flashes." },
+  { id: "fracture", label: "Signal Fracture", price: 135, perk: "Broken arcs with unstable interference lines." },
+  { id: "afterimage", label: "Echo Afterimage", price: 175, perk: "Layered ghost copies that trail each activation." }
+];
+const ABILITY_STYLE_BY_ID = new Map(ABILITY_STYLES.map((style) => [style.id, style]));
+const ARCHIVE_RELICS = [
+  { id: "none", label: "No Relic", color: "#6f858a", perk: "No archive protocol equipped." },
+  { id: "memoryCoil", label: "Memory Coil", color: "#00f0d2", perk: "+20 maximum energy.", maxEnergy: 20 },
+  { id: "echoLure", label: "Echo Lure", color: "#b78cff", perk: "Echo deployment costs 4 less energy.", echoDiscount: 4 },
+  { id: "phaseLens", label: "Phase Lens", color: "#ffd52d", perk: "Equipped abilities recharge 18% faster.", abilityCooldownMultiplier: 0.82 },
+  { id: "nullCrown", label: "Null Crown", color: "#ff6ec7", perk: "+14 energy, Echoes cost 2 less, and abilities recharge 10% faster.", maxEnergy: 14, echoDiscount: 2, abilityCooldownMultiplier: 0.9 }
+];
+const ARCHIVE_RELIC_BY_ID = new Map(ARCHIVE_RELICS.map((relic) => [relic.id, relic]));
 const WEAPONS = [
   { id: "pulse", label: "Pulse Carbine", price: 0, ammoMax: 18, reloadMs: 1050, fireDelay: 210, bulletSpeed: 620, damage: 1, spread: 0, shotsPerTrigger: 1, burstGap: 0, maxRange: 560, perk: "Balanced starter: stable aim and decent ammo." },
   { id: "pump", label: "Pump Scatter", price: 95, ammoMax: 8, reloadMs: 1450, fireDelay: 520, bulletSpeed: 560, damage: 1, spread: 0.24, shotsPerTrigger: 6, burstGap: 0, maxRange: 170, perk: "Huge close-range burst, but slow fire and small magazine." },
@@ -328,9 +343,9 @@ const WEAPONS = [
 ];
 const ABILITIES = [
   { id: "dash", label: "Phase Dash", price: 0, energyCost: 10, cooldownMs: 1800, perk: "Free starter. Phase quickly through danger in your movement direction." },
-  { id: "teleport", label: "Long Jump", price: 115, energyCost: 26, cooldownMs: 8500, perk: "Mark your aimed destination, then teleport there after a 2-second charge." },
+  { id: "teleport", label: "Long Jump", price: 115, energyCost: 21, cooldownMs: 6800, chargeMs: 1250, perk: "Mark a distant point, then teleport there after a 1.25-second charge." },
   { id: "blastDash", label: "Blast Dash", price: 155, energyCost: 24, cooldownMs: 6500, perk: "Launch forward and send a damaging shockwave through enemies in your path." },
-  { id: "cloak", label: "Invisibility Cloak", price: 185, energyCost: 28, cooldownMs: 10000, perk: "Become invisible to enemy targeting for 5 seconds." },
+  { id: "cloak", label: "Invisibility Cloak", price: 185, energyCost: 28, cooldownMs: 11000, durationMs: 3250, perk: "Evade enemy targeting for 3.25 seconds. Firing breaks the cloak." },
   { id: "grapple", label: "Grappling Hook", price: 210, energyCost: 18, cooldownMs: 4800, perk: "Pull yourself rapidly toward the aimed point, stopping at solid walls." }
 ];
 const WEAPON_BY_ID = new Map(WEAPONS.map((weapon) => [weapon.id, weapon]));
@@ -455,6 +470,10 @@ export {
   PET_BY_ID,
   DASH_STYLES,
   DASH_STYLE_BY_ID,
+  ABILITY_STYLES,
+  ABILITY_STYLE_BY_ID,
+  ARCHIVE_RELICS,
+  ARCHIVE_RELIC_BY_ID,
   WEAPONS,
   ABILITIES,
   WEAPON_BY_ID,

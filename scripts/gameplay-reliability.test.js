@@ -1,11 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { ECHO_REPLAY_FRAMES, captureEchoReplay, isCargoBlocked, moveCargo, phaseMove, resolveAfterPhase, isExtractionReady } from "../src/game/simulation.js";
+import { ECHO_REPLAY_FRAMES, captureEchoReplay, isCargoBlocked, moveCargo, phaseMove, resolveAfterPhase, breakCloakOnFire, isExtractionReady } from "../src/game/simulation.js";
 import { playerRect, rectsTouch } from "../src/game/geometry.js";
 import { makeLevel } from "../src/game/levels.js";
 import { evaluateContract, getContractProgress, getRoomContract } from "../src/game/contracts.js";
-import { STATION_SECRETS } from "../src/game/secrets.js";
+import { STATION_SECRETS, SECRET_MILESTONES, getNextSecretMilestone } from "../src/game/secrets.js";
+import { ABILITIES, ABILITY_STYLES, ARCHIVE_RELICS, COSMETIC_DEFAULTS } from "../src/game/config.js";
 
 const emptyLevel = () => ({
   walls: [],
@@ -141,4 +142,38 @@ test("Station secrets are unique, evenly distributed, and placed outside solid g
     assert.equal(solids.some((solid) => rectsTouch(secretRect, solid)), false, `${secret.title} must remain reachable`);
     assert.ok(secret.x >= 70 && secret.x <= 1210 && secret.y >= 70 && secret.y <= 650);
   });
+});
+
+test("Station secrets unlock four secret-only accessories with distinct powers", () => {
+  assert.equal(STATION_SECRETS.every((secret) => !("reward" in secret)), true);
+  assert.deepEqual(SECRET_MILESTONES.map((milestone) => milestone.count), [3, 6, 9, 12]);
+  assert.deepEqual(SECRET_MILESTONES.map((milestone) => milestone.unlock.id), ["memoryCoil", "echoLure", "phaseLens", "nullCrown"]);
+  assert.equal(SECRET_MILESTONES.every((milestone) => milestone.protocol && milestone.unlock.bucket === "relics"), true);
+  assert.equal(ARCHIVE_RELICS.find((relic) => relic.id === "memoryCoil")?.maxEnergy, 20);
+  assert.equal(ARCHIVE_RELICS.find((relic) => relic.id === "echoLure")?.echoDiscount, 4);
+  assert.equal(ARCHIVE_RELICS.find((relic) => relic.id === "phaseLens")?.abilityCooldownMultiplier, 0.82);
+  assert.equal(getNextSecretMilestone(6)?.count, 9);
+  assert.equal(getNextSecretMilestone(12), null);
+});
+
+test("special ability balance and effect customization stay within their intended limits", () => {
+  const longJump = ABILITIES.find((ability) => ability.id === "teleport");
+  const cloak = ABILITIES.find((ability) => ability.id === "cloak");
+
+  assert.ok(longJump.chargeMs <= 1250);
+  assert.ok(longJump.energyCost <= 21);
+  assert.ok(longJump.cooldownMs <= 6800);
+  assert.ok(cloak.durationMs <= 3250);
+  assert.ok(cloak.cooldownMs >= 11000);
+  assert.equal(ABILITY_STYLES.some((style) => style.id === COSMETIC_DEFAULTS.abilityStyle), true);
+  assert.ok(ABILITY_STYLES.length >= 4);
+});
+
+test("firing breaks an active cloak but leaves an expired cloak unchanged", () => {
+  const active = { cloakUntil: 5000 };
+  const expired = { cloakUntil: 500 };
+  assert.equal(breakCloakOnFire(active, 1000), true);
+  assert.equal(active.cloakUntil, 0);
+  assert.equal(breakCloakOnFire(expired, 1000), false);
+  assert.equal(expired.cloakUntil, 500);
 });

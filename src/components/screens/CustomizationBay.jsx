@@ -1,4 +1,4 @@
-import { ABILITY_DEFAULT, AVATARS, WEAPON_DEFAULT, COSMETIC_DEFAULTS, UNIVERSAL_COLORS, DRONE_FRAMES, COCKPITS, ENGINES, DECALS, ARMORS, PETS, PET_BY_ID, DASH_STYLES, DASH_STYLE_BY_ID, WEAPONS, ABILITIES, WEAPON_BY_ID, ABILITY_BY_ID } from "../../game/config.js";
+import { ABILITY_DEFAULT, AVATARS, WEAPON_DEFAULT, COSMETIC_DEFAULTS, UNIVERSAL_COLORS, DRONE_FRAMES, COCKPITS, ENGINES, DECALS, ARMORS, PETS, PET_BY_ID, DASH_STYLES, DASH_STYLE_BY_ID, ABILITY_STYLES, ABILITY_STYLE_BY_ID, ARCHIVE_RELICS, ARCHIVE_RELIC_BY_ID, WEAPONS, ABILITIES, WEAPON_BY_ID, ABILITY_BY_ID } from "../../game/config.js";
 import { drawDashBurst, drawAbilityBurst, drawDrone, drawPet } from "../../game/rendering.js";
 import { normalizeEconomy, getStoredUsers, updateStoredUserProfile, updateUserEconomy } from "../../services/profile-store.js";
 import { AvatarBadge, Button } from "../ui.jsx";
@@ -25,7 +25,9 @@ const COSMETIC_EQUIP_GROUPS = [
   { label: "Dash Animation", slot: "dashStyle", bucket: "dashes", items: DASH_STYLES, noun: "dash animation" },
   { label: "Pet", slot: "pet", bucket: "pets", items: PETS, noun: "pet" },
   { label: "Weapon Style", slot: "weapon", bucket: "weapons", items: WEAPONS, noun: "weapon" },
-  { label: "Ability", slot: "ability", bucket: "abilities", items: ABILITIES, noun: "ability" }
+  { label: "Ability", slot: "ability", bucket: "abilities", items: ABILITIES, noun: "ability" },
+  { label: "Ability FX", slot: "abilityStyle", bucket: "abilityStyles", items: ABILITY_STYLES, noun: "ability effect" },
+  { label: "Archive Relic", slot: "relic", bucket: "relics", items: ARCHIVE_RELICS, noun: "archive relic", secretOnly: true }
 ];
 const APPEARANCE_GROUPS = COSMETIC_EQUIP_GROUPS.slice(0, 6);
 const LOADOUT_GROUPS = COSMETIC_EQUIP_GROUPS.slice(6);
@@ -36,6 +38,7 @@ const COSMETIC_SHOP_GROUPS = [
   { title: "Armor Kits", slot: "armor", bucket: "armors", items: ARMORS.filter((item) => item.id !== COSMETIC_DEFAULTS.armor) },
   { title: "Decals", slot: "decal", bucket: "decals", items: DECALS.filter((item) => item.id !== COSMETIC_DEFAULTS.decal) },
   { title: "Dash Animations", slot: "dashStyle", bucket: "dashes", items: DASH_STYLES.filter((item) => item.id !== COSMETIC_DEFAULTS.dashStyle) },
+  { title: "Ability Effects", slot: "abilityStyle", bucket: "abilityStyles", items: ABILITY_STYLES.filter((item) => item.id !== COSMETIC_DEFAULTS.abilityStyle) },
   { title: "Pets", slot: "pet", bucket: "pets", items: PETS.filter((item) => item.id !== "none") },
   { title: "Weapon Styles", slot: "weapon", bucket: "weapons", items: WEAPONS.filter((item) => item.id !== WEAPON_DEFAULT) },
   { title: "Abilities", slot: "ability", bucket: "abilities", items: ABILITIES.filter((item) => item.id !== ABILITY_DEFAULT) }
@@ -57,7 +60,7 @@ function CosmeticOptionGroup({ group, cosmetic, owned, equipCosmetic, setMessage
               key={item.id}
               data-active={cosmetic[group.slot] === item.id}
               data-locked={!unlocked}
-              onClick={() => unlocked ? equipCosmetic(group.slot, item.id) : setMessage(`Unlock this ${group.noun} in the shop first.`)}
+              onClick={() => unlocked ? equipCosmetic(group.slot, item.id) : setMessage(group.secretOnly ? "Restore more Station Secrets to unlock this relic." : `Unlock this ${group.noun} in the shop first.`)}
             >
               <span>{item.label}</span>
               {item.perk && <small>{item.perk}</small>}
@@ -187,8 +190,18 @@ function ProfileScreen({ user, setUser, setScreen }) {
       ctx.fillText(weapon.label, 12, 16);
       ctx.fillStyle = "#91a9ac";
       ctx.font = "700 11px Rajdhani, Bahnschrift, sans-serif";
-      if (((t * 1000) % ability.cooldownMs) < 900) {
-        drawAbilityBurst(ctx, { x: 66, y: 62, type: ability.id, life: 360, maxLife: 520 });
+      const previewCycle = (t * 1000) % Math.min(ability.cooldownMs, 3200);
+      if (previewCycle < 1250) {
+        const previewLife = 1250 - previewCycle;
+        drawAbilityBurst(ctx, {
+          x: ability.id === "teleport" || ability.id === "grapple" ? 190 : 66,
+          y: ability.id === "grapple" ? 38 : 62,
+          fromX: 66,
+          fromY: 62,
+          type: ability.id,
+          life: previewLife,
+          maxLife: 1250
+        }, cosmetic);
       }
       ctx.fillText(`Trail: ${DASH_STYLE_BY_ID.get(cosmetic.dashStyle)?.label || "Streak"}`, 12, 90);
       ctx.fillText(`Pet: ${PET_BY_ID.get(cosmetic.pet)?.label || "No Pet"}`, 12, 104);
@@ -220,7 +233,9 @@ function ProfileScreen({ user, setUser, setScreen }) {
       decal: currentOwned.decals.includes(cosmetic.decal) ? cosmetic.decal : COSMETIC_DEFAULTS.decal,
       armor: currentOwned.armors.includes(cosmetic.armor) ? cosmetic.armor : COSMETIC_DEFAULTS.armor,
       pet: currentOwned.pets.includes(cosmetic.pet) ? cosmetic.pet : "none",
+      relic: currentOwned.relics.includes(cosmetic.relic) ? cosmetic.relic : "none",
       dashStyle: currentOwned.dashes.includes(cosmetic.dashStyle) ? cosmetic.dashStyle : "streak",
+      abilityStyle: currentOwned.abilityStyles.includes(cosmetic.abilityStyle) ? cosmetic.abilityStyle : "signal",
       weapon: currentOwned.weapons.includes(cosmetic.weapon) ? cosmetic.weapon : WEAPON_DEFAULT,
       ability: currentOwned.abilities.includes(cosmetic.ability) ? cosmetic.ability : ABILITY_DEFAULT
     };
@@ -297,6 +312,8 @@ function ProfileScreen({ user, setUser, setScreen }) {
                 <div><span>Ability</span><strong>{getAbilityById(cosmetic.ability).label}</strong></div>
                 <div><span>Companion</span><strong>{PET_BY_ID.get(cosmetic.pet)?.label || "No Pet"}</strong></div>
                 <div><span>Dash FX</span><strong>{DASH_STYLE_BY_ID.get(cosmetic.dashStyle)?.label || "Streak"}</strong></div>
+                <div><span>Ability FX</span><strong>{ABILITY_STYLE_BY_ID.get(cosmetic.abilityStyle)?.label || "Signal Rings"}</strong></div>
+                <div><span>Archive Relic</span><strong>{ARCHIVE_RELIC_BY_ID.get(cosmetic.relic)?.label || "No Relic"}</strong></div>
               </div>
               <p>Every change previews immediately. Locked equipment stays visible for comparison and can be purchased in the Shop.</p>
             </aside>

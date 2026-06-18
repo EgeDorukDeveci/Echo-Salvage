@@ -48,7 +48,16 @@ function Summary({ summary, next, returnToMenu }) {
             <small>{summary.contractFirstClear ? `Completed · +${summary.contractReward} coins secured` : summary.contractAlreadyClaimed ? "Completed · reward previously claimed" : summary.contractCompleted ? "Completed" : "Contract incomplete"}</small>
           </div>
         )}
-        {summary.secretRecovered && summary.secret && <div className="summary-secret"><span>Station secret recovered</span><strong>{summary.secret.title}</strong><p>{summary.secret.text}</p><small>Recorder Archive updated</small></div>}
+        {summary.secretRecovered && summary.secret && <div className="summary-secret" data-milestone={Boolean(summary.secretRecovery?.milestone)}>
+          <span>{summary.secretRecovery?.milestone ? "Archive milestone restored" : "Station secret recovered"}</span>
+          <strong>{summary.secretRecovery?.milestone?.title || summary.secret.title}</strong>
+          <p>{summary.secret.text}</p>
+          <small>
+            {summary.secretRecovery?.milestone
+              ? `${summary.secretRecovery.milestone.protocol}${summary.secretRecovery.milestone.unlock ? ` · ${summary.secretRecovery.milestone.unlock.label} unlocked` : ""}`
+              : "Recorder fragment restored · Archive Relic milestone advanced"}
+          </small>
+        </div>}
         {isStationExpedition && (
           <div className="station-debrief">
             <div className="station-debrief-result" data-success={summary.result === "Extracted"}>

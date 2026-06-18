@@ -2,7 +2,7 @@ import { rooms, CAMPAIGN_SECTIONS, getCampaignRoutePoints, getCampaignRoutePath,
 import { makeLevel } from "../../game/levels.js";
 import { clamp, countLevelHostiles } from "../../game/geometry.js";
 import { getRoomContract } from "../../game/contracts.js";
-import { STATION_SECRETS } from "../../game/secrets.js";
+import { STATION_SECRETS, SECRET_MILESTONES, getNextSecretMilestone } from "../../game/secrets.js";
 import { getStationNode, getStationMutationForNode, getStationEventForNode, getCampaignSection, getRoomMechanicHint, getObjectiveText } from "../../game/rules.js";
 import { getNextCampaignRoomIndex, isRoomUnlocked, getCurrentSectionIndex, normalizeProgress, getTotalStars } from "../../services/profile-store.js";
 import { AvatarBadge, Button } from "../ui.jsx";
@@ -439,6 +439,7 @@ function Brief({ icon, title, text }) {
 function SystemsManual({ user, setScreen }) {
   const recoveredSecrets = user?.secrets || {};
   const recoveredCount = STATION_SECRETS.filter((secret) => recoveredSecrets[secret.id]).length;
+  const nextSecretMilestone = getNextSecretMilestone(recoveredCount);
   return (
     <div className="overlay manual-overlay">
       <section className="panel systems-manual">
@@ -479,14 +480,24 @@ function SystemsManual({ user, setScreen }) {
           </section>
           <section>
             <span className="manual-number">06</span><h3>Visual cosmetics</h3>
-            <p>Frames, paint, cockpit, engine, armor, decals, dash animation, and trails change appearance only. Universal colors can be reused across slots.</p>
+            <p>Frames, paint, cockpit, engine, armor, decals, dash animation, and trails change appearance only. Archive Relics are the exception: they are visible accessories with an equipped power.</p>
             <strong>Duration: permanent account unlock.</strong>
           </section>
         </div>
         <div className="secret-archive-head">
-          <div><span className="badge">Recorder Archive</span><h3>Station Secrets</h3><p>Hidden recorder fragments resolve when you approach them. Recover one with E; fragments never block extraction.</p></div>
+          <div><span className="badge">Recorder Archive</span><h3>Station Secrets</h3><p>Restore all three fragments on a deck to recover a visible Archive Relic. Relics are secret-only accessories with powers and cannot be purchased.</p></div>
           <strong>{recoveredCount}/{STATION_SECRETS.length} recovered</strong>
         </div>
+        <div className="secret-milestones">
+          {SECRET_MILESTONES.map((milestone) => (
+            <article key={milestone.count} data-complete={recoveredCount >= milestone.count}>
+              <span>{milestone.count} fragments</span>
+              <strong>{milestone.title}</strong>
+              <small>{milestone.protocol}{milestone.unlock ? ` · ${milestone.unlock.label}` : ""}</small>
+            </article>
+          ))}
+        </div>
+        {nextSecretMilestone && <p className="secret-next-reward">{nextSecretMilestone.count - recoveredCount} more fragment{nextSecretMilestone.count - recoveredCount === 1 ? "" : "s"} until <strong>{nextSecretMilestone.title}</strong>.</p>}
         <div className="secret-archive-grid">
           {STATION_SECRETS.map((secret, index) => {
             const recovered = Boolean(recoveredSecrets[secret.id]);
@@ -495,7 +506,7 @@ function SystemsManual({ user, setScreen }) {
                 <span>{String(index + 1).padStart(2, "0")} · {secret.deck}</span>
                 <h4>{recovered ? secret.title : "Encrypted Fragment"}</h4>
                 <p>{recovered ? secret.text : "Signal contents unavailable."}</p>
-                <small>{recovered ? "Archive restored" : `Hidden in room ${secret.roomIndex + 1}`}</small>
+                <small>{recovered ? "Fragment restored · archive milestone progress secured" : `Hidden in room ${secret.roomIndex + 1} · advances Archive Relic restoration`}</small>
               </article>
             );
           })}

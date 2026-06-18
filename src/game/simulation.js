@@ -59,6 +59,12 @@ function resolveAfterPhase(entity, level) {
   nudgeOutOfBlocks(entity, [...level.walls, ...level.doors.filter((door) => !door.open)], entity.phaseVector, 220);
 }
 
+function breakCloakOnFire(player, now) {
+  if (now >= (player.cloakUntil || 0)) return false;
+  player.cloakUntil = 0;
+  return true;
+}
+
 function isExtractionReady(level, player, { ignoreLiveCore = false } = {}) {
   const roomSecured =
     (ignoreLiveCore || !level.core || !level.core.alive) &&
@@ -77,5 +83,6 @@ export {
   moveCargo,
   phaseMove,
   resolveAfterPhase,
+  breakCloakOnFire,
   isExtractionReady
 };

@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react";
-import { W, H, ECHO_MS, ECHO_FRAME_MS, MAX_ECHOES, PLAYER_MARGIN, MAX_ENERGY, ECHO_COST, DIFFICULTY_TUNING, COSMETIC_DEFAULTS, WEAPONS, ABILITIES, WEAPON_BY_ID, ABILITY_BY_ID, SECTION_MINIBOSSES, MINIBOSS_SPREADS, createMiniboss, CAMPAIGN_SECTION_BY_ID } from "../game/config.js";
+import { W, H, ECHO_MS, ECHO_FRAME_MS, MAX_ECHOES, PLAYER_MARGIN, MAX_ENERGY, ECHO_COST, DIFFICULTY_TUNING, COSMETIC_DEFAULTS, WEAPONS, ABILITIES, WEAPON_BY_ID, ABILITY_BY_ID, ARCHIVE_RELIC_BY_ID, SECTION_MINIBOSSES, MINIBOSS_SPREADS, createMiniboss, CAMPAIGN_SECTION_BY_ID } from "../game/config.js";
 import { makeLevel, makeExpeditionLevel } from "../game/levels.js";
 import { rectsTouch, dist, clamp, playerRect, getSolidBlocks, SPECIAL_HOSTILE_KEYS, getLevelHostiles, finalizeCustomLevel, hasLineOfSight, pointToSegmentDistance } from "../game/geometry.js";
 import { getBossPhase, damageBoss, spawnBossProjectile, spawnEnemyProjectile, spawnEnemySpread, spawnEnemyRadial } from "../game/combat.js";
 import { drawLevel } from "../game/rendering.js";
 import { getCampaignSection, getCampaignTuning } from "../game/rules.js";
-import { captureEchoReplay, isCargoBlocked, moveCargo, phaseMove, resolveAfterPhase, isExtractionReady } from "../game/simulation.js";
+import { captureEchoReplay, isCargoBlocked, moveCargo, phaseMove, resolveAfterPhase, breakCloakOnFire, isExtractionReady } from "../game/simulation.js";
 import { getRoomContract, getContractRunState, evaluateContract, getContractProgress } from "../game/contracts.js";
 import { getStationSecret } from "../game/secrets.js";
 
@@ -149,6 +149,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     runInstance.current += 1;
     const level = createRunLevel(levelIndex, customLevel, expedition);
     const perks = getPetPerks(cosmetic);
+    const archiveBonuses = ARCHIVE_RELIC_BY_ID.get(cosmetic.relic) || ARCHIVE_RELIC_BY_ID.get("none");
     const weapon = getWeaponById(cosmetic.weapon);
     const ability = getAbilityById(cosmetic.ability);
     const tuning = getRunTuning(levelIndex, customLevel, settings);
@@ -159,7 +160,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     const hostileHpBonus = tuning.hostileHpBonus || 0;
     prepareRunLevel(level, hostileHpBonus);
     const expeditionPowerBonus = expedition?.active ? (expedition.power || 0) * 8 : 0;
-    const maxEnergy = tuning.maxEnergy + (mods.has("capacitorMesh") ? 20 : 0) + expeditionPowerBonus;
+    const maxEnergy = tuning.maxEnergy + archiveBonuses.maxEnergy + (mods.has("capacitorMesh") ? 20 : 0) + expeditionPowerBonus;
     game.current = {
       level,
       activeIds: new Set(),
@@ -206,6 +207,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       secretStatus: "",
       secretStatusUntil: 0,
       secretFoundThisRun: false,
+      secretRecovery: null,
       recording: [],
       recordTimer: 0,
       started: performance.now(),
@@ -215,6 +217,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       shake: 0,
       campaignSection: level.sectionId ? CAMPAIGN_SECTION_BY_ID.get(level.sectionId) : getCampaignSection(levelIndex),
       tuning,
+      archiveBonuses,
       expedition: { upgrades, mods, mutation, event, active: Boolean(expedition?.active), alert: expedition?.alert || 0, power: expedition?.power || 0 }
     };
     game.current.contract = !customLevel && !expedition?.active ? getRoomContract(level, levelIndex) : null;
@@ -305,7 +308,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     const g = game.current;
     if (!g) return;
     const perks = getPetPerks(cosmetic);
-    const echoCost = Math.max(8, ECHO_COST - (perks.echoDiscount || 0));
+    const echoCost = Math.max(8, ECHO_COST - (perks.echoDiscount || 0) - (g.archiveBonuses?.echoDiscount || 0));
     const blockEcho = (message, shake = 4) => {
       g.echoStatus = message;
       g.echoStatusUntil = performance.now() + 1300;
@@ -437,7 +440,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
           y: clamp(mouse.current.y, PLAYER_MARGIN, H - PLAYER_MARGIN)
         };
     g.player.energy -= ability.energyCost;
-    g.player.abilityReadyAt = now + ability.cooldownMs * (perks.abilityCooldownMultiplier || 1);
+    g.player.abilityReadyAt = now + ability.cooldownMs * (perks.abilityCooldownMultiplier || 1) * (g.archiveBonuses?.abilityCooldownMultiplier || 1);
     g.abilityBursts.push({ x: g.player.x, y: g.player.y, type: ability.id, life: 520, maxLife: 520 });
     if (ability.id === "dash") {
       g.dashBursts.push({ x: g.player.x, y: g.player.y, angle: directionAngle, life: 260, maxLife: 260 });
@@ -455,8 +458,9 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     } else if (ability.id === "teleport") {
       const targetX = aimedTarget.x;
       const targetY = aimedTarget.y;
-      g.player.pendingTeleport = { x: targetX, y: targetY, executeAt: now + 2000 };
-      g.abilityBursts.push({ x: targetX, y: targetY, type: ability.id, life: 2000, maxLife: 2000 });
+      const chargeMs = ability.chargeMs || 1250;
+      g.player.pendingTeleport = { x: targetX, y: targetY, originX: g.player.x, originY: g.player.y, executeAt: now + chargeMs };
+      g.abilityBursts.push({ x: targetX, y: targetY, fromX: g.player.x, fromY: g.player.y, type: ability.id, life: chargeMs, maxLife: chargeMs });
     } else if (ability.id === "blastDash") {
       const start = { x: g.player.x, y: g.player.y };
       phaseMove(g.player, nx * 205, ny * 205);
@@ -474,7 +478,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
       }
       g.abilityBursts.push({ x: g.player.x, y: g.player.y, type: ability.id, life: 720, maxLife: 720 });
     } else if (ability.id === "cloak") {
-      g.player.cloakUntil = now + 5000;
+      g.player.cloakUntil = now + (ability.durationMs || 3250);
     } else if (ability.id === "grapple") {
       const targetX = aimedTarget.x;
       const targetY = aimedTarget.y;
@@ -506,6 +510,9 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     }
     if (now < g.player.nextShotAt) return;
     g.player.ammo -= 1;
+    if (breakCloakOnFire(g.player, now)) {
+      g.abilityBursts.push({ x: g.player.x, y: g.player.y, type: "cloak", life: 420, maxLife: 420, disrupted: true });
+    }
     const base = g.player.angle;
     const runId = g.runId;
     for (let i = 0; i < weapon.shotsPerTrigger; i += 1) {
@@ -591,11 +598,12 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
     if (options.discoverSecret && g.secret && !g.secret.recovered && dist(actor, g.secret) < 72) {
       g.secret.recovered = true;
       g.secretFoundThisRun = true;
-      g.player.coinsEarned += g.secret.reward;
-      g.coinPopups.push({ x: g.secret.x, y: g.secret.y - 8, amount: g.secret.reward, life: 780, maxLife: 780, spin: Math.random() * Math.PI * 2 });
-      g.secretStatus = `Secret recovered · ${g.secret.title} · +${g.secret.reward} coins`;
-      g.secretStatusUntil = performance.now() + 3200;
-      onDiscoverSecret?.(g.secret);
+      const recovery = onDiscoverSecret?.(g.secret);
+      g.secretRecovery = recovery || { milestone: null };
+      g.secretStatus = recovery?.milestone
+        ? `${recovery.milestone.title} · ${recovery.milestone.unlock?.label || recovery.milestone.protocol}`
+        : `Secret recovered · ${g.secret.title} · Archive Relic progress advanced`;
+      g.secretStatusUntil = performance.now() + (recovery?.milestone ? 5200 : 3600);
     }
     if (!options.toggleCargo) return;
     const nearest = g.level.crates
@@ -690,7 +698,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         g.player.phaseVector = { x: target.x - g.player.x, y: target.y - g.player.y };
         phaseMove(g.player, target.x - g.player.x, target.y - g.player.y);
         resolveAfterPhase(g.player, level);
-        g.abilityBursts.push({ x: g.player.x, y: g.player.y, type: "teleport", life: 620, maxLife: 620 });
+        g.abilityBursts.push({ x: g.player.x, y: g.player.y, fromX: target.originX, fromY: target.originY, type: "teleport", life: 720, maxLife: 720, arrival: true });
         g.player.pendingTeleport = null;
       }
       if (g.grapple) {
@@ -1181,6 +1189,7 @@ function useGame({ levelIndex, customLevel, screen, setScreen, settings, setSumm
         };
         resolvedSummary.secretRecovered = Boolean(g.secretFoundThisRun);
         resolvedSummary.secret = g.secret;
+        resolvedSummary.secretRecovery = g.secretRecovery;
         const contractRun = getContractRunState(g, now);
         resolvedSummary.contract = g.contract;
         resolvedSummary.contractProgress = getContractProgress(g.contract, contractRun, level);

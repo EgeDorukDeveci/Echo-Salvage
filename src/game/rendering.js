@@ -590,8 +590,8 @@ function drawLevel(ctx, level, game, shake = 0, cosmetic = COSMETIC_DEFAULTS, ui
   ctx.textAlign = "left";
 
   game.dashBursts?.forEach((burst) => drawDashBurst(ctx, burst, cosmetic));
-  game.abilityBursts?.forEach((burst) => drawAbilityBurst(ctx, burst));
-  drawGrapple(ctx, game.grapple, game.player);
+  game.abilityBursts?.forEach((burst) => drawAbilityBurst(ctx, burst, cosmetic));
+  drawGrapple(ctx, game.grapple, game.player, cosmetic);
   game.coinPopups?.forEach((popup) => {
     const life = popup.life / popup.maxLife;
     const drift = (1 - life) * 24;
@@ -771,30 +771,159 @@ function drawDashBurst(ctx, burst, cosmetic = COSMETIC_DEFAULTS) {
   ctx.restore();
 }
 
-function drawAbilityBurst(ctx, burst) {
-  const life = burst.life / burst.maxLife;
-  ctx.save();
-  ctx.translate(burst.x, burst.y);
-  ctx.globalAlpha = Math.max(0, life) * 0.8;
-  ctx.lineWidth = 4;
-  const radius = 18 + (1 - life) * 88;
-  const color =
+function drawAbilityBurst(ctx, burst, cosmetic = COSMETIC_DEFAULTS) {
+  const life = clamp(burst.life / burst.maxLife, 0, 1);
+  const progress = 1 - life;
+  const style = cosmetic.abilityStyle || "signal";
+  const baseColor =
     burst.type === "teleport" ? "#b78cff" :
       burst.type === "blastDash" ? "#ff8a00" :
         burst.type === "cloak" ? "#8aa0ff" :
           burst.type === "grapple" ? "#ffd52d" :
             "#00f0d2";
+  const color = burst.disrupted ? "#ff4e41" : baseColor;
+
+  ctx.save();
+  ctx.globalAlpha = life * 0.86;
   ctx.strokeStyle = color;
+  ctx.fillStyle = color;
   ctx.shadowColor = color;
   ctx.shadowBlur = 18;
-  ctx.beginPath();
-  ctx.arc(0, 0, radius, 0, Math.PI * 2);
-  ctx.stroke();
+
+  if (Number.isFinite(burst.fromX) && Number.isFinite(burst.fromY)) {
+    const dx = burst.x - burst.fromX;
+    const dy = burst.y - burst.fromY;
+    const gap = Math.hypot(dx, dy) || 1;
+    ctx.save();
+    ctx.lineWidth = style === "fracture" ? 2 : 3;
+    if (style === "fracture") ctx.setLineDash([10, 9, 3, 7]);
+    else if (style === "afterimage") ctx.setLineDash([18, 8]);
+    ctx.beginPath();
+    ctx.moveTo(burst.fromX, burst.fromY);
+    ctx.lineTo(burst.x, burst.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    for (let i = 1; i <= 4; i += 1) {
+      const offset = ((progress * 1.4 + i / 4) % 1);
+      ctx.globalAlpha = life * (0.18 + i * 0.09);
+      ctx.beginPath();
+      ctx.arc(burst.fromX + dx * offset, burst.fromY + dy * offset, 2 + i * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (burst.type === "grapple") {
+      ctx.translate(burst.x, burst.y);
+      ctx.rotate(Math.atan2(dy, dx));
+      ctx.globalAlpha = life;
+      ctx.beginPath();
+      ctx.moveTo(12, 0);
+      ctx.lineTo(-5, -8);
+      ctx.lineTo(-1, 0);
+      ctx.lineTo(-5, 8);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  ctx.translate(burst.x, burst.y);
+  const radius = 15 + progress * (burst.type === "cloak" ? 66 : 82);
+  ctx.lineWidth = 3;
+
+  if (burst.type === "teleport") {
+    ctx.save();
+    ctx.rotate(progress * Math.PI);
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 18 + progress * 20, 42 - progress * 8, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha *= 0.55;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 8 + progress * 12, 30 - progress * 5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  } else if (burst.type === "blastDash") {
+    ctx.save();
+    ctx.rotate(progress * 0.55);
+    for (let i = 0; i < 3; i += 1) {
+      const r = 22 + i * 17 + progress * 26;
+      ctx.globalAlpha = life * (0.85 - i * 0.18);
+      ctx.beginPath();
+      ctx.moveTo(r, 0);
+      ctx.lineTo(-r * 0.55, -r * 0.48);
+      ctx.lineTo(-r * 0.25, 0);
+      ctx.lineTo(-r * 0.55, r * 0.48);
+      ctx.closePath();
+      ctx.stroke();
+    }
+    ctx.restore();
+  } else if (burst.type === "cloak") {
+    for (let i = 0; i < 4; i += 1) {
+      ctx.globalAlpha = life * (0.8 - i * 0.13);
+      ctx.lineWidth = 2 + (i % 2);
+      ctx.beginPath();
+      ctx.arc(0, 0, 20 + i * 11 + Math.sin(progress * 18 + i) * 5, progress * 4 + i, progress * 4 + i + Math.PI * 1.3);
+      ctx.stroke();
+    }
+  } else if (burst.type === "grapple") {
+    ctx.beginPath();
+    ctx.arc(0, 0, 16 + progress * 34, 0, Math.PI * 2);
+    ctx.stroke();
+    for (let i = 0; i < 4; i += 1) {
+      const angle = i * Math.PI / 2 + progress;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * 8, Math.sin(angle) * 8);
+      ctx.lineTo(Math.cos(angle) * (32 + progress * 26), Math.sin(angle) * (32 + progress * 26));
+      ctx.stroke();
+    }
+  } else {
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  if (style === "prism") {
+    ctx.save();
+    ctx.rotate(progress * Math.PI * 1.5);
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 6; i += 1) {
+      const angle = i * Math.PI / 3;
+      const inner = radius * 0.55;
+      const outer = radius * 0.95;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle - 0.15) * inner, Math.sin(angle - 0.15) * inner);
+      ctx.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
+      ctx.lineTo(Math.cos(angle + 0.15) * inner, Math.sin(angle + 0.15) * inner);
+      ctx.stroke();
+    }
+    ctx.restore();
+  } else if (style === "fracture") {
+    ctx.lineWidth = 3;
+    ctx.setLineDash([9, 7, 3, 8]);
+    ctx.lineDashOffset = -progress * 42;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.82, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  } else if (style === "afterimage") {
+    for (let i = 1; i <= 3; i += 1) {
+      ctx.globalAlpha = life * (0.34 / i);
+      ctx.beginPath();
+      ctx.arc(-i * 8, i % 2 ? -i * 3 : i * 3, radius * (0.72 + i * 0.1), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  } else {
+    ctx.globalAlpha = life * 0.38;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.68, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
   ctx.restore();
 }
 
-function drawGrapple(ctx, grapple, player) {
+function drawGrapple(ctx, grapple, player, cosmetic = COSMETIC_DEFAULTS) {
   if (!grapple) return;
+  const style = cosmetic.abilityStyle || "signal";
   const launchProgress = clamp(grapple.age / grapple.launchMs, 0, 1);
   const hookX = lerp(grapple.startX, grapple.targetX, launchProgress);
   const hookY = lerp(grapple.startY, grapple.targetY, launchProgress);
@@ -808,8 +937,20 @@ function drawGrapple(ctx, grapple, player) {
   ctx.shadowColor = "#ffd52d";
   ctx.shadowBlur = 14;
   ctx.lineWidth = 3;
-  ctx.setLineDash([8, 5]);
+  ctx.setLineDash(style === "fracture" ? [12, 9, 3, 7] : style === "prism" ? [4, 3] : [8, 5]);
   ctx.lineDashOffset = -grapple.age * 0.08;
+  if (style === "afterimage") {
+    ctx.globalAlpha = fade * 0.22;
+    ctx.lineWidth = 2;
+    [-7, 7].forEach((offset) => {
+      ctx.beginPath();
+      ctx.moveTo(player.x, player.y + offset);
+      ctx.lineTo(cableEndX, cableEndY + offset);
+      ctx.stroke();
+    });
+    ctx.globalAlpha = fade;
+    ctx.lineWidth = 3;
+  }
   ctx.beginPath();
   ctx.moveTo(player.x, player.y);
   ctx.lineTo(cableEndX, cableEndY);
@@ -1394,7 +1535,11 @@ function drawDrone(ctx, p, echo, cosmetic = COSMETIC_DEFAULTS) {
   ctx.translate(p.x, p.y);
   ctx.rotate(p.angle || 0);
   if (p.fused) ctx.scale(1.28, 1.28);
-  ctx.globalAlpha = echo ? 0.48 : p.cloakUntil > performance.now() ? 0.22 : 1;
+  const cloakRemaining = (p.cloakUntil || 0) - performance.now();
+  const cloakAlpha = cloakRemaining > 0
+    ? cloakRemaining < 850 ? 0.2 + Math.abs(Math.sin(performance.now() * 0.018)) * 0.34 : 0.2
+    : 1;
+  ctx.globalAlpha = echo ? 0.48 : cloakAlpha;
   if (p.dashTrail && !echo) {
     ctx.globalAlpha = 0.35;
     ctx.fillStyle = skin.trail;
@@ -1601,6 +1746,67 @@ function drawDrone(ctx, p, echo, cosmetic = COSMETIC_DEFAULTS) {
       ctx.fillRect(2, -10, 3, 8);
       ctx.fillRect(8, -8, 3, 6);
     }
+  }
+  if (skin.relic !== "none" && !echo) {
+    const pulse = 0.72 + Math.sin(performance.now() * 0.006) * 0.18;
+    ctx.save();
+    ctx.shadowBlur = 12;
+    ctx.lineWidth = 2;
+    if (skin.relic === "memoryCoil") {
+      ctx.strokeStyle = "#00f0d2";
+      ctx.shadowColor = "#00f0d2";
+      ctx.globalAlpha = pulse;
+      ctx.beginPath();
+      ctx.ellipse(-13, 0, 11, 18, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(-13, 0, 6, 13, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (skin.relic === "echoLure") {
+      ctx.strokeStyle = "#b78cff";
+      ctx.fillStyle = "#b78cff";
+      ctx.shadowColor = "#b78cff";
+      [-1, 1].forEach((side) => {
+        ctx.beginPath();
+        ctx.moveTo(-5, side * 13);
+        ctx.lineTo(-15, side * 27);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(-16, side * 29, 3 + pulse, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    } else if (skin.relic === "phaseLens") {
+      ctx.strokeStyle = "#ffd52d";
+      ctx.shadowColor = "#ffd52d";
+      ctx.globalAlpha = pulse;
+      ctx.beginPath();
+      ctx.arc(7, 0, 10, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(7, 0, 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(17, 0);
+      ctx.lineTo(24, 0);
+      ctx.stroke();
+    } else if (skin.relic === "nullCrown") {
+      ctx.strokeStyle = "#ff6ec7";
+      ctx.fillStyle = "#b78cff";
+      ctx.shadowColor = "#ff6ec7";
+      ctx.globalAlpha = pulse;
+      ctx.beginPath();
+      ctx.moveTo(-9, -17);
+      ctx.lineTo(-5, -27);
+      ctx.lineTo(0, -21);
+      ctx.lineTo(6, -30);
+      ctx.lineTo(11, -17);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(1, -23, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
   }
   ctx.restore();
 }

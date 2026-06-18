@@ -1,4 +1,4 @@
-import { COSMETIC_DEFAULTS, BODY_COLORS, TRAIL_COLORS, UNIVERSAL_COLORS, DRONE_FRAMES, COCKPITS, ENGINES, DECALS, ARMORS, PETS, DASH_STYLES, WEAPONS, ABILITIES } from "../../game/config.js";
+import { COSMETIC_DEFAULTS, BODY_COLORS, TRAIL_COLORS, UNIVERSAL_COLORS, DRONE_FRAMES, COCKPITS, ENGINES, DECALS, ARMORS, PETS, DASH_STYLES, ABILITY_STYLES, ARCHIVE_RELICS, WEAPONS, ABILITIES } from "../../game/config.js";
 import { AUTH_SESSION_TTL_MS, DEV_LOGIN, DEV_COINS, DEFAULT_OWNED, makeRandomHex, createPasswordRecord, verifyStoredPassword, getStoredUsers, saveStoredUsers, storeSession, updateStoredUserProfile } from "../../services/profile-store.js";
 import { loginServerProfile, signupServerProfile } from "../../services/server-api.js";
 import { Button } from "../ui.jsx";
@@ -51,7 +51,9 @@ function AuthScreen({ onAuth }) {
             decals: DECALS.map((decal) => decal.id),
             armors: ARMORS.map((armor) => armor.id),
             pets: PETS.map((pet) => pet.id),
+            relics: ARCHIVE_RELICS.map((relic) => relic.id),
             dashes: DASH_STYLES.map((dash) => dash.id),
+            abilityStyles: ABILITY_STYLES.map((style) => style.id),
             weapons: WEAPONS.map((weapon) => weapon.id),
             abilities: ABILITIES.map((ability) => ability.id)
           },
