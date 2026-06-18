@@ -3,7 +3,7 @@ import { drawDashBurst, drawAbilityBurst, drawDrone, drawPet } from "../../game/
 import { normalizeEconomy, getStoredUsers, updateStoredUserProfile, updateUserEconomy } from "../../services/profile-store.js";
 import { AvatarBadge, Button } from "../ui.jsx";
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, UserRound, X } from "lucide-react";
+import { Crosshair, Palette, Sparkles, UserRound, X } from "lucide-react";
 
 const BODY_PRICES = { "#ffd52d": 35, "#00f0d2": 45, "#58e07a": 55, "#ff4e41": 70, "#ffb000": 100, "#ff8a00": 80, "#b78cff": 120, "#8aa0ff": 125, "#ff6ec7": 130, "#9df6a3": 110, "#7ef9ff": 115, "#f5f7ff": 135, "#ff9f7f": 90, "#c9ff45": 105, "#4de0ff": 95, "#f4dd74": 98, "#f77d9d": 112, "#8cffda": 118, "#7a91ff": 128, "#f0a6ff": 138, "#7ef0b6": 108, "#ffcf6b": 102, "#e3ffe7": 116, "#fbe7ff": 124, "#9fb8ff": 132 };
 const TRAIL_PRICES = { "#ffd52d": 35, "#58e07a": 50, "#ff4e41": 65, "#e7f0ef": 80, "#ff8a00": 95, "#b78cff": 110, "#8aa0ff": 115, "#ff6ec7": 120, "#9df6a3": 90, "#7ef9ff": 100, "#f5f7ff": 125, "#f77d9d": 105, "#c9ff45": 92, "#4de0ff": 96, "#ffcf6b": 99, "#f0a6ff": 130, "#8cffda": 108 };
@@ -27,6 +27,8 @@ const COSMETIC_EQUIP_GROUPS = [
   { label: "Weapon Style", slot: "weapon", bucket: "weapons", items: WEAPONS, noun: "weapon" },
   { label: "Ability", slot: "ability", bucket: "abilities", items: ABILITIES, noun: "ability" }
 ];
+const APPEARANCE_GROUPS = COSMETIC_EQUIP_GROUPS.slice(0, 6);
+const LOADOUT_GROUPS = COSMETIC_EQUIP_GROUPS.slice(6);
 const COSMETIC_SHOP_GROUPS = [
   { title: "Drone Frames", slot: "frame", bucket: "frames", items: DRONE_FRAMES.filter((item) => item.id !== COSMETIC_DEFAULTS.frame), price: (item) => FRAME_PRICES[item.id] || 80 },
   { title: "Cockpits", slot: "cockpit", bucket: "cockpits", items: COCKPITS.filter((item) => item.id !== COSMETIC_DEFAULTS.cockpit) },
@@ -41,16 +43,17 @@ const COSMETIC_SHOP_GROUPS = [
 
 function CosmeticOptionGroup({ group, cosmetic, owned, equipCosmetic, setMessage }) {
   return (
-    <div className="customizer-lane">
-      <div className="customizer-lane-label">
+    <section className="bay-option-row">
+      <header>
         <label>{group.label}</label>
-        <small>{group.items.length} options</small>
-      </div>
-      <div className="frame-row">
+        <small>{owned[group.bucket].length}/{group.items.length} owned</small>
+      </header>
+      <div className="bay-option-grid">
         {group.items.map((item) => {
           const unlocked = owned[group.bucket].includes(item.id);
           return (
             <button
+              className="bay-option"
               key={item.id}
               data-active={cosmetic[group.slot] === item.id}
               data-locked={!unlocked}
@@ -63,7 +66,7 @@ function CosmeticOptionGroup({ group, cosmetic, owned, equipCosmetic, setMessage
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -72,6 +75,7 @@ function ProfileScreen({ user, setUser, setScreen }) {
   const [cosmetic, setCosmetic] = useState(() => ({ ...COSMETIC_DEFAULTS, ...normalizeEconomy(user).cosmetic }));
   const [message, setMessage] = useState("");
   const [bayView, setBayView] = useState("customize");
+  const [baySection, setBaySection] = useState("appearance");
   const economy = normalizeEconomy(user);
   const owned = economy.owned;
   const ownedColors = owned.colors || [];
@@ -244,40 +248,59 @@ function ProfileScreen({ user, setUser, setScreen }) {
           <button data-active={bayView === "customize"} onClick={() => setBayView("customize")}><UserRound size={18} /><span><strong>Customize</strong><small>Equip owned items</small></span></button>
           <button data-active={bayView === "shop"} onClick={() => setBayView("shop")}><Sparkles size={18} /><span><strong>Shop</strong><small>Browse permanent unlocks</small></span><em>{economy.coins} coins</em></button>
         </div>
-        {bayView === "customize" && <div className="bay-system-guide">
-          <div><span>Gameplay equipment</span><strong>Weapon · Ability · Pet</strong><small>These change combat, movement, or passive stats.</small></div>
-          <div><span>Visual cosmetics</span><strong>Paint · Frame · Engine · Armor · Decal · Trail</strong><small>These only change how your drone looks.</small></div>
-          <div><span>How purchases work</span><strong>Coins unlock permanently</strong><small>Save after equipping. Expedition workshop parts are a separate run-only currency.</small></div>
-        </div>}
-        {bayView === "customize" && <div className="profile-preview">
-          <canvas width="360" height="206" ref={previewRef} />
-          <div className="profile-preview-copy">
-            <strong>Live Preview</strong>
-            <span>Colors are universal. Buy one color and apply it to paint, glow, trail, and engine-style effects.</span>
-          </div>
-        </div>}
         <div className="profile-scroll" data-view={bayView}>
-          {bayView === "customize" ? <>
-          <div className="avatar-grid">
-            {AVATARS.map((item) => (
-              <button className="avatar-choice" data-active={avatar === item.id} key={item.id} onClick={() => setAvatar(item.id)}>
-                <AvatarBadge avatar={item.id} />
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </div>
-          <div className="customizer-grid">
-            {COLOR_EQUIP_SLOTS.map(({ label, slot }) => (
-              <div key={slot}>
-                <label>{label}</label>
-                <div className="swatch-row">
-                  {UNIVERSAL_COLORS.map((color) => <button key={color} className="swatch" data-active={cosmetic[slot] === color} data-locked={!ownedColors.includes(color)} style={{ background: color }} onClick={() => chooseColor(slot, color)} />)}
-                </div>
+          {bayView === "customize" ? <div className="bay-workbench">
+            <main className="bay-catalog">
+              <nav className="bay-section-tabs" aria-label="Customization category">
+                <button data-active={baySection === "appearance"} onClick={() => setBaySection("appearance")}><Palette size={17} /><span><strong>Appearance</strong><small>Paint and drone parts</small></span></button>
+                <button data-active={baySection === "loadout"} onClick={() => setBaySection("loadout")}><Crosshair size={17} /><span><strong>Loadout</strong><small>Weapon, ability and pet</small></span></button>
+              </nav>
+              {baySection === "appearance" ? <>
+                <section className="bay-option-row">
+                  <header><label>Pilot Badge</label><small>{AVATARS.length} available</small></header>
+                  <div className="bay-option-grid bay-avatar-options">
+                    {AVATARS.map((item) => (
+                      <button className="avatar-choice" data-active={avatar === item.id} key={item.id} onClick={() => setAvatar(item.id)}>
+                        <AvatarBadge avatar={item.id} />
+                        <span>{item.label}</span>
+                        <em>{avatar === item.id ? "Selected" : "Available"}</em>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+                {COLOR_EQUIP_SLOTS.map(({ label, slot }) => (
+                  <section className="bay-option-row bay-color-row" key={slot}>
+                    <header><label>{label}</label><small>{ownedColors.length}/{UNIVERSAL_COLORS.length} unlocked</small></header>
+                    <div className="bay-color-grid">
+                      {UNIVERSAL_COLORS.map((color) => (
+                        <button
+                          key={color}
+                          className="swatch"
+                          aria-label={`${label}: ${color}${ownedColors.includes(color) ? "" : " locked"}`}
+                          title={ownedColors.includes(color) ? color : `${color} · unlock in shop`}
+                          data-active={cosmetic[slot] === color}
+                          data-locked={!ownedColors.includes(color)}
+                          style={{ background: color }}
+                          onClick={() => chooseColor(slot, color)}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+                {APPEARANCE_GROUPS.map((group) => <CosmeticOptionGroup key={group.slot} group={group} cosmetic={cosmetic} owned={owned} equipCosmetic={equipCosmetic} setMessage={setMessage} />)}
+              </> : LOADOUT_GROUPS.map((group) => <CosmeticOptionGroup key={group.slot} group={group} cosmetic={cosmetic} owned={owned} equipCosmetic={equipCosmetic} setMessage={setMessage} />)}
+            </main>
+            <aside className="bay-preview-dock">
+              <div className="bay-preview-title"><span className="badge">Live Test Rig</span><strong>{getWeaponById(cosmetic.weapon).label}</strong></div>
+              <canvas width="360" height="206" ref={previewRef} />
+              <div className="bay-equipped-summary">
+                <div><span>Ability</span><strong>{getAbilityById(cosmetic.ability).label}</strong></div>
+                <div><span>Companion</span><strong>{PET_BY_ID.get(cosmetic.pet)?.label || "No Pet"}</strong></div>
+                <div><span>Dash FX</span><strong>{DASH_STYLE_BY_ID.get(cosmetic.dashStyle)?.label || "Streak"}</strong></div>
               </div>
-            ))}
-            {COSMETIC_EQUIP_GROUPS.map((group) => <CosmeticOptionGroup key={group.slot} group={group} cosmetic={cosmetic} owned={owned} equipCosmetic={equipCosmetic} setMessage={setMessage} />)}
-          </div>
-          </> : <div className="bay-shop">
+              <p>Every change previews immediately. Locked equipment stays visible for comparison and can be purchased in the Shop.</p>
+            </aside>
+          </div> : <div className="bay-shop">
             <div className="bay-shop-head">
               <div>
                 <span className="badge">Permanent Unlocks</span>

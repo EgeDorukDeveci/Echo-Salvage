@@ -36,7 +36,7 @@ function App() {
   const deckTheme = customLevel ? settings.uiTheme : getCampaignTheme(levelIndex);
   const menuTheme = getCampaignTheme(getNextCampaignRoomIndex(user?.progress));
   const appTheme = screen === "playing" || screen === "paused" || screen === "summary" ? deckTheme : menuTheme;
-  useAmbient(settings, appTheme);
+  useAmbient(settings, appTheme, screen);
   const returnToMenu = () => {
     setCustomLevel(null);
     setExpedition((current) => ({ ...current, active: false }));
